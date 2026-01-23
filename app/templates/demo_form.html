@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}GameVault - Demo In-Memory{% endblock %}
+
+{% block content %}
+<!-- Barra de navegación -->
+<div class="nav-bar">
+    <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">🏠 Inicio</a>
+    <div class="nav-links">
+        <a href="{{ url_for('main.demo') }}" class="btn btn-primary">🚀 Demo</a>
+        {% if not session.get('user_id') %}
+            <a href="{{ url_for('main.login') }}" class="btn btn-secondary">🔐 Iniciar Sesión</a>
+            <a href="{{ url_for('main.registro') }}" class="btn btn-secondary">📝 Registrarse</a>
+        {% endif %}
+    </div>
+</div>
+
+<section class="section">
+    <h2>🚀 Demo In-Memory</h2>
+    <p style="color: #a0a0a0; margin-bottom: 30px;">
+        ¡Prueba GameVault sin subir tus fotos a la nube! Este formulario procesa todo en memoria 
+        usando <code>io.BytesIO</code> y <code>base64</code>. Tus datos no se guardan en ninguna base de datos.
+    </p>
+    
+    <form action="{{ url_for('main.demo') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="titulo">📝 Título del Juego</label>
+                <input type="text" id="titulo" name="titulo" placeholder="Ej: The Legend of Zelda" required>
+            </div>
+            <div class="form-group">
+                <label for="imagen">🖼️ Imagen del Juego</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*" required>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <p>
+                <strong>ℹ️ Nota:</strong> La imagen se procesa en tu navegador y se envía al servidor 
+                donde se convierte a base64. No se almacena en S3 ni en ninguna base de datos. 
+                Todo desaparece cuando cierras esta página.
+            </p>
+        </div>
+        
+        <button type="submit" class="btn-submit">🎮 Ver Resultado (Demo)</button>
+    </form>
+</section>
+
+<section class="section">
+    <h2>💡 ¿Cómo funciona?</h2>
+    
+    <div class="steps-grid">
+        <div class="step-card">
+            <div class="step-number">1️⃣</div>
+            <h4>Seleccionas</h4>
+            <p>Eliges un archivo de imagen desde tu dispositivo</p>
+        </div>
+        
+        <div class="step-card">
+            <div class="step-number">2️⃣</div>
+            <h4>Procesamos</h4>
+            <p>Usamos <code>io.BytesIO</code> y <code>base64</code></p>
+        </div>
+        
+        <div class="step-card">
+            <div class="step-number">3️⃣</div>
+            <h4>Visualizas</h4>
+            <p>La imagen se muestra instantáneamente</p>
+        </div>
+        
+        <div class="step-card">
+            <div class="step-number">4️⃣</div>
+            <h4>Sin guardar</h4>
+            <p>Todo desaparece al cerrar la página</p>
+        </div>
+    </div>
+</section>
+
+<section class="section text-center">
+    <h3 style="margin-bottom: 20px;">¿Te gustó la demo?</h3>
+    <p style="color: #a0a0a0; margin-bottom: 20px;">
+        Regístrate para guardar tus juegos en la nube
+    </p>
+    <div style="display: flex; justify-content: center; gap: 15px;">
+        <a href="{{ url_for('main.registro') }}" class="btn btn-primary">📝 Registrarse</a>
+        <a href="{{ url_for('main.login') }}" class="btn btn-secondary">🔐 Iniciar Sesión</a>
+    </div>
+</section>
+{% endblock %}
+

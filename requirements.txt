@@ -1,0 +1,5 @@
+flask
+flask-mail
+boto3
+botocore
+werkzeug

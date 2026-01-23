@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GameVault{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Filtros SVG para efectos eléctricos (ocultos) -->
+    <svg class="svg-filters" aria-hidden="true">
+        <defs>
+            <!-- JAGGED - Efecto puntiagudo -->
+            <filter id="filter-jagged" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="2" result="noise" seed="1">
+                    <animate attributeName="seed" values="1;100;5;50;10;200;1" dur="0.2s" repeatCount="indefinite" calcMode="discrete" />
+                </feTurbulence>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            
+            <!-- PLASMA - Efecto fluido -->
+            <filter id="filter-plasma" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="turbulence" baseFrequency="0.01" numOctaves="4" result="noise" seed="1">
+                    <animate attributeName="baseFrequency" values="0.01;0.015;0.01" dur="3s" repeatCount="indefinite" />
+                </feTurbulence>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            
+            <!-- SOFT - Efecto suave -->
+            <filter id="filter-soft" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" seed="1">
+                    <animate attributeName="baseFrequency" values="0.015;0.02;0.015" dur="4s" repeatCount="indefinite" />
+                </feTurbulence>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            
+            <!-- GLITCH - Efecto de error -->
+            <filter id="filter-glitch" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.8 0.04" numOctaves="1" result="noise" seed="1">
+                    <animate attributeName="seed" values="1;50;10;3;100" dur="0.1s" repeatCount="indefinite" calcMode="discrete" />
+                </feTurbulence>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- Selector de Temas -->
+    <div class="theme-selector">
+        <button class="theme-btn active" data-theme="dark" data-label="Dark Mode" title="Modo Oscuro">
+            🌙
+        </button>
+        <button class="theme-btn" data-theme="light" data-label="Light Mode" title="Modo Claro">
+            ☀️
+        </button>
+        <button class="theme-btn" data-theme="gamer" data-label="Gamer Mode" title="Modo Gamer">
+            🎮
+        </button>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🎮 GameVault</h1>
+            <p>Tu colección de juegos en la nube ☁️</p>
+        </header>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+        
+        <footer>
+            <p>GameVault - Multi-Tenant AWS Application</p>
+        </footer>
+    </div>
+
+    <!-- Script para el cambiador de temas -->
+    <script>
+        // Función para cambiar tema
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('gamevault-theme', theme);
+            
+            // Actualizar botones activos
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.theme === theme) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // Cargar tema guardado o usar el actual
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('gamevault-theme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+            }
+            
+            // Event listeners para los botones
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const theme = this.dataset.theme;
+                    setTheme(theme);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}GameVault - Panel de Administración{% endblock %}
+
+{% block content %}
+<!-- Barra de navegación -->
+<div class="nav-bar">
+    <div class="nav-links">
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">🎮 Mis Juegos</a>
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">🏠 Inicio</a>
+    </div>
+    
+    <div class="nav-links">
+        <span style="color: var(--success-color);">👤 {{ session.get('nombre', 'Admin') }}</span>
+        <a href="{{ url_for('main.logout') }}" class="btn btn-danger">🚪 Cerrar Sesión</a>
+    </div>
+</div>
+
+<!-- Panel de Administración -->
+<section class="section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+        <h2>👥 Panel de Administración</h2>
+        <div style="text-align: right; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;">
+                📊 Logs de Actividad
+            </a>
+            <span class="badge badge-admin">ADMINISTRADOR</span>
+        </div>
+    </div>
+    
+    <p style="margin-bottom: 20px; color: var(--text-secondary);">
+        Gestiona todos los usuarios registrados en GameVault. 
+        Solo los administradores tienen acceso a esta sección.
+    </p>
+    
+    {% if usuarios %}
+        <!-- Tabla de usuarios -->
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>📧 Email</th>
+                        <th>👤 Nombre</th>
+                        <th>📱 Teléfono</th>
+                        <th>🎭 Rol</th>
+                        <th>⚙️ Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario in usuarios %}
+                        <tr class="{% if usuario.role == 'admin' %}admin-row{% endif %}">
+                            <td>
+                                <strong style="color: var(--text-primary);">{{ usuario.email }}</strong>
+                                {% if usuario.role == 'admin' %}
+                                    <span class="badge badge-admin" style="margin-left: 8px;">ADMIN</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <!-- Formulario inline para editar nombre -->
+                                <form action="{{ url_for('main.admin_editar_usuario', user_id=usuario.user_id) }}" 
+                                      method="POST" 
+                                      style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="text" 
+                                           name="nombre" 
+                                           value="{{ usuario.nombre }}" 
+                                           style="width: 150px; padding: 4px 8px; border: 2px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-primary);"
+                                           required>
+                                    <button type="submit" class="btn-icon btn-edit" title="Guardar nombre">
+                                        💾
+                                    </button>
+                                </form>
+                            </td>
+                            <td style="color: var(--text-primary);">{{ usuario.prefijo_pais }}{{ usuario.telefono }}</td>
+                            <td>
+                                {% if usuario.role == 'admin' %}
+                                    <span class="badge badge-admin">Admin</span>
+                                {% else %}
+                                    <span class="badge badge-user">Usuario</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if usuario.role != 'admin' %}
+                                    <!-- Formulario para eliminar usuario -->
+                                    <form action="{{ url_for('main.admin_eliminar_usuario', user_id=usuario.user_id) }}" 
+                                          method="POST" 
+                                          onsubmit="return confirm('¿Estás seguro de eliminar a {{ usuario.nombre }} ({{ usuario.email }})? Esta acción no se puede deshacer.');"
+                                          style="display: inline;">
+                                        <button type="submit" class="btn-icon btn-delete" title="Eliminar usuario">
+                                            🗑️
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span style="color: var(--text-secondary); font-size: 0.9rem;">🔒 Protegido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Resumen -->
+        <div style="margin-top: 20px; padding: 15px; background: var(--background-dark); border-radius: 8px; text-align: center;">
+            <p style="margin: 0; color: var(--text-secondary);">
+                📊 Total de usuarios: <strong style="color: var(--text-primary);">{{ usuarios|length }}</strong>
+                | Administradores: <strong style="color: var(--success-color);">{{ usuarios|selectattr('role', 'equalto', 'admin')|list|length }}</strong>
+                | Usuarios: <strong style="color: var(--primary-color);">{{ usuarios|selectattr('role', 'equalto', 'user')|list|length }}</strong>
+            </p>
+        </div>
+        
+    {% else %}
+        <!-- Estado vacío -->
+        <div class="empty-state electric-wrapper style-plasma color-blue">
+            <p style="font-size: 1.2rem; color: var(--text-secondary);">📭 No hay usuarios registrados aún.</p>
+            <p style="color: var(--text-secondary);">Los usuarios aparecerán aquí cuando se registren en la plataforma.</p>
+        </div>
+    {% endif %}
+    
+    <!-- Botones de navegación adicionales -->
+    <div style="margin-top: 30px; text-align: center;">
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">← Volver al Dashboard</a>
+    </div>
+</section>
+
+<!-- Acceso a Logs de Actividad -->
+<section class="section">
+    <h3 style="margin-bottom: 15px; color: var(--primary-color);">📊 Registro de Actividad</h3>
+    <div class="features-grid">
+        <div class="feature-card">
+            <span class="feature-icon">📝</span>
+            <h4>Logs de Actividad</h4>
+            <p>Visualiza el registro completo de todas las acciones realizadas por usuarios en la plataforma.</p>
+            <a href="{{ url_for('main.admin_logs') }}" class="btn btn-primary" style="margin-top: 10px;">
+                👁️ Ver Logs
+            </a>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">📥</span>
+            <h4>Exportar Datos</h4>
+            <p>Descarga los registros de actividad en formato CSV para análisis externos.</p>
+            <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary" style="margin-top: 10px;">
+                📥 Exportar CSV
+            </a>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">📈</span>
+            <h4>Estadísticas</h4>
+            <p>Visualiza métricas de actividad, usuarios más activos y tendencias de uso.</p>
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Estilos específicos para el panel de administración */
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .badge-admin {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #000;
+    }
+    
+    .badge-user {
+        background: var(--primary-color);
+        color: #fff;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+        margin: 20px 0;
+    }
+    
+    .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--background-dark);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .admin-table th,
+    .admin-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .admin-table th {
+        background: var(--secondary-color);
+        color: var(--text-primary);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+    
+    .admin-table tr:hover {
+        background: var(--background-darker);
+    }
+    
+    .admin-table .admin-row {
+        background: rgba(245, 158, 11, 0.1);
+    }
+    
+    .admin-table .admin-row:hover {
+        background: rgba(245, 158, 11, 0.15);
+    }
+    
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 5px;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .btn-edit:hover {
+        background: var(--primary-color);
+    }
+    
+    .btn-delete:hover {
+        background: var(--danger-color);
+    }
+    
+    .btn-danger {
+        background: var(--danger-color);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+</style>
+{% endblock %}
+

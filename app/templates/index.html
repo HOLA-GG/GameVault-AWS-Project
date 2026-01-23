@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block title %}GameVault - Mi Colección{% endblock %}
+
+{% block content %}
+<!-- Barra de navegación mejorada -->
+<div class="nav-bar">
+    <div class="nav-links">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">🏠 Inicio</a>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">📚 Mi Colección</a>
+        <a href="{{ url_for('main.demo') }}" class="btn btn-secondary">🚀 Demo</a>
+    </div>
+    
+    {% if session.get('user_id') %}
+        <div class="user-info">
+            <span>👤 {{ session.get('nombre') }}</span>
+            <a href="{{ url_for('main.logout') }}" class="btn btn-secondary btn-small">Cerrar Sesión</a>
+        </div>
+    {% else %}
+        <div class="nav-links">
+            <a href="{{ url_for('main.login') }}" class="btn btn-secondary">🔐 Iniciar Sesión</a>
+            <a href="{{ url_for('main.registro') }}" class="btn btn-primary">📝 Registrarse</a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Formulario para agregar juegos (solo si está logueado) -->
+{% if session.get('user_id') %}
+<section class="section">
+    <h2>➕ Agregar Nuevo Juego</h2>
+    <form action="{{ url_for('main.agregar_juego') }}" method="POST" enctype="multipart/form-data" id="gameForm">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="titulo">📝 Título del Juego</label>
+                <input type="text" id="titulo" name="titulo" placeholder="Ej: The Legend of Zelda" required>
+            </div>
+            <div class="form-group">
+                <label for="plataforma">🎮 Plataforma</label>
+                <select id="plataforma" name="plataforma" required>
+                    <option value="PC">PC</option>
+                    <option value="PlayStation">PlayStation</option>
+                    <option value="Xbox">Xbox</option>
+                    <option value="Nintendo">Nintendo</option>
+                    <option value="Mobile">Mobile</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="estado">✨ Estado del Juego</label>
+                <select id="estado" name="estado" required>
+                    <option value="N/A">N/A (No Aplica)</option>
+                    <option value="Nuevo">Nuevo (Sin usar)</option>
+                    <option value="Como Nuevo">Como Nuevo (Casi perfecto)</option>
+                    <option value="Bueno">Bueno (Algunas marcas de uso)</option>
+                    <option value="Regular">Regular (Mucho uso)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="imagen">🖼️ Portada</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*" required onchange="previewImage(event)">
+            </div>
+        </div>
+        
+        <!-- Previsualización de la imagen -->
+        <div class="image-preview-container" id="previewContainer" style="display: none;">
+            <label>👁️ Previsualización:</label>
+            <div class="image-preview">
+                <img id="previewImage" src="" alt="Previsualización del juego">
+                <div class="preview-info">
+                    <span id="previewName">Nombre del archivo</span>
+                    <span id="previewSize">Tamaño</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="descripcion">📖 Descripción</label>
+            <textarea id="descripcion" name="descripcion" rows="3" placeholder="Describe el juego..." required></textarea>
+        </div>
+        
+        <button type="submit" class="btn-submit">🚀 Agregar a la Colección</button>
+    </form>
+</section>
+{% endif %}
+
+<!-- Lista de juegos -->
+<section class="games-section">
+    <h2>📚 Mi Colección ({{ juegos|length }} {% if juegos|length == 1 %}juego{% else %}juegos{% endif %})</h2>
+    
+    {% if juegos %}
+        <div class="games-grid">
+            {% for juego in juegos %}
+                {# Random rainbow effect for some cards - cycle through colors #}
+                {% set card_style = ['style-plasma', 'style-jagged', 'style-soft', 'style-glitch', 'color-rainbow', 'color-yellow', 'color-blue', 'color-red', 'color-purple'] %}
+                {% set random_style = card_style[(loop.index0 % 9)] %}
+                <article class="game-card electric-wrapper {{ random_style }}">
+                    <div class="game-image-container">
+                        <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" class="game-image">
+                        <div class="game-badges">
+                            <span class="badge plataforma">{{ juego.plataforma if juego.plataforma else 'PC' }}</span>
+                            <span class="badge estado">{{ juego.estado if juego.estado else 'N/A' }}</span>
+                        </div>
+                    </div>
+                    <div class="game-info">
+                        <h3>{{ juego.titulo }}</h3>
+                        <div class="game-meta">
+                            <span class="meta-item">
+                                <span class="meta-icon">🎮</span> {{ juego.plataforma if juego.plataforma else 'PC' }}
+                            </span>
+                            <span class="meta-item">
+                                <span class="meta-icon">✨</span> {{ juego.estado if juego.estado else 'N/A' }}
+                            </span>
+                        </div>
+                        <p class="game-description">{{ juego.descripcion }}</p>
+                        
+                        <!-- Botones de acción -->
+                        {% if session.get('user_id') %}
+                        <div class="game-actions">
+                            <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="btn btn-secondary btn-small">
+                                ✏️ Editar
+                            </a>
+                            <a href="{{ url_for('main.eliminar_juego_ruta', game_id=juego.game_id) }}" 
+                               class="btn btn-danger btn-small"
+                               onclick="return confirm('¿Estás seguro de eliminar este juego? Esta acción no se puede deshacer.')">
+                                🗑️ Eliminar
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state electric-wrapper style-plasma color-blue">
+            <h3>🎮 No hay juegos aún</h3>
+            {% if session.get('user_id') %}
+                <p>Agrega tu primer juego usando el formulario de arriba</p>
+            {% else %}
+                <p>Inicia sesión o regístrate para comenzar tu colección</p>
+                <div style="margin-top: 20px;">
+                    <a href="{{ url_for('main.dashboard') }}?auth=registro" class="btn btn-primary">📝 Registrarse</a>
+                    <a href="{{ url_for('main.dashboard') }}?auth=login" class="btn btn-secondary">🔐 Iniciar Sesión</a>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+
+<style>
+    /* Estilos del formulario - Usando variables CSS */
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-group label {
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+    
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select {
+        padding: 12px 16px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--input-bg);
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.2);
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    
+    .form-group select {
+        cursor: pointer;
+    }
+    
+    .form-group select option {
+        background: var(--background-dark);
+        color: var(--text-primary);
+    }
+    
+    /* Previsualización de imagen */
+    .image-preview-container {
+        margin: 20px 0;
+        padding: 20px;
+        background: var(--background-dark);
+        border-radius: 12px;
+        border: 2px dashed var(--border-color);
+    }
+    
+    .image-preview-container label {
+        display: block;
+        margin-bottom: 15px;
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+    
+    .image-preview {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 15px;
+        background: var(--card-bg);
+        border-radius: 8px;
+    }
+    
+    .image-preview img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 2px solid var(--border-color);
+    }
+    
+    .preview-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .preview-info #previewName {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    
+    .preview-info #previewSize {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+    
+    .btn-submit {
+        width: 100%;
+        padding: 14px 24px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-top: 20px;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(var(--primary-color-rgb), 0.4);
+    }
+    
+    /* Estilos de las tarjetas de juego */
+    .game-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .game-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+    
+    .game-image-container {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* Aspect ratio 16:9 */
+        overflow: hidden;
+    }
+    
+    .game-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .game-badges {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .badge.plataforma {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .badge.estado {
+        background: var(--success-color);
+        color: white;
+    }
+    
+    .game-info {
+        padding: 20px;
+    }
+    
+    .game-info h3 {
+        margin: 0 0 10px 0;
+        color: var(--text-primary);
+        font-size: 1.2rem;
+    }
+    
+    .game-meta {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+    
+    .meta-icon {
+        font-size: 1rem;
+    }
+    
+    .game-description {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin: 10px 0;
+    }
+    
+    .game-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .btn-small {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+    
+    .btn-danger {
+        background: var(--danger-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+    
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: var(--card-bg);
+        border-radius: 12px;
+    }
+    
+    .empty-state h3 {
+        color: var(--text-primary);
+        margin-bottom: 10px;
+    }
+    
+    .empty-state p {
+        color: var(--text-secondary);
+    }
+    
+    /* Ajuste para electric-wrapper en game-card */
+    .game-card.electric-wrapper {
+        padding: 0;
+    }
+    
+    .game-card.electric-wrapper .game-info {
+        background: var(--card-bg);
+    }
+</style>
+
+<script>
+    // Previsualización de imagen
+    function previewImage(event) {
+        const input = event.target;
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const previewName = document.getElementById('previewName');
+        const previewSize = document.getElementById('previewSize');
+        
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            
+            // Validar que sea una imagen
+            if (!file.type.startsWith('image/')) {
+                alert('Por favor selecciona un archivo de imagen válido');
+                input.value = '';
+                return;
+            }
+            
+            // Validar tamaño (máximo 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('La imagen debe ser menor a 5MB');
+                input.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                previewName.textContent = file.name;
+                previewSize.textContent = formatFileSize(file.size);
+                previewContainer.style.display = 'block';
+            }
+            
+            reader.readAsDataURL(file);
+        } else {
+            previewContainer.style.display = 'none';
+        }
+    }
+    
+    // Formatear tamaño de archivo
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Validación del formulario
+    document.getElementById('gameForm').addEventListener('submit', function(e) {
+        const titulo = document.getElementById('titulo').value.trim();
+        const descripcion = document.getElementById('descripcion').value.trim();
+        const imagen = document.getElementById('imagen').files[0];
+        
+        if (!titulo) {
+            e.preventDefault();
+            alert('El título es requerido');
+            return false;
+        }
+        
+        if (!descripcion) {
+            e.preventDefault();
+            alert('La descripción es requerida');
+            return false;
+        }
+        
+        if (!imagen) {
+            e.preventDefault();
+            alert('Debes subir una imagen');
+            return false;
+        }
+        
+        return true;
+    });
+</script>
+{% endblock %}
+

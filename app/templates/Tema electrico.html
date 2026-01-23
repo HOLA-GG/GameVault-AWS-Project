@@ -1,0 +1,192 @@
+<!-- En este archivo pongo lo que me gustraia agregar como Swich de selector de tema en game vault, va estar el tema actual, y el tema gamer, usando svg y funciones m,atematicas para agragar rayos a bordes de cosas, como cartas botones, etc de diferentes colores y estilos codigo de ejemplo abajo: -->
+<style>
+  /* --- 1. CONFIGURACIÓN DEL ENTORNO --- */
+  body {
+    background-color: #050505;
+    color: white;
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    gap: 40px;
+  }
+
+  h1 { text-transform: uppercase; letter-spacing: 4px; font-size: 24px; color: #444; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;}
+  .row { display: flex; flex-wrap: wrap; gap: 40px; justify-content: center; width: 100%; max-width: 1000px; margin-bottom: 40px;}
+  .label { position: absolute; top: -25px; left: 0; width: 100%; text-align: center; color: #666; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* --- 2. ANIMACIONES --- */
+  @keyframes gamer-rainbow {
+    0% { border-color: #ff0000; color: #ff0000; }
+    20% { border-color: #ffff00; color: #ffff00; }
+    40% { border-color: #00ff00; color: #00ff00; }
+    60% { border-color: #00ffff; color: #00ffff; }
+    80% { border-color: #0000ff; color: #0000ff; }
+    100% { border-color: #ff00ff; color: #ff00ff; }
+  }
+
+  /* --- 3. CLASE MAESTRA (WRAPPER) --- */
+  .electric-wrapper {
+    position: relative;
+    display: inline-block;
+    padding: 12px; /* Espacio para el rayo */
+    --elec-color: #ffffff;
+  }
+
+  /* Capa Rayo (Atrás) */
+  .electric-wrapper::before {
+    content: ""; position: absolute; inset: 0;
+    border: 2px solid var(--elec-color);
+    border-radius: 12px;
+    z-index: 0;
+    pointer-events: none;
+    /* Por defecto */
+    filter: url(#filter-jagged); 
+  }
+
+  /* Capa Brillo (Atrás) */
+  .electric-wrapper::after {
+    content: ""; position: absolute; inset: 0;
+    border: 4px solid var(--elec-color);
+    border-radius: 12px;
+    filter: blur(8px);
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+
+  /* Contenido (Adelante) */
+  .electric-content {
+    position: relative;
+    z-index: 2;
+    background: #111;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* --- 4. ESTILOS (VARIANCES) --- */
+  
+  /* Estilo 1: JAGGED (Puntiagudo) */
+  .style-jagged::before { filter: url(#filter-jagged); border-width: 2px; }
+  
+  /* Estilo 2: PLASMA (Fluido) */
+  .style-plasma::before { filter: url(#filter-plasma); border-width: 3px; }
+  .style-plasma::after { filter: blur(12px); opacity: 0.8; }
+
+  /* Estilo 3: SOFT (Suave) */
+  .style-soft::before { filter: url(#filter-soft); border-width: 2px; }
+  .style-soft::after { filter: blur(4px); opacity: 0.4; }
+
+  /* Estilo 4: GLITCH (Error) */
+  .style-glitch::before { filter: url(#filter-glitch); border-width: 1px; border-radius: 0; }
+  .style-glitch::after { filter: blur(2px); opacity: 0.5; border-radius: 0; }
+  .style-glitch .electric-content { border-radius: 2px; }
+
+  /* --- 5. COLORES --- */
+  .color-yellow { --elec-color: #ffd700; }
+  .color-blue   { --elec-color: #00f7ff; }
+  .color-red    { --elec-color: #ff0040; }
+  .color-purple { --elec-color: #bc13fe; }
+  
+  .color-rainbow::before, 
+  .color-rainbow::after { animation: gamer-rainbow 3s linear infinite; }
+
+  /* --- Estilos para los demos (Botones, imagenes) --- */
+  .btn-demo { background: none; border: none; color: white; padding: 15px 30px; font-weight: bold; text-transform: uppercase; cursor: pointer; letter-spacing: 1px; font-size: 14px;}
+  .img-demo { width: 150px; height: 100px; object-fit: cover; display: block; }
+  .box-demo { padding: 20px; text-align: center; width: 120px; font-family: monospace; }
+
+</style>
+
+<svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
+  <defs>
+    <filter id="filter-jagged" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="2" result="noise" seed="1">
+        <animate attributeName="seed" values="1;100;5;50;10;200;1" dur="0.2s" repeatCount="indefinite" calcMode="discrete" />
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+    <filter id="filter-plasma" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="turbulence" baseFrequency="0.01" numOctaves="4" result="noise" seed="1">
+         <animate attributeName="baseFrequency" values="0.01;0.015;0.01" dur="3s" repeatCount="indefinite" />
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+    <filter id="filter-soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" seed="1">
+        <animate attributeName="baseFrequency" values="0.015;0.02;0.015" dur="4s" repeatCount="indefinite" />
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+    <filter id="filter-glitch" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8 0.04" numOctaves="1" result="noise" seed="1">
+        <animate attributeName="seed" values="1;50;10;3;100" dur="0.1s" repeatCount="indefinite" calcMode="discrete" />
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </defs>
+</svg>
+
+<h1>1. Modo Jagged (Puntiagudo)</h1>
+<div class="row">
+  
+  <div class="electric-wrapper style-jagged color-yellow">
+    <div class="label">Amarillo</div>
+    <div class="electric-content">
+      <button class="btn-demo" style="color:#ffd700">START</button>
+    </div>
+  </div>
+
+  <div class="electric-wrapper style-jagged color-blue">
+    <div class="label">Azul</div>
+    <div class="electric-content">
+      <img src="https://picsum.photos/id/13/150/100" class="img-demo">
+    </div>
+  </div>
+
+</div>
+
+<h1>2. Modo Plasma (Fluido)</h1>
+<div class="row">
+  
+  <div class="electric-wrapper style-plasma color-purple">
+    <div class="label">Violeta</div>
+    <div class="electric-content">
+      <div class="box-demo" style="color:#bc13fe">MAGIC<br>POTION</div>
+    </div>
+  </div>
+
+  <div class="electric-wrapper style-plasma color-rainbow">
+    <div class="label">Arcoíris</div>
+    <div class="electric-content">
+      <button class="btn-demo">PARTY MODE</button>
+    </div>
+  </div>
+
+</div>
+
+<h1>3. Modos Especiales</h1>
+<div class="row">
+
+  <div class="electric-wrapper style-soft color-blue">
+    <div class="label">Soft (Suave)</div>
+    <div class="electric-content">
+      <div class="box-demo">Sistema<br>Estable</div>
+    </div>
+  </div>
+
+  <div class="electric-wrapper style-glitch color-red">
+    <div class="label">Glitch (Error)</div>
+    <div class="electric-content">
+      <div class="box-demo" style="color:red">ERROR<br>404</div>
+    </div>
+  </div>
+
+</div>

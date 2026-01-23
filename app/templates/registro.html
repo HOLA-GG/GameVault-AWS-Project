@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}GameVault - Registrarse{% endblock %}
+
+{% block content %}
+<!-- Barra de navegación -->
+<div class="nav-bar">
+    <div class="nav-links">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">🏠 Inicio</a>
+        <a href="{{ url_for('main.demo') }}" class="btn btn-secondary">🚀 Probar Demo</a>
+    </div>
+    
+    <div class="nav-links">
+        <span style="color: #a0a0a0;">¿Ya tienes cuenta?</span>
+        <a href="{{ url_for('main.login') }}" class="btn btn-primary">🔐 Iniciar Sesión</a>
+    </div>
+</div>
+
+<!-- Formulario de Registro -->
+<section class="section centered">
+    <h2>📝 Registrarse en GameVault</h2>
+    <p>Crea tu cuenta y comienza a gestionar tu colección de juegos</p>
+    
+    <form action="{{ url_for('main.registro') }}" method="POST">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="nombre">👤 Nombre</label>
+                <input type="text" id="nombre" name="nombre" placeholder="Ej: Juan" required>
+            </div>
+            <div class="form-group">
+                <label for="apellido">👤 Apellidos</label>
+                <input type="text" id="apellido" name="apellido" placeholder="Ej: Pérez García" required>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">📧 Correo Electrónico</label>
+            <input type="email" id="email" name="email" placeholder="Ej: juan@ejemplo.com" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="telefono">📱 Teléfono</label>
+            <div class="phone-group">
+                <select id="prefijo_pais" name="prefijo_pais" required>
+                    <option value="+52">🇲🇽 +52</option>
+                    <option value="+34">🇪🇸 +34</option>
+                    <option value="+1">🇺🇸/🇨🇦 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+54">🇦🇷 +54</option>
+                    <option value="+55">🇧🇷 +55</option>
+                    <option value="+56">🇨🇱 +56</option>
+                    <option value="+57">🇨🇴 +57</option>
+                    <option value="+51">🇵🇪 +51</option>
+                </select>
+                <input type="tel" id="telefono" name="telefono" placeholder="Ej: 5551234567" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="password">🔒 Contraseña</label>
+                <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">🔒 Confirmar Contraseña</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite tu contraseña" required>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn-submit" style="width: 100%;">📋 Crear Cuenta</button>
+    </form>
+    
+    <div class="auth-toggle">
+        <p>¿Ya tienes cuenta?</p>
+        <a href="{{ url_for('main.login') }}" style="font-size: 1.1rem;">🔐 Inicia Sesión aquí</a>
+    </div>
+    
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">← Volver al Inicio</a>
+    </div>
+</section>
+
+<!-- Información adicional -->
+<section class="section">
+    <h3 style="text-align: center; margin-bottom: 20px;">🎮 ¿Qué obtienes al registrarte?</h3>
+    
+    <div class="features-grid" style="margin-top: 20px;">
+        <div class="feature-card">
+            <span class="feature-icon">☁️</span>
+            <h4>Almacenamiento en la Nube</h4>
+            <p>Tus imágenes guardadas en AWS S3</p>
+        </div>
+        
+        <div class="feature-card">
+            <span class="feature-icon">🔐</span>
+            <h4>Área Privada</h4>
+            <p>Solo tú vez tu colección</p>
+        </div>
+        
+        <div class="feature-card">
+            <span class="feature-icon">⚡</span>
+            <h4>Acceso Rápido</h4>
+            <p>DynamoDB para velocidad extrema</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
