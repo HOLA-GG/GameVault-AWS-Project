@@ -1,198 +1,160 @@
 #!/usr/bin/env python3
-"""
-Script de Setup para S3 - GameVault
-Crea y configura el bucket S3 para almacenar imágenes de juegos.
-"""
+"""Configura un bucket S3 privado para portadas de GameVault."""
+
+from __future__ import annotations
+
+import os
 
 import boto3
 from botocore.exceptions import ClientError
 
-# Configuración según app.py
-S3_BUCKET_NAME = 'gamevault-media-files'
-S3_REGION = 'us-east-1'
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
+S3_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+S3_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'S3_ALLOWED_ORIGINS',
+        'http://127.0.0.1:5000,http://localhost:5000',
+    ).split(',')
+    if origin.strip()
+]
 
 
 def crear_bucket_s3(s3_client, bucket_name, region):
-    """Crea el bucket S3 si no existe."""
+    """Crea el bucket si aún no existe."""
     try:
-        # Verificar si el bucket ya existe
         s3_client.head_bucket(Bucket=bucket_name)
         print(f"✅ Bucket '{bucket_name}' ya existe")
         return True
-    except ClientError as e:
-        error_code = e.response.get('Error', {}).get('Code', '')
-        
-        if error_code == '404':
-            # El bucket no existe, crearlo
-            try:
-                if region == 'us-east-1':
-                    # us-east-1 no requiere LocationConstraint
-                    s3_client.create_bucket(Bucket=bucket_name)
-                else:
-                    s3_client.create_bucket(
-                        Bucket=bucket_name,
-                        CreateBucketConfiguration={
-                            'LocationConstraint': region
-                        }
-                    )
-                print(f"⏳ Creando bucket '{bucket_name}'...")
-                # Esperar a que el bucket exista
-                waiter = s3_client.get_waiter('bucket_exists')
-                waiter.wait(Bucket=bucket_name)
-                print(f"✅ Bucket '{bucket_name}' creado exitosamente!")
-                return True
-            except ClientError as create_error:
-                print(f"❌ Error al crear bucket: {create_error.response['Error']['Message']}")
-                return False
-        else:
-            print(f"❌ Error al verificar bucket: {e.response['Error']['Message']}")
+    except ClientError as exc:
+        error_code = exc.response.get('Error', {}).get('Code', '')
+        if error_code not in {'404', 'NoSuchBucket', 'NotFound'}:
+            print(f"❌ Error al verificar bucket: {exc.response['Error']['Message']}")
             return False
+
+    try:
+        create_args = {'Bucket': bucket_name}
+        if region != 'us-east-1':
+            create_args['CreateBucketConfiguration'] = {'LocationConstraint': region}
+        s3_client.create_bucket(**create_args)
+        print(f"⏳ Creando bucket '{bucket_name}'...")
+        s3_client.get_waiter('bucket_exists').wait(Bucket=bucket_name)
+        print(f"✅ Bucket '{bucket_name}' creado")
+        return True
+    except ClientError as exc:
+        print(f"❌ Error al crear bucket: {exc.response['Error']['Message']}")
+        return False
 
 
 def configurar_cors(s3_client, bucket_name):
-    """Configura CORS para permitir uploads desde la aplicación web."""
+    """Restringe CORS a los orígenes reales de la app."""
     cors_configuration = {
         'CORSRules': [
             {
                 'AllowedHeaders': ['*'],
-                'AllowedMethods': ['GET', 'PUT', 'POST', 'DELETE', 'HEAD'],
-                'AllowedOrigins': ['*'],  # En producción, especificar tu dominio
+                'AllowedMethods': ['GET', 'POST', 'PUT', 'HEAD'],
+                'AllowedOrigins': S3_ALLOWED_ORIGINS,
                 'ExposeHeaders': ['ETag'],
-                'MaxAgeSeconds': 3000
+                'MaxAgeSeconds': 3000,
             }
         ]
     }
-    
     try:
-        s3_client.put_bucket_cors(
-            Bucket=bucket_name,
-            CORSConfiguration=cors_configuration
-        )
-        print("✅ CORS configurado correctamente")
+        s3_client.put_bucket_cors(Bucket=bucket_name, CORSConfiguration=cors_configuration)
+        print(f"✅ CORS configurado para: {', '.join(S3_ALLOWED_ORIGINS)}")
         return True
-    except ClientError as e:
-        print(f"⚠️ Error al configurar CORS: {e.response['Error']['Message']}")
-        return False
-
-
-def configurar_policy(s3_client, bucket_name):
-    """Configura la política del bucket para acceso público de lectura."""
-    # Nota: En producción, considera usar CloudFront para servir imágenes
-    # y mantener el bucket privado
-    policy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Sid": "PublicReadGetObject",
-                "Effect": "Allow",
-                "Principal": "*",
-                "Action": "s3:GetObject",
-                "Resource": f"arn:aws:s3:::{bucket_name}/*"
-            }
-        ]
-    }
-    
-    try:
-        s3_client.put_bucket_policy(
-            Bucket=bucket_name,
-            Policy=json.dumps(policy)
-        )
-        print("✅ Política del bucket configurada (lectura pública)")
-        return True
-    except ClientError as e:
-        print(f"⚠️ Error al configurar política: {e.response['Error']['Message']}")
+    except ClientError as exc:
+        print(f"⚠️ Error al configurar CORS: {exc.response['Error']['Message']}")
         return False
 
 
 def configurar_block_public_access(s3_client, bucket_name):
-    """Desbloquea el acceso público para permitir lectura de objetos."""
+    """Bloquea acceso público al bucket."""
     try:
-        # Desactivar block public access
         s3_client.put_public_access_block(
             Bucket=bucket_name,
             PublicAccessBlockConfiguration={
-                'BlockPublicAcls': False,
-                'IgnorePublicAcls': False,
-                'BlockPublicPolicy': False,
-                'RestrictPublicBuckets': False
-            }
+                'BlockPublicAcls': True,
+                'IgnorePublicAcls': True,
+                'BlockPublicPolicy': True,
+                'RestrictPublicBuckets': True,
+            },
         )
-        print("✅ Block Public Access configurado correctamente")
+        print('✅ Block Public Access activado')
         return True
-    except ClientError as e:
-        print(f"⚠️ Error al configurar block public access: {e.response['Error']['Message']}")
+    except ClientError as exc:
+        print(f"⚠️ Error al bloquear acceso público: {exc.response['Error']['Message']}")
         return False
 
 
 def habilitar_versioning(s3_client, bucket_name):
-    """Habilita el versionado del bucket para mantener historial de objetos."""
+    """Habilita versioning en el bucket."""
     try:
         s3_client.put_bucket_versioning(
             Bucket=bucket_name,
-            VersioningConfiguration={
-                'Status': 'Enabled'
-            }
+            VersioningConfiguration={'Status': 'Enabled'},
         )
-        print("✅ Versioning habilitado correctamente")
+        print('✅ Versioning habilitado')
         return True
-    except ClientError as e:
-        print(f"⚠️ Error al habilitar versioning: {e.response['Error']['Message']}")
+    except ClientError as exc:
+        print(f"⚠️ Error al habilitar versioning: {exc.response['Error']['Message']}")
+        return False
+
+
+def habilitar_encryption(s3_client, bucket_name):
+    """Activa cifrado por defecto en reposo."""
+    try:
+        s3_client.put_bucket_encryption(
+            Bucket=bucket_name,
+            ServerSideEncryptionConfiguration={
+                'Rules': [
+                    {
+                        'ApplyServerSideEncryptionByDefault': {'SSEAlgorithm': 'AES256'}
+                    }
+                ]
+            },
+        )
+        print('✅ Cifrado por defecto habilitado')
+        return True
+    except ClientError as exc:
+        print(f"⚠️ Error al habilitar cifrado: {exc.response['Error']['Message']}")
         return False
 
 
 def verificar_bucket(s3_client, bucket_name):
-    """Verifica información del bucket."""
+    """Muestra el estado final del bucket."""
     try:
-        # Obtener ubicación del bucket
         response = s3_client.get_bucket_location(Bucket=bucket_name)
-        region = response.get('LocationConstraint', 'us-east-1')
+        region = response.get('LocationConstraint') or 'us-east-1'
         print(f"📍 Región del bucket: {region}")
-        
-        # Obtener ACL del bucket
-        acl_response = s3_client.get_bucket_acl(Bucket=bucket_name)
-        print(f"✅ Bucket '{bucket_name}' verificado exitosamente")
+        print(f"🔒 Bucket privado: sí")
         return True
-    except ClientError as e:
-        print(f"❌ Error al verificar bucket: {e.response['Error']['Message']}")
+    except ClientError as exc:
+        print(f"❌ Error al verificar bucket: {exc.response['Error']['Message']}")
         return False
 
 
 def main():
-    print("🚀 Configurando S3 para GameVault...")
-    print(f"📍 Bucket: {S3_BUCKET_NAME}")
-    print(f"📍 Región: {S3_REGION}")
-    
-    # Inicializar cliente S3
+    print('🚀 Configurando S3 para GameVault')
+    print(f'📍 Bucket: {S3_BUCKET_NAME}')
+    print(f'📍 Región: {S3_REGION}')
+
     s3_client = boto3.client('s3', region_name=S3_REGION)
-    
-    # Paso 1: Crear bucket
+
     if not crear_bucket_s3(s3_client, S3_BUCKET_NAME, S3_REGION):
-        print("❌ Error al crear bucket. Abortando...")
         return
-    
-    # Paso 2: Configurar Block Public Access
+
     configurar_block_public_access(s3_client, S3_BUCKET_NAME)
-    
-    # Paso 3: Configurar política (lectura pública)
-    configurar_policy(s3_client, S3_BUCKET_NAME)
-    
-    # Paso 4: Configurar CORS
+    habilitar_encryption(s3_client, S3_BUCKET_NAME)
     configurar_cors(s3_client, S3_BUCKET_NAME)
-    
-    # Paso 5: Habilitar versioning
     habilitar_versioning(s3_client, S3_BUCKET_NAME)
-    
-    # Paso 6: Verificar bucket
     verificar_bucket(s3_client, S3_BUCKET_NAME)
-    
-    print("\n🎉 Configuración de S3 completada!")
-    print(f"\n📝 Próximos pasos:")
-    print(f"  1. Sube imágenes usando la función subir_imagen_a_s3() en app.py")
-    print(f"  2. Las imágenes estarán disponibles en: https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com/")
-    print(f"  3. Considera usar CloudFront para mejor rendimiento")
+
+    print('\n🎉 S3 listo para GameVault')
+    print('   - Las portadas se suben con presigned POST')
+    print('   - Las imágenes se muestran con URLs temporales firmadas')
+    print('   - Recuerda definir S3_ALLOWED_ORIGINS con tu dominio productivo')
 
 
 if __name__ == '__main__':
-    import json
     main()
-

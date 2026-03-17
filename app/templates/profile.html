@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}GameVault - Mi perfil{% endblock %}
+
+{% block content %}
+<div class="nav-bar">
+    <div class="nav-links">
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Mi colección</a>
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+    </div>
+    <div class="nav-links">
+        <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-secondary">Cerrar sesión</button>
+        </form>
+    </div>
+</div>
+
+<section class="section">
+    <h2>Mi perfil</h2>
+    <p>Completa o corrige tu información. Estos datos son opcionales salvo tu nombre.</p>
+
+    <form action="{{ url_for('main.profile') }}" method="POST">
+        <input type="hidden" name="form_name" value="profile">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" required>
+            </div>
+            <div class="form-group">
+                <label for="apellido">Apellidos</label>
+                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prefijo_pais">Prefijo país</label>
+                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57">
+            </div>
+            <div class="form-group">
+                <label for="telefono">Teléfono</label>
+                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="email">Correo</label>
+            <input type="email" id="email" value="{{ user.email }}" disabled>
+        </div>
+        <button type="submit" class="btn-submit">Guardar perfil</button>
+    </form>
+</section>
+
+<section class="section">
+    <h3>Cambiar contraseña</h3>
+    <form action="{{ url_for('main.profile') }}" method="POST">
+        <input type="hidden" name="form_name" value="password">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="current_password">Contraseña actual</label>
+                <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label for="password">Nueva contraseña</label>
+                <input type="password" id="password" name="password" required autocomplete="new-password">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="confirm_password">Confirmar nueva contraseña</label>
+            <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn-submit">Actualizar contraseña</button>
+    </form>
+</section>
+{% endblock %}

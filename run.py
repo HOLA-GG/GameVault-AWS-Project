@@ -1,37 +1,38 @@
 #!/usr/bin/env python3
-"""
-run.py - Punto de Entrada de GameVault
-Ejecuta la aplicación Flask con configuración multi-tenant para AWS EC2
-"""
+"""Arranque local de desarrollo para GameVault."""
 
-from app import app
+from __future__ import annotations
+
+import os
+
+from app import create_app
+
+
+app = create_app()
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    """Convierte variables comunes a booleano."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("🚀 INICIANDO GAMEVAULT MULTI-TENANT EN AWS EC2")
-    print("=" * 60)
-    print(f"📍 Tabla DynamoDB Games: {app.config.get('DYNAMODB_TABLE', 'GameVault')}")
-    print(f"📍 Tabla DynamoDB Users: {app.config.get('DYNAMODB_USERS_TABLE', 'GameVaultUsers')}")
-    print(f"📍 Bucket S3: {app.config.get('S3_BUCKET_NAME', 'gamevault-media-files')}")
-    print(f"📍 Región AWS: {app.config.get('S3_REGION', 'us-east-1')}")
-    print(f"📍 User ID Demo: {app.config.get('DEFAULT_USER_ID', 'user-demo-001')}")
-    print("=" * 60)
-    print("📝 Rutas disponibles:")
-    print("   • /         → Landing Page")
-    print("   • /demo     → Demo In-Memory (sin BD)")
-    print("   • /dashboard→ Panel Principal")
-    print("   • /agregar  → Agregar juego")
-    print("   • /delete/<id> → Eliminar juego")
-    print("   • /edit/<id> → Editar juego")
-    print("   • /registro → Registrarse")
-    print("   • /login    → Iniciar sesión")
-    print("   • /logout   → Cerrar sesión")
-    print("=" * 60)
-    
-    # ⚠️ IMPORTANTE: host='0.0.0.0' es obligatorio en la nube.
-    app.run(
-        host='0.0.0.0',  # Escuchar en todas las interfaces
-        port=5000,
-        debug=True  # Activar debug en desarrollo
-    )
+    host = os.environ.get('FLASK_RUN_HOST', '127.0.0.1')
+    port = int(os.environ.get('FLASK_RUN_PORT', '5000'))
+    debug = env_bool('FLASK_DEBUG', app.config['APP_ENV'] != 'production')
 
+    print('=' * 60)
+    print('GAMEVAULT LOCAL')
+    print('=' * 60)
+    print(f"Entorno: {app.config['APP_ENV']}")
+    print(f"Host: {host}:{port}")
+    print(f"Debug: {debug}")
+    print(f"Tabla juegos: {app.config['DYNAMODB_TABLE']}")
+    print(f"Tabla usuarios: {app.config['DYNAMODB_USERS_TABLE']}")
+    print(f"Bucket S3: {app.config['S3_BUCKET_NAME']}")
+    print('=' * 60)
+
+    app.run(host=host, port=port, debug=debug)

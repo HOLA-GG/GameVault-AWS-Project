@@ -1,307 +1,260 @@
 #!/usr/bin/env python3
-"""
-Script de Setup para DynamoDB - GameVault
-Crea las tablas necesarias para la aplicación.
-"""
+"""Provisiona DynamoDB para GameVault con un esquema apto para beta pública."""
+
+from __future__ import annotations
+
+import os
+import uuid
+from datetime import datetime, timezone
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from werkzeug.security import generate_password_hash
 
-DYNAMODB_REGION = 'us-east-1'
+DYNAMODB_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+GAMES_TABLE = os.environ.get('DYNAMODB_TABLE', 'GameVault')
+USERS_TABLE = os.environ.get('DYNAMODB_USERS_TABLE', 'GameVaultUsers')
+RESET_TABLE = os.environ.get('DYNAMODB_RESET_TABLE', 'GameVaultPasswordReset')
+AUDIT_TABLE = os.environ.get('DYNAMODB_AUDIT_TABLE', 'GameVaultAuditLogs')
+RESET_TOKEN_INDEX = os.environ.get('DYNAMODB_RESET_TOKEN_INDEX', 'reset-token-index')
+AUDIT_INDEX = os.environ.get('DYNAMODB_AUDIT_TIMESTAMP_INDEX', 'scope-timestamp-index')
 
-# Credenciales del administrador por defecto
-ADMIN_EMAIL = 'admin@gamevault.com'
-ADMIN_PASSWORD = 'admin123'  # Contraseña en texto plano
-ADMIN_NOMBRE = 'Super Admin'
-ADMIN_TELEFONO = '+0000000000'
+
+def now_iso() -> str:
+    """Fecha UTC serializada."""
+    return datetime.now(timezone.utc).isoformat()
 
 
-def crear_tabla_juegos(dynamodb):
-    """Crea la tabla GameVault para almacenar juegos."""
+def common_table_args(table_name, key_schema, attribute_definitions, gsis=None):
+    """Argumentos comunes para tablas on-demand."""
+    args = {
+        'TableName': table_name,
+        'KeySchema': key_schema,
+        'AttributeDefinitions': attribute_definitions,
+        'BillingMode': 'PAY_PER_REQUEST',
+    }
+    if gsis:
+        args['GlobalSecondaryIndexes'] = gsis
+    return args
+
+
+def create_table_if_missing(dynamodb, table_name, create_args):
+    """Crea una tabla si aún no existe."""
+    table = dynamodb.Table(table_name)
     try:
-        tabla = dynamodb.create_table(
-            TableName='GameVault',
-            KeySchema=[
-                {'AttributeName': 'user_id', 'KeyType': 'HASH'},  # Partition Key
-                {'AttributeName': 'game_id', 'KeyType': 'RANGE'}  # Sort Key
-            ],
-            AttributeDefinitions=[
-                {'AttributeName': 'user_id', 'AttributeType': 'S'},
-                {'AttributeName': 'game_id', 'AttributeType': 'S'}
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
+        table.load()
+        print(f"✅ Tabla '{table_name}' ya existe")
+        return table
+    except ClientError as exc:
+        if exc.response['Error']['Code'] != 'ResourceNotFoundException':
+            raise
+
+    print(f"⏳ Creando tabla '{table_name}'...")
+    table = dynamodb.create_table(**create_args)
+    table.wait_until_exists()
+    print(f"✅ Tabla '{table_name}' creada")
+    return table
+
+
+def enable_ttl(dynamodb_client, table_name: str, attribute_name: str) -> None:
+    """Activa TTL si aún no está habilitado."""
+    try:
+        description = dynamodb_client.describe_time_to_live(TableName=table_name)
+        status = description.get('TimeToLiveDescription', {}).get('TimeToLiveStatus')
+        if status in {'ENABLED', 'ENABLING'}:
+            print(f"✅ TTL ya activo en '{table_name}' ({attribute_name})")
+            return
+        dynamodb_client.update_time_to_live(
+            TableName=table_name,
+            TimeToLiveSpecification={
+                'Enabled': True,
+                'AttributeName': attribute_name,
+            },
         )
-        print("⏳ Creando tabla GameVault...")
-        tabla.wait_until_exists()
-        print("✅ Tabla GameVault creada exitosamente!")
-        return True
-    except ClientError as e:
-        print(f"❌ Error al crear tabla GameVault: {e.response['Error']['Message']}")
-        return False
+        print(f"✅ TTL solicitado para '{table_name}' usando '{attribute_name}'")
+    except ClientError as exc:
+        print(f"⚠️ No se pudo activar TTL en '{table_name}': {exc.response['Error']['Message']}")
 
 
-def crear_tabla_usuarios(dynamodb):
-    """Crea la tabla GameVaultUsers con índice secundario global para email."""
-    try:
-        tabla = dynamodb.create_table(
-            TableName='GameVaultUsers',
-            KeySchema=[
-                {'AttributeName': 'user_id', 'KeyType': 'HASH'}  # Partition Key
+def create_games_table(dynamodb):
+    """Tabla de juegos por usuario."""
+    return create_table_if_missing(
+        dynamodb,
+        GAMES_TABLE,
+        common_table_args(
+            GAMES_TABLE,
+            key_schema=[
+                {'AttributeName': 'user_id', 'KeyType': 'HASH'},
+                {'AttributeName': 'game_id', 'KeyType': 'RANGE'},
             ],
-            AttributeDefinitions=[
+            attribute_definitions=[
                 {'AttributeName': 'user_id', 'AttributeType': 'S'},
-                {'AttributeName': 'email', 'AttributeType': 'S'}
+                {'AttributeName': 'game_id', 'AttributeType': 'S'},
             ],
-            GlobalSecondaryIndexes=[
+        ),
+    )
+
+
+def create_users_table(dynamodb):
+    """Tabla de usuarios con búsqueda por email."""
+    return create_table_if_missing(
+        dynamodb,
+        USERS_TABLE,
+        common_table_args(
+            USERS_TABLE,
+            key_schema=[{'AttributeName': 'user_id', 'KeyType': 'HASH'}],
+            attribute_definitions=[
+                {'AttributeName': 'user_id', 'AttributeType': 'S'},
+                {'AttributeName': 'email', 'AttributeType': 'S'},
+            ],
+            gsis=[
                 {
                     'IndexName': 'email-index',
-                    'KeySchema': [
-                        {'AttributeName': 'email', 'KeyType': 'HASH'}
-                    ],
+                    'KeySchema': [{'AttributeName': 'email', 'KeyType': 'HASH'}],
                     'Projection': {'ProjectionType': 'ALL'},
-                    'ProvisionedThroughput': {
-                        'ReadCapacityUnits': 5,
-                        'WriteCapacityUnits': 5
-                    }
                 }
             ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
-        )
-        print("⏳ Creando tabla GameVaultUsers...")
-        tabla.wait_until_exists()
-        print("✅ Tabla GameVaultUsers creada exitosamente!")
-        return True
-    except ClientError as e:
-        print(f"❌ Error al crear tabla GameVaultUsers: {e.response['Error']['Message']}")
-        return False
+        ),
+    )
 
 
-def crear_tabla_password_reset(dynamodb):
-    """Crea la tabla GameVaultPasswordReset para tokens de recuperación de contraseña."""
-    try:
-        tabla = dynamodb.create_table(
-            TableName='GameVaultPasswordReset',
-            KeySchema=[
-                {'AttributeName': 'token_id', 'KeyType': 'HASH'}  # Partition Key
-            ],
-            AttributeDefinitions=[
+def create_reset_table(dynamodb):
+    """Tabla de recuperación con búsqueda por usuario y por token."""
+    return create_table_if_missing(
+        dynamodb,
+        RESET_TABLE,
+        common_table_args(
+            RESET_TABLE,
+            key_schema=[{'AttributeName': 'token_id', 'KeyType': 'HASH'}],
+            attribute_definitions=[
                 {'AttributeName': 'token_id', 'AttributeType': 'S'},
-                {'AttributeName': 'user_id', 'AttributeType': 'S'}
+                {'AttributeName': 'user_id', 'AttributeType': 'S'},
+                {'AttributeName': 'reset_token', 'AttributeType': 'S'},
             ],
-            GlobalSecondaryIndexes=[
+            gsis=[
                 {
                     'IndexName': 'user_id-index',
-                    'KeySchema': [
-                        {'AttributeName': 'user_id', 'KeyType': 'HASH'}
-                    ],
+                    'KeySchema': [{'AttributeName': 'user_id', 'KeyType': 'HASH'}],
                     'Projection': {'ProjectionType': 'ALL'},
-                    'ProvisionedThroughput': {
-                        'ReadCapacityUnits': 5,
-                        'WriteCapacityUnits': 5
-                    }
-                }
+                },
+                {
+                    'IndexName': RESET_TOKEN_INDEX,
+                    'KeySchema': [{'AttributeName': 'reset_token', 'KeyType': 'HASH'}],
+                    'Projection': {'ProjectionType': 'ALL'},
+                },
             ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
-        )
-        print("⏳ Creando tabla GameVaultPasswordReset...")
-        tabla.wait_until_exists()
-        print("✅ Tabla GameVaultPasswordReset creada exitosamente!")
-        return True
-    except ClientError as e:
-        print(f"❌ Error al crear tabla GameVaultPasswordReset: {e.response['Error']['Message']}")
-        return False
+        ),
+    )
 
 
-def crear_tabla_audit_logs(dynamodb):
-    """Crea la tabla GameVaultAuditLogs para logs de auditoría."""
-    try:
-        tabla = dynamodb.create_table(
-            TableName='GameVaultAuditLogs',
-            KeySchema=[
-                {'AttributeName': 'audit_id', 'KeyType': 'HASH'}  # Partition Key
-            ],
-            AttributeDefinitions=[
+def create_audit_table(dynamodb):
+    """Tabla de auditoría con vistas por usuario y por tiempo global."""
+    return create_table_if_missing(
+        dynamodb,
+        AUDIT_TABLE,
+        common_table_args(
+            AUDIT_TABLE,
+            key_schema=[{'AttributeName': 'audit_id', 'KeyType': 'HASH'}],
+            attribute_definitions=[
                 {'AttributeName': 'audit_id', 'AttributeType': 'S'},
                 {'AttributeName': 'user_id', 'AttributeType': 'S'},
-                {'AttributeName': 'timestamp', 'AttributeType': 'S'}
+                {'AttributeName': 'timestamp', 'AttributeType': 'S'},
+                {'AttributeName': 'log_scope', 'AttributeType': 'S'},
             ],
-            GlobalSecondaryIndexes=[
+            gsis=[
                 {
                     'IndexName': 'user-timestamp-index',
                     'KeySchema': [
                         {'AttributeName': 'user_id', 'KeyType': 'HASH'},
-                        {'AttributeName': 'timestamp', 'KeyType': 'RANGE'}
+                        {'AttributeName': 'timestamp', 'KeyType': 'RANGE'},
                     ],
                     'Projection': {'ProjectionType': 'ALL'},
-                    'ProvisionedThroughput': {
-                        'ReadCapacityUnits': 5,
-                        'WriteCapacityUnits': 5
-                    }
-                }
+                },
+                {
+                    'IndexName': AUDIT_INDEX,
+                    'KeySchema': [
+                        {'AttributeName': 'log_scope', 'KeyType': 'HASH'},
+                        {'AttributeName': 'timestamp', 'KeyType': 'RANGE'},
+                    ],
+                    'Projection': {'ProjectionType': 'ALL'},
+                },
             ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
+        ),
+    )
+
+
+def bootstrap_admin_user(dynamodb):
+    """Crea un administrador inicial solo si las variables están presentes."""
+    admin_email = os.environ.get('BOOTSTRAP_ADMIN_EMAIL', '').strip().lower()
+    admin_password = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD', '').strip()
+    admin_name = os.environ.get('BOOTSTRAP_ADMIN_NAME', 'GameVault Admin').strip()
+    admin_last_name = os.environ.get('BOOTSTRAP_ADMIN_LAST_NAME', '').strip()
+
+    if not admin_email or not admin_password:
+        print("ℹ️ No se creó usuario admin inicial. Define BOOTSTRAP_ADMIN_EMAIL y BOOTSTRAP_ADMIN_PASSWORD si lo necesitas.")
+        return
+
+    users_table = dynamodb.Table(USERS_TABLE)
+    existing = users_table.query(
+        IndexName='email-index',
+        KeyConditionExpression=Key('email').eq(admin_email),
+        Limit=1,
+    ).get('Items', [])
+
+    if existing:
+        admin_user = existing[0]
+        users_table.update_item(
+            Key={'user_id': admin_user['user_id']},
+            UpdateExpression='SET #role = :role, updated_at = :updated_at',
+            ExpressionAttributeNames={'#role': 'role'},
+            ExpressionAttributeValues={':role': 'admin', ':updated_at': now_iso()},
         )
-        print("⏳ Creando tabla GameVaultAuditLogs...")
-        tabla.wait_until_exists()
-        print("✅ Tabla GameVaultAuditLogs creada exitosamente!")
-        return True
-    except ClientError as e:
-        print(f"❌ Error al crear tabla GameVaultAuditLogs: {e.response['Error']['Message']}")
-        return False
+        print(f"✅ Admin existente actualizado: {admin_email}")
+        return
 
-
-def verificar_todas_tablas(dynamodb):
-    """Verifica todas las tablas requeridas por la aplicación."""
-    tablas = [
-        'GameVault',
-        'GameVaultUsers',
-        'GameVaultPasswordReset',
-        'GameVaultAuditLogs'
-    ]
-    existentes = []
-    
-    for tabla in tablas:
-        try:
-            dynamodb.Table(tabla).load()
-            existentes.append(tabla)
-            print(f"✅ Tabla '{tabla}' ya existe")
-        except ClientError:
-            print(f"⚠️ Tabla '{tabla}' no existe")
-        except Exception as e:
-            print(f"⚠️ Error al verificar '{tabla}': {str(e)}")
-    
-    return existentes
-
-
-def inyectar_admin_user(dynamodb):
-    """
-    Inyecta un usuario administrador por defecto si no existe.
-    
-    Returns:
-        bool: True si se injectó o ya existía, False si hubo error
-    """
-    try:
-        tabla = dynamodb.Table('GameVaultUsers')
-        
-        # Verificar si el admin ya existe
-        import uuid
-        from botocore.exceptions import ClientError
-        
-        # Buscar por email usando el índice
-        try:
-            response = tabla.query(
-                IndexName='email-index',
-                KeyConditionExpression='email = :email',
-                ExpressionAttributeValues={
-                    ':email': ADMIN_EMAIL
-                }
-            )
-            items = response.get('Items', [])
-            
-            if items:
-                # El admin ya existe, actualizar su rol
-                admin_user = items[0]
-                if admin_user.get('role') != 'admin':
-                    tabla.update_item(
-                        Key={'user_id': admin_user['user_id']},
-                        UpdateExpression='SET role = :role',
-                        ExpressionAttributeValues={':role': 'admin'}
-                    )
-                    print(f"✅ Admin actualizado: {ADMIN_EMAIL}")
-                else:
-                    print(f"✅ Admin ya existe: {ADMIN_EMAIL}")
-                return True
-                
-        except ClientError as e:
-            if e.response['Error']['Code'] != 'ValidationException':
-                raise
-        
-        # Crear nuevo usuario admin
-        user_id = str(uuid.uuid4())
-        password_hash = generate_password_hash(ADMIN_PASSWORD)
-        
-        item = {
+    user_id = str(uuid.uuid4())
+    timestamp = now_iso()
+    users_table.put_item(
+        Item={
             'user_id': user_id,
-            'email': ADMIN_EMAIL,
-            'nombre': ADMIN_NOMBRE,
-            'apellido': 'Admin',  # Apellido por defecto
-            'prefijo_pais': '+000',
-            'telefono': ADMIN_TELEFONO,
-            'password_hash': password_hash,
-            'role': 'admin'
+            'email': admin_email,
+            'nombre': admin_name,
+            'apellido': admin_last_name,
+            'prefijo_pais': '',
+            'telefono': '',
+            'password_hash': generate_password_hash(admin_password),
+            'role': 'admin',
+            'status': 'active',
+            'created_at': timestamp,
+            'updated_at': timestamp,
         }
-        
-        tabla.put_item(Item=item)
-        print(f"✅ Admin creado exitosamente: {ADMIN_EMAIL}")
-        print(f"   Password: {ADMIN_PASSWORD}")
-        return True
-        
-    except ClientError as e:
-        print(f"❌ Error al injectar admin: {e.response['Error']['Message']}")
-        return False
-    except Exception as e:
-        print(f"❌ Error inesperado al injectar admin: {str(e)}")
-        return False
+    )
+    print(f"✅ Admin inicial creado: {admin_email}")
 
 
 def main():
-    print("🚀 Configurando DynamoDB para GameVault...")
-    print(f"📍 Región: {DYNAMODB_REGION}")
-    
+    print('🚀 Configurando DynamoDB para GameVault')
+    print(f'📍 Región: {DYNAMODB_REGION}')
+
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMODB_REGION)
-    
-    # Verificar tablas existentes
-    existentes = verificar_todas_tablas(dynamodb)
-    
-    # Crear tabla de juegos si no existe
-    if 'GameVault' not in existentes:
-        crear_tabla_juegos(dynamodb)
-    else:
-        print("➡️ Tabla GameVault saltada (ya existe)")
-    
-    # Crear tabla de usuarios si no existe
-    if 'GameVaultUsers' not in existentes:
-        crear_tabla_usuarios(dynamodb)
-    else:
-        print("➡️ Tabla GameVaultUsers saltada (ya existe)")
-    
-    # Crear tabla de password reset si no existe
-    if 'GameVaultPasswordReset' not in existentes:
-        crear_tabla_password_reset(dynamodb)
-    else:
-        print("➡️ Tabla GameVaultPasswordReset saltada (ya existe)")
-    
-    # Crear tabla de audit logs si no existe
-    if 'GameVaultAuditLogs' not in existentes:
-        crear_tabla_audit_logs(dynamodb)
-    else:
-        print("➡️ Tabla GameVaultAuditLogs saltada (ya existe)")
-    
-    # Injectar usuario administrador
-    print("\n👤 Configurando usuario administrador...")
-    inyectar_admin_user(dynamodb)
-    
-    print("\n🎉 Configuración de DynamoDB completada!")
-    print("\n📋 Tablas creadas:")
-    print("   - GameVault (juegos)")
-    print("   - GameVaultUsers (usuarios)")
-    print("   - GameVaultPasswordReset (tokens de recuperación)")
-    print("   - GameVaultAuditLogs (logs de auditoría)")
+    dynamodb_client = boto3.client('dynamodb', region_name=DYNAMODB_REGION)
+
+    create_games_table(dynamodb)
+    create_users_table(dynamodb)
+    create_reset_table(dynamodb)
+    create_audit_table(dynamodb)
+
+    enable_ttl(dynamodb_client, RESET_TABLE, 'ttl')
+    enable_ttl(dynamodb_client, AUDIT_TABLE, 'ttl')
+    bootstrap_admin_user(dynamodb)
+
+    print('\n🎉 DynamoDB listo para GameVault')
+    print(f'   - {GAMES_TABLE}')
+    print(f'   - {USERS_TABLE}')
+    print(f'   - {RESET_TABLE}')
+    print(f'   - {AUDIT_TABLE}')
 
 
 if __name__ == '__main__':
     main()
-

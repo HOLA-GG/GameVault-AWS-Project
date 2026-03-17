@@ -1,119 +1,99 @@
 {% extends "base.html" %}
 
-{% block title %}GameVault - Tu Colección de Juegos en la Nube{% endblock %}
+{% block title %}GameVault - Organiza tu colección gamer{% endblock %}
 
 {% block content %}
-<!-- Barra de navegación mejorada -->
 <div class="nav-bar">
     <div class="nav-links">
-        <a href="{{ url_for('main.landing') }}" class="btn btn-primary">🏠 Inicio</a>
-        <a href="{{ url_for('main.demo') }}" class="btn btn-secondary">🚀 Demo</a>
+        <a href="{{ url_for('main.landing') }}" class="btn btn-primary">Inicio</a>
+        <a href="{{ url_for('main.demo') }}" class="btn btn-secondary">Demo</a>
     </div>
-    
     {% if session.get('user_id') %}
         <div class="user-info">
-            <span>👤 {{ session.get('nombre') }}</span>
-            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-small">📚 Mi Colección</a>
-            <a href="{{ url_for('main.logout') }}" class="btn btn-secondary btn-small">Cerrar Sesión</a>
+            <span>{{ session.get('nombre') }}</span>
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-small">Mi colección</a>
+            <a href="{{ url_for('main.profile') }}" class="btn btn-secondary btn-small">Perfil</a>
+            <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-secondary btn-small">Cerrar sesión</button>
+            </form>
         </div>
     {% else %}
         <div class="nav-links">
-            <a href="{{ url_for('main.login') }}" class="btn btn-secondary">🔐 Iniciar Sesión</a>
-            <a href="{{ url_for('main.registro') }}" class="btn btn-primary">📝 Registrarse</a>
+            <a href="{{ url_for('main.login') }}" class="btn btn-secondary">Iniciar sesión</a>
+            <a href="{{ url_for('main.registro') }}" class="btn btn-primary">Crear cuenta</a>
         </div>
     {% endif %}
 </div>
 
-<!-- Hero Section -->
 <section class="section hero-section">
-    <h2>Bienvenido a 🎮 GameVault</h2>
+    <h2>Tu colección gamer, ordenada y segura</h2>
     <p>
-        La aplicación definitiva para gestionar tu colección de videojuegos. 
-        Almacena, organiza y muestra tus juegos favoritos en la nube con AWS.
+        GameVault te ayuda a registrar, buscar y mantener tu biblioteca de videojuegos
+        con portadas en la nube, historial de cambios y una experiencia simple para coleccionistas.
     </p>
-    
-    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
-        <a href="{{ url_for('main.demo') }}" class="btn btn-primary" style="font-size: 1.2rem; padding: 15px 30px;">
-            🚀 Probar Demo
-        </a>
-        <a href="{{ url_for('main.registro') }}" class="btn btn-secondary" style="font-size: 1.2rem; padding: 15px 30px;">
-            📝 Registrarse Gratis
-        </a>
+    <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+        <a href="{{ url_for('main.registro') }}" class="btn btn-primary" style="font-size:1.05rem;padding:14px 28px;">Crear mi colección</a>
+        <a href="{{ url_for('main.demo') }}" class="btn btn-secondary" style="font-size:1.05rem;padding:14px 28px;">Probar demo</a>
     </div>
 </section>
 
-<!-- Features Section con efectos rainbow -->
-<section class="section" style="position: relative;">
-    <h2 style="text-align: center; margin-bottom: 40px;">✨ Características</h2>
-    
-    <div class="features-grid">
-        <div class="feature-card electric-wrapper color-rainbow">
-            <span class="feature-icon">☁️</span>
-            <h4>Cloud Storage</h4>
-            <p>Imágenes almacenadas de forma segura en Amazon S3</p>
-        </div>
-        
-        <div class="feature-card electric-wrapper color-rainbow">
-            <span class="feature-icon">🔐</span>
-            <h4>Multi-Tenant</h4>
-            <p>Cada usuario tiene su propia área privada y segura</p>
-        </div>
-        
-        <div class="feature-card electric-wrapper color-rainbow">
-            <span class="feature-icon">⚡</span>
-            <h4>Rápido y Seguro</h4>
-            <p>DynamoDB para acceso ultra-rápido a tus datos</p>
-        </div>
-        
-        <div class="feature-card electric-wrapper color-rainbow">
-            <span class="feature-icon">🎮</span>
-            <h4>Gestión Completa</h4>
-            <p>Agrega, edita y elimina juegos fácilmente</p>
-        </div>
-    </div>
-</section>
-
-<!-- How it Works -->
 <section class="section">
-    <h2 style="text-align: center; margin-bottom: 40px;">📖 ¿Cómo Funciona?</h2>
-    
-    <div class="steps-grid">
-        <div class="step-card">
-            <div class="step-number">1️⃣</div>
-            <h4>Regístrate</h4>
-            <p>Crea tu cuenta gratuita</p>
+    <h2 style="text-align:center;margin-bottom:30px;">Pensado para coleccionistas</h2>
+    <div class="features-grid">
+        <div class="feature-card electric-wrapper color-blue">
+            <span class="feature-icon">🗂️</span>
+            <h4>Orden real</h4>
+            <p>Filtra por plataforma, estado y encuentra cualquier juego al instante.</p>
         </div>
-        
-        <div class="step-card">
-            <div class="step-number">2️⃣</div>
-            <h4>Agrega Juegos</h4>
-            <p>Sube imágenes y descripciones</p>
+        <div class="feature-card electric-wrapper color-yellow">
+            <span class="feature-icon">🖼️</span>
+            <h4>Portadas en la nube</h4>
+            <p>Guarda tus imágenes en S3 y accede a tu colección desde cualquier lugar.</p>
         </div>
-        
-        <div class="step-card">
-            <div class="step-number">3️⃣</div>
-            <h4>Organiza</h4>
-            <p>Edita y gestiona tu colección</p>
+        <div class="feature-card electric-wrapper color-purple">
+            <span class="feature-icon">🔒</span>
+            <h4>Cuenta privada</h4>
+            <p>Tu panel es personal y ya no comparte datos demo dentro del dashboard real.</p>
         </div>
-        
-        <div class="step-card">
-            <div class="step-number">4️⃣</div>
-            <h4>Comparte</h4>
-            <p>Accede desde cualquier lugar</p>
+        <div class="feature-card electric-wrapper color-rainbow">
+            <span class="feature-icon">📈</span>
+            <h4>Base para crecer</h4>
+            <p>Logs, recuperación de contraseña y despliegue listo para pasar a beta pública.</p>
         </div>
     </div>
 </section>
 
-<!-- CTA Section -->
+<section class="section">
+    <h2 style="text-align:center;margin-bottom:30px;">Cómo funciona</h2>
+    <div class="steps-grid">
+        <div class="step-card"><div class="step-number">1</div><h4>Crea tu cuenta</h4><p>Solo pedimos lo mínimo para arrancar.</p></div>
+        <div class="step-card"><div class="step-number">2</div><h4>Sube tus portadas</h4><p>Las imágenes se almacenan en AWS sin complicarte.</p></div>
+        <div class="step-card"><div class="step-number">3</div><h4>Busca y filtra</h4><p>Encuentra rápido lo que tienes y en qué estado está.</p></div>
+        <div class="step-card"><div class="step-number">4</div><h4>Mantén tu colección viva</h4><p>Edita, elimina y actualiza cuando quieras.</p></div>
+    </div>
+</section>
+
+<section class="section">
+    <h2 style="text-align:center;margin-bottom:30px;">Preguntas frecuentes</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <h4>¿Puedo probarlo sin registrarme?</h4>
+            <p>Sí. La demo procesa todo en memoria y no guarda nada en la base real.</p>
+        </div>
+        <div class="feature-card">
+            <h4>¿Mis imágenes quedan públicas?</h4>
+            <p>La app valida y controla la subida. La siguiente fase es endurecer la entrega con una capa de distribución segura.</p>
+        </div>
+        <div class="feature-card">
+            <h4>¿Esto es para tiendas?</h4>
+            <p>No en esta etapa. El producto está enfocado en coleccionistas individuales.</p>
+        </div>
+    </div>
+</section>
+
 <section class="section cta-section">
-    <h2>🎮 ¿Listo para comenzar?</h2>
-    <p>
-        Crea tu cuenta gratuita y comienza a gestionar tu colección de juegos en la nube
-    </p>
-    <a href="{{ url_for('main.registro') }}" class="btn">📝 Crear Cuenta Gratis</a>
-    <p style="color: rgba(255,255,255,0.7); margin-top: 15px; font-size: 0.9rem;">
-        O <a href="{{ url_for('main.demo') }}">prueba primero la demo</a> sin registrarte
-    </p>
+    <h2>Empieza tu colección hoy</h2>
+    <p>Prueba la experiencia y luego conviértela en tu biblioteca real.</p>
+    <a href="{{ url_for('main.registro') }}" class="btn">Crear cuenta gratis</a>
 </section>
 {% endblock %}
-

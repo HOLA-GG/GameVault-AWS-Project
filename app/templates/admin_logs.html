@@ -1,463 +1,127 @@
 {% extends "base.html" %}
 
-{% block title %}GameVault - Logs de Actividad{% endblock %}
+{% block title %}GameVault - Logs de actividad{% endblock %}
 
 {% block content %}
-<!-- Barra de navegación -->
 <div class="nav-bar">
     <div class="nav-links">
-        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">🎮 Mis Juegos</a>
-        <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">👥 Usuarios</a>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Mi colección</a>
+        <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Usuarios</a>
     </div>
-    
     <div class="nav-links">
-        <span style="color: var(--success-color);">👤 {{ session.get('nombre', 'Admin') }}</span>
-        <a href="{{ url_for('main.logout') }}" class="btn btn-danger">🚪 Cerrar Sesión</a>
+        <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-danger">Cerrar sesión</button>
+        </form>
     </div>
 </div>
 
-<!-- Panel de Logs de Actividad -->
 <section class="section">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-        <h2>📊 Logs de Actividad</h2>
-        <div style="text-align: right;">
-            <span class="badge badge-admin">ADMINISTRADOR</span>
-        </div>
-    </div>
-    
-    <p style="margin-bottom: 20px; color: var(--text-secondary);">
-        Registro de todas las acciones realizadas por usuarios en la plataforma.
-    </p>
-    
-    <!-- Tarjetas de Estadísticas con efectos rainbow -->
+    <h2>Logs de actividad</h2>
     {% if stats and not stats.error %}
-    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
-        <div class="stat-card electric-wrapper color-rainbow">
-            <span class="stat-icon">📝</span>
-            <div class="stat-content">
-                <span class="stat-value">{{ stats.total_logs or 0 }}</span>
-                <span class="stat-label">Total Logs</span>
-            </div>
-        </div>
-        
-        <div class="stat-card electric-wrapper color-yellow">
-            <span class="stat-icon">✅</span>
-            <div class="stat-content">
-                <span class="stat-value">{{ stats.success_rate }}%</span>
-                <span class="stat-label">Tasa de Éxito</span>
-            </div>
-        </div>
-        
-        <div class="stat-card electric-wrapper color-blue">
-            <span class="stat-icon">🔐</span>
-            <div class="stat-content">
-                <span class="stat-value">{{ stats.action_counts.LOGIN or 0 }}</span>
-                <span class="stat-label">Logins</span>
-            </div>
-        </div>
-        
-        <div class="stat-card electric-wrapper color-purple">
-            <span class="stat-icon">🎮</span>
-            <div class="stat-content">
-                <span class="stat-value">{{ (stats.action_counts.CREATE_GAME or 0) + (stats.action_counts.DELETE_GAME or 0) + (stats.action_counts.UPDATE_GAME or 0) }}</span>
-                <span class="stat-label">Operaciones Juegos</span>
-            </div>
-        </div>
-    </div>
+        <p style="color:var(--text-secondary);margin-bottom:20px;">
+            {{ stats.total_logs or 0 }} eventos registrados · {{ stats.success_rate }}% de éxito
+        </p>
     {% endif %}
-    
-    <!-- Filtros con efecto plasma -->
-    <div class="filters-section electric-wrapper style-plasma color-blue" style="padding: 20px; border-radius: var(--border-radius-md); margin-bottom: 20px;">
-        <h4 style="margin: 0 0 15px 0; color: var(--text-primary);">🔍 Filtros</h4>
-        <form method="GET" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
-            <div class="form-group" style="flex: 1; min-width: 150px;">
-                <label style="color: var(--text-secondary); font-size: 0.85rem;">Usuario ID</label>
-                <input type="text" 
-                       name="user_id" 
-                       value="{{ filters.user_id or '' }}"
-                       placeholder="Filtrar por usuario"
-                       style="width: 100%; padding: 8px 12px; background: var(--input-bg); border: 2px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
+
+    <form method="GET" style="margin-bottom:20px;">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="user_id">Usuario</label>
+                <input type="text" id="user_id" name="user_id" value="{{ filters.user_id or '' }}">
             </div>
-            
-            <div class="form-group" style="flex: 1; min-width: 150px;">
-                <label style="color: var(--text-secondary); font-size: 0.85rem;">Acción</label>
-                <select name="action" style="width: 100%; padding: 8px 12px; background: var(--input-bg); border: 2px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
-                    <option value="">Todas las acciones</option>
+            <div class="form-group">
+                <label for="action">Acción</label>
+                <select id="action" name="action">
+                    <option value="">Todas</option>
                     {% for action_key, action_name in AUDIT_ACTIONS.items() %}
                         <option value="{{ action_key }}" {% if filters.action == action_key %}selected{% endif %}>{{ action_name }}</option>
                     {% endfor %}
                 </select>
             </div>
-            
-            <div class="form-group" style="flex: 1; min-width: 120px;">
-                <label style="color: var(--text-secondary); font-size: 0.85rem;">Estado</label>
-                <select name="status" style="width: 100%; padding: 8px 12px; background: var(--input-bg); border: 2px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="status">Estado</label>
+                <select id="status" name="status">
                     <option value="">Todos</option>
                     <option value="SUCCESS" {% if filters.status == 'SUCCESS' %}selected{% endif %}>Éxito</option>
                     <option value="FAILED" {% if filters.status == 'FAILED' %}selected{% endif %}>Fallido</option>
                     <option value="ERROR" {% if filters.status == 'ERROR' %}selected{% endif %}>Error</option>
                 </select>
             </div>
-            
-            <div class="form-group" style="flex: 1; min-width: 120px;">
-                <label style="color: var(--text-secondary); font-size: 0.85rem;">Fecha Inicio</label>
-                <input type="date" 
-                       name="start_date" 
-                       value="{{ filters.start_date or '' }}"
-                       style="width: 100%; padding: 8px 12px; background: var(--input-bg); border: 2px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
+            <div class="form-group">
+                <label for="start_date">Desde</label>
+                <input type="date" id="start_date" name="start_date" value="{{ filters.start_date or '' }}">
             </div>
-            
-            <div class="form-group" style="flex: 1; min-width: 120px;">
-                <label style="color: var(--text-secondary); font-size: 0.85rem;">Fecha Fin</label>
-                <input type="date" 
-                       name="end_date" 
-                       value="{{ filters.end_date or '' }}"
-                       style="width: 100%; padding: 8px 12px; background: var(--input-bg); border: 2px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
+            <div class="form-group">
+                <label for="end_date">Hasta</label>
+                <input type="date" id="end_date" name="end_date" value="{{ filters.end_date or '' }}">
             </div>
-            
-            <div style="display: flex; gap: 10px;">
-                <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">🔍 Filtrar</button>
-                <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary" style="padding: 8px 16px;">🗑️ Limpiar</a>
-            </div>
-        </form>
-        
-        <!-- Botón de exportación y limpieza -->
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); display: flex; gap: 10px; flex-wrap: wrap;">
-            <a href="{{ url_for('main.admin_logs_export', **request.args) }}" class="btn btn-success" style="padding: 8px 16px; display: inline-flex; align-items: center; gap: 8px;">
-                📥 Exportar a CSV
-            </a>
-            
-            <!-- Formulario para eliminar logs -->
-            <form action="{{ url_for('main.admin_logs_clear') }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar los logs antiguos? Esta acción no se puede deshacer.');">
-                <div style="display: flex; gap: 8px; align-items: flex-end;">
-                    <div class="form-group" style="margin: 0;">
-                        <label style="color: var(--text-secondary); font-size: 0.75rem;">Retener últimos</label>
-                        <select name="dias" style="padding: 8px 12px; background: var(--input-bg); border: 2px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
-                            <option value="1">1 día</option>
-                            <option value="7" selected>7 días</option>
-                            <option value="14">14 días</option>
-                            <option value="30">30 días</option>
-                            <option value="60">60 días</option>
-                            <option value="90">90 días</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-danger" style="padding: 8px 16px; display: inline-flex; align-items: center; gap: 8px;">
-                        🗑️ Liberar Espacio
-                    </button>
-                </div>
-            </form>
         </div>
-    </div>
-    
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary">Limpiar</a>
+            <a href="{{ url_for('main.admin_logs_export', **request.args) }}" class="btn btn-secondary">Exportar CSV</a>
+        </div>
+    </form>
+
+    <form action="{{ url_for('main.admin_logs_clear') }}" method="POST" style="margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+        <div class="form-group" style="max-width:180px;">
+            <label for="dias">Retención manual</label>
+            <select id="dias" name="dias">
+                <option value="7">7 días</option>
+                <option value="14">14 días</option>
+                <option value="30">30 días</option>
+                <option value="60">60 días</option>
+                <option value="90">90 días</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-danger">Liberar espacio</button>
+    </form>
+
     {% if logs %}
-        <!-- Tabla de Logs con efecto plasma -->
-        <div class="table-container electric-wrapper style-plasma">
+        <div class="table-container">
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>📅 Fecha/Hora</th>
-                        <th>👤 Usuario</th>
-                        <th>🎬 Acción</th>
-                        <th>📦 Recurso</th>
-                        <th>🌐 IP</th>
-                        <th>📊 Estado</th>
-                        <th>📋 Detalles</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Acción</th>
+                        <th>Recurso</th>
+                        <th>Estado</th>
+                        <th>IP</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for log in logs %}
-                        <tr class="{% if log.status == 'FAILED' or log.status == 'ERROR' %}log-failed{% endif %}">
-                            <td>
-                                <span style="font-size: 0.85rem; color: var(--text-primary);">
-                                    {{ log.timestamp[:10] }}<br>
-                                    <span style="color: var(--text-secondary);">{{ log.timestamp[11:19] }}</span>
-                                </span>
-                            </td>
-                            <td>
-                                <span style="font-family: monospace; font-size: 0.85rem; color: var(--text-primary);">{{ log.user_id[:8] }}...</span>
-                            </td>
-                            <td>
-                                <span class="badge badge-{{ log.action|lower }}">
-                                    {{ log.action_name or log.action }}
-                                </span>
-                            </td>
-                            <td style="color: var(--text-primary);">{{ log.resource }}</td>
-                            <td>
-                                <span style="font-family: monospace; font-size: 0.8rem; color: var(--text-primary);">{{ log.ip_address }}</span>
-                            </td>
-                            <td>
-                                {% if log.status == 'SUCCESS' %}
-                                    <span style="color: var(--success-color);">✓ Éxito</span>
-                                {% elif log.status == 'FAILED' %}
-                                    <span style="color: #f59e0b;">⚠ Falló</span>
-                                {% else %}
-                                    <span style="color: var(--danger-color);">✗ Error</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <button class="btn-icon" onclick="showDetails('{{ log.audit_id }}')" title="Ver detalles">
-                                    👁️
-                                </button>
-                            </td>
+                        <tr>
+                            <td>{{ log.timestamp[:19].replace('T', ' ') }}</td>
+                            <td>{{ log.user_id }}</td>
+                            <td>{{ log.action_name or log.action }}</td>
+                            <td>{{ log.resource }}</td>
+                            <td>{{ log.status }}</td>
+                            <td>{{ log.ip_address }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        
-        <!-- Resumen con efecto soft -->
-        <div class="electric-wrapper style-soft color-blue" style="margin-top: 20px; padding: 15px; border-radius: 8px; text-align: center;">
-            <p style="margin: 0; color: var(--text-secondary);">
-                📊 Total de registros mostrados: <strong style="color: var(--text-primary);">{{ logs|length }}</strong>
-            </p>
-        </div>
-        
     {% else %}
-        <!-- Estado vacío con efecto rainbow -->
-        <div class="empty-state electric-wrapper style-plasma color-rainbow">
-            <p style="font-size: 1.2rem; color: var(--text-secondary);">📭 No hay logs de actividad disponibles.</p>
-            <p style="color: var(--text-secondary);">Los registros aparecerán aquí cuando los usuarios realicen acciones en la plataforma.</p>
-        </div>
+        <div class="empty-state"><p>No hay logs para esos filtros.</p></div>
     {% endif %}
-    
-    <!-- Botones de navegación -->
-    <div style="margin-top: 30px; text-align: center;">
-        <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">← Volver al Panel de Admin</a>
-    </div>
 </section>
 
-<!-- Modal de Detalles -->
-<div id="detailsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
-    <div class="electric-wrapper style-plasma" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
-        <h3 style="margin-top: 0; color: var(--text-primary);">📋 Detalles del Log</h3>
-        <div id="detailsContent" style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;"></div>
-        <button onclick="closeModal()" class="btn btn-secondary" style="margin-top: 20px; width: 100%;">Cerrar</button>
+{% if pagination.total_pages > 1 %}
+<section class="section" style="text-align:center;">
+    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('main.admin_logs', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary">Anterior</a>
+        {% endif %}
+        <span style="padding:10px 16px;color:var(--text-secondary);">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+        {% if pagination.has_next %}
+            <a href="{{ url_for('main.admin_logs', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary">Siguiente</a>
+        {% endif %}
     </div>
-</div>
-
-<style>
-    /* Estilos específicos para la tabla de logs */
-    .badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        text-transform: uppercase;
-    }
-    
-    .badge-admin {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: #000;
-    }
-    
-    .badge-success {
-        background: var(--success-color);
-        color: #fff;
-    }
-    
-    .badge-warning {
-        background: #f59e0b;
-        color: #000;
-    }
-    
-    .badge-error {
-        background: var(--danger-color);
-        color: #fff;
-    }
-    
-    .log-failed {
-        background: rgba(var(--danger-color-rgb), 0.1);
-    }
-    
-    .table-container {
-        overflow-x: auto;
-        margin: 20px 0;
-    }
-    
-    .admin-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: var(--background-dark);
-        border-radius: 8px;
-        overflow: hidden;
-        font-size: 0.85rem;
-    }
-    
-    .admin-table th,
-    .admin-table td {
-        padding: 12px 15px;
-        text-align: left;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .admin-table th {
-        background: var(--secondary-color);
-        color: var(--text-primary);
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-    }
-    
-    .admin-table tr:hover {
-        background: var(--background-darker);
-    }
-    
-    .btn-icon {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 1rem;
-        padding: 5px;
-        border-radius: 4px;
-        transition: all 0.2s;
-    }
-    
-    .btn-icon:hover {
-        background: var(--border-color);
-    }
-    
-    .btn-danger {
-        background: var(--danger-color);
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: 0.9rem;
-    }
-    
-    .btn-danger:hover {
-        background: #dc2626;
-    }
-    
-    .btn-success {
-        background: var(--success-color);
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: 0.9rem;
-    }
-    
-    .btn-success:hover {
-        background: #059669;
-    }
-    
-    /* Estilos para badges de acciones */
-    .badge-login { background: #3b82f6; color: white; }
-    .badge-logout { background: #6366f1; color: white; }
-    .badge-register { background: #8b5cf6; color: white; }
-    .badge-create_game { background: #10b981; color: white; }
-    .badge-update_game { background: #f59e0b; color: black; }
-    .badge-delete_game { background: #ef4444; color: white; }
-    .badge-password_reset { background: #ec4899; color: white; }
-    .badge-admin_action { background: #f59e0b; color: black; }
-    .badge-failed_login { background: #ef4444; color: white; }
-    
-    /* Tarjetas de estadísticas */
-    .stat-card {
-        background: var(--card-bg);
-        padding: 20px;
-        border-radius: var(--border-radius-md);
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-    
-    .stat-icon {
-        font-size: 2rem;
-    }
-    
-    .stat-content {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: var(--text-primary);
-    }
-    
-    .stat-label {
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-    }
-    
-    /* Ajuste para electric-wrapper en stat-card */
-    .stat-card.electric-wrapper {
-        padding: 0;
-    }
-    
-    .stat-card.electric-wrapper .stat-content {
-        background: var(--card-bg);
-        padding: 15px;
-        border-radius: calc(var(--border-radius-md) - 3px);
-    }
-</style>
-
-<script>
-function showDetails(auditId) {
-    // Buscar el log en la tabla (en una aplicación real, esto vendría de una API)
-    const rows = document.querySelectorAll('.admin-table tbody tr');
-    let selectedLog = null;
-    
-    rows.forEach(row => {
-        const button = row.querySelector('.btn-icon');
-        if (button && row.cells[0] && row.cells[1]) {
-            const timestamp = row.cells[0].innerText.replace('\n', ' ');
-            const userId = row.cells[1].innerText;
-            const action = row.cells[2].innerText.trim();
-            const resource = row.cells[3].innerText;
-            const ip = row.cells[4].innerText;
-            const status = row.cells[5].innerText.trim();
-            
-            if (selectedLog === null) {
-                selectedLog = {
-                    audit_id: auditId,
-                    user_id: userId,
-                    action_name: action,
-                    resource: resource,
-                    timestamp: timestamp,
-                    ip_address: ip,
-                    status: status === '✓ Éxito' ? 'SUCCESS' : (status === '⚠ Falló' ? 'FAILED' : 'ERROR'),
-                    details: { info: 'Detalles disponibles en el servidor' }
-                };
-            }
-        }
-    });
-    
-    if (!selectedLog) return;
-    
-    const content = document.getElementById('detailsContent');
-    content.innerHTML = `
-        <p><strong>ID:</strong> ${selectedLog.audit_id}</p>
-        <p><strong>Usuario:</strong> ${selectedLog.user_id}</p>
-        <p><strong>Acción:</strong> ${selectedLog.action_name}</p>
-        <p><strong>Recurso:</strong> ${selectedLog.resource}</p>
-        <p><strong>Fecha/Hora:</strong> ${selectedLog.timestamp}</p>
-        <p><strong>IP:</strong> ${selectedLog.ip_address}</p>
-        <p><strong>Estado:</strong> ${selectedLog.status}</p>
-        <p><strong>Detalles:</strong> ${JSON.stringify(selectedLog.details)}</p>
-    `;
-    
-    document.getElementById('detailsModal').style.display = 'block';
-}
-
-function closeModal() {
-    document.getElementById('detailsModal').style.display = 'none';
-}
-
-// Cerrar modal al hacer click fuera
-document.getElementById('detailsModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeModal();
-    }
-});
-</script>
+</section>
+{% endif %}
 {% endblock %}
-

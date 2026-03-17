@@ -1,5 +1,9 @@
-flask
-flask-mail
-boto3
-botocore
-werkzeug
+Flask==3.1.2
+Flask-Limiter==4.1.1
+Flask-Mail==0.10.0
+Flask-WTF==1.2.2
+boto3==1.42.69
+botocore==1.42.69
+pytest==9.0.2
+sentry-sdk==2.55.0
+Werkzeug==3.1.3

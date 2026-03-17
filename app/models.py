@@ -10,21 +10,44 @@ Incluye:
 - Audit Logs (Logs de Auditoría)
 """
 
-import boto3
 import os
-from boto3.dynamodb.conditions import Key
-from botocore.exceptions import ClientError
-from botocore.client import Config
 import re
-import uuid
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
+import boto3
+from boto3.dynamodb.conditions import Attr, Key
+from botocore.client import Config
+from botocore.exceptions import ClientError
 
 
 # ================================
 # CONFIGURACIÓN
 # ================================
+
+RESET_TOKEN_EXPIRY_MINUTES = int(os.environ.get('RESET_TOKEN_EXPIRY_MINUTES', 30))
+AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', 90))
+RESET_TOKEN_INDEX_NAME = os.environ.get('DYNAMODB_RESET_TOKEN_INDEX', 'reset-token-index')
+AUDIT_TIMESTAMP_INDEX_NAME = os.environ.get('DYNAMODB_AUDIT_TIMESTAMP_INDEX', 'scope-timestamp-index')
+AUDIT_LOG_SCOPE = 'global'
+
+
+def utcnow() -> datetime:
+    """Obtiene el tiempo actual en UTC."""
+    return datetime.now(timezone.utc)
+
+
+def iso_now() -> str:
+    """Serializa el tiempo actual en UTC."""
+    return utcnow().isoformat()
+
+
+def future_unix_timestamp(minutes: int = 0, days: int = 0) -> int:
+    """Calcula un timestamp UNIX futuro para usar como TTL."""
+    return int((utcnow() + timedelta(minutes=minutes, days=days)).timestamp())
+
 
 def get_dynamodb_table():
     """Obtiene la tabla de DynamoDB configurada."""
@@ -96,11 +119,7 @@ def eliminar_imagen_s3(imagen_url):
         bucket_name = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
         
         # Parsear la URL para obtener la key
-        if 'amazonaws.com/' in imagen_url:
-            key = imagen_url.split('amazonaws.com/')[-1]
-        else:
-            # Si es una URL personalizada, usar solo el nombre del archivo
-            key = imagen_url.split('/')[-1]
+        key = obtener_key_desde_url(imagen_url)
         
         if not key:
             print("⚠️ No se pudo extraer la key de la URL")
@@ -153,6 +172,28 @@ def obtener_key_desde_url(imagen_url):
         return None
 
 
+def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
+    """Genera una URL temporal para mostrar una imagen privada de S3."""
+    try:
+        if not imagen_url:
+            return imagen_url
+
+        key = obtener_key_desde_url(imagen_url)
+        if not key:
+            return imagen_url
+
+        bucket_name = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
+        s3_client = get_s3_client()
+        return s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': key},
+            ExpiresIn=expires_in,
+        )
+    except Exception as e:
+        print(f"⚠️ No se pudo firmar la imagen para lectura: {str(e)}")
+        return imagen_url
+
+
 # ================================
 # OPERACIONES DE JUEGOS (CRUD)
 # ================================
@@ -176,6 +217,7 @@ def crear_juego(user_id, game_id, titulo, descripcion, imagen_url, plataforma='P
     try:
         tabla = get_dynamodb_table()
         
+        timestamp = iso_now()
         item = {
             'user_id': user_id,
             'game_id': game_id,
@@ -183,7 +225,9 @@ def crear_juego(user_id, game_id, titulo, descripcion, imagen_url, plataforma='P
             'descripcion': descripcion,
             'imagen_url': imagen_url,
             'plataforma': plataforma,
-            'estado': estado
+            'estado': estado,
+            'created_at': timestamp,
+            'updated_at': timestamp,
         }
         
         response = tabla.put_item(Item=item)
@@ -337,7 +381,11 @@ def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
         nueva_url = juego_actual.get('imagen_url')  # Mantener la actual por defecto
         imagen_anterior_url = juego_actual.get('imagen_url')
         
-        if nueva_imagen:
+        if isinstance(nueva_imagen, str) and nueva_imagen:
+            nueva_url = nueva_imagen
+            if imagen_anterior_url and imagen_anterior_url != nueva_url:
+                eliminar_imagen_s3(imagen_anterior_url)
+        elif nueva_imagen:
             # Subir nueva imagen a S3
             from app.routes import subir_imagen_a_s3
             nueva_url = subir_imagen_a_s3(nueva_imagen)
@@ -353,9 +401,10 @@ def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
         tabla = get_dynamodb_table()
         
         # Construir expresión de actualización
-        update_expression = "SET imagen_url = :url"
+        update_expression = "SET imagen_url = :url, updated_at = :updated_at"
         expression_attributes = {
-            ':url': nueva_url
+            ':url': nueva_url,
+            ':updated_at': iso_now(),
         }
         
         if 'titulo' in nuevos_datos and nuevos_datos['titulo']:
@@ -423,15 +472,19 @@ def crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash
         # Generar ID único para el usuario
         user_id = str(uuid.uuid4())
         
+        timestamp = iso_now()
         item = {
             'user_id': user_id,
             'email': email.lower().strip(),
             'nombre': nombre.strip(),
-            'apellido': apellido.strip(),
-            'prefijo_pais': prefijo_pais,
-            'telefono': telefono,
+            'apellido': (apellido or '').strip(),
+            'prefijo_pais': (prefijo_pais or '').strip(),
+            'telefono': (telefono or '').strip(),
             'password_hash': password_hash,
-            'role': 'user'  # Rol por defecto para nuevos usuarios
+            'role': 'user',
+            'status': 'active',
+            'created_at': timestamp,
+            'updated_at': timestamp,
         }
         
         response = tabla.put_item(Item=item)
@@ -580,8 +633,11 @@ def actualizar_usuario_nombre(user_id, nombre):
         
         response = tabla.update_item(
             Key={'user_id': user_id},
-            UpdateExpression='SET nombre = :nombre',
-            ExpressionAttributeValues={':nombre': nombre.strip()},
+            UpdateExpression='SET nombre = :nombre, updated_at = :updated_at',
+            ExpressionAttributeValues={
+                ':nombre': nombre.strip(),
+                ':updated_at': iso_now(),
+            },
             ReturnValues='ALL_NEW'
         )
         
@@ -618,12 +674,6 @@ def get_dynamodb_audit_table():
     return dynamodb.Table(os.environ.get('DYNAMODB_AUDIT_TABLE', 'GameVaultAuditLogs'))
 
 
-# Configuración de Password Reset
-# Token expira en 3 minutos por seguridad
-RESET_TOKEN_EXPIRY_MINUTES = int(os.environ.get('RESET_TOKEN_EXPIRY_MINUTES', 3))
-AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', 90))
-
-
 # ================================
 # PASSWORD RESET FLOW
 # ================================
@@ -646,7 +696,7 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
         token_id = str(uuid.uuid4())
         reset_token = f"{secrets.token_urlsafe(32)}"
         
-        now = datetime.now(timezone.utc)
+        now = utcnow()
         expires_at = now + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
         
         item = {
@@ -655,8 +705,10 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
             'reset_token': reset_token,  # Usar 'reset_token' en lugar de 'token' (palabra reservada)
             'created_at': now.isoformat(),
             'expires_at': expires_at.isoformat(),
+            'expires_at_unix': int(expires_at.timestamp()),
             'used': False,
-            'ip_address': ip_address or 'unknown'
+            'ip_address': ip_address or 'unknown',
+            'ttl': int(expires_at.timestamp()),
         }
         
         tabla.put_item(Item=item)
@@ -688,18 +740,7 @@ def validar_reset_token(reset_token: str) -> Dict[str, Any]:
         dict: {'valid': bool, 'user_id': str, 'error': str}
     """
     try:
-        tabla = get_dynamodb_reset_table()
-        
-        # Buscar token en la tabla usando 'reset_token' (no 'token' que es palabra reservada)
-        response = tabla.scan(
-            FilterExpression='reset_token = :reset_token AND used = :used',
-            ExpressionAttributeValues={
-                ':reset_token': reset_token,
-                ':used': False
-            }
-        )
-        
-        items = response.get('Items', [])
+        items = obtener_token_por_valor(reset_token, only_active=True)
         
         if not items:
             return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
@@ -708,7 +749,7 @@ def validar_reset_token(reset_token: str) -> Dict[str, Any]:
         
         # Verificar expiración
         expires_at = datetime.fromisoformat(item['expires_at'])
-        now = datetime.now(timezone.utc)
+        now = utcnow()
         
         if expires_at < now:
             return {'valid': False, 'user_id': None, 'error': 'Token expirado'}
@@ -739,16 +780,7 @@ def usar_token(reset_token: str) -> Dict[str, Any]:
     """
     try:
         tabla = get_dynamodb_reset_table()
-        
-        # Buscar el token usando 'reset_token'
-        response = tabla.scan(
-            FilterExpression='reset_token = :reset_token',
-            ExpressionAttributeValues={
-                ':reset_token': reset_token
-            }
-        )
-        
-        items = response.get('Items', [])
+        items = obtener_token_por_valor(reset_token, only_active=False)
         
         if not items:
             return {'success': False, 'error': 'Token no encontrado'}
@@ -762,7 +794,7 @@ def usar_token(reset_token: str) -> Dict[str, Any]:
             UpdateExpression='SET used = :used, used_at = :used_at',
             ExpressionAttributeValues={
                 ':used': True,
-                ':used_at': datetime.now(timezone.utc).isoformat()
+                ':used_at': iso_now(),
             }
         )
         
@@ -804,7 +836,7 @@ def obtener_token_por_user_id(user_id: str) -> Optional[Dict[str, Any]]:
             item = items[0]
             if not item.get('used', False):
                 expires_at = datetime.fromisoformat(item['expires_at'])
-                if expires_at > datetime.now(timezone.utc):
+                if expires_at > utcnow():
                     return item
         
         return None
@@ -828,7 +860,7 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
     try:
         tabla = get_dynamodb_reset_table()
         
-        now = datetime.now(timezone.utc).isoformat()
+        now = iso_now()
         
         # Usar scan para encontrar tokens expirados (en producción usar TTL de DynamoDB)
         response = tabla.scan(
@@ -861,7 +893,6 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
 # AUDIT LOGS (LOGS DE AUDITORÍA)
 # ================================
 
-# Tipos de acciones para audit log
 AUDIT_ACTIONS = {
     'LOGIN': 'Inicio de sesión',
     'LOGOUT': 'Cierre de sesión',
@@ -869,9 +900,11 @@ AUDIT_ACTIONS = {
     'CREATE_GAME': 'Crear juego',
     'UPDATE_GAME': 'Actualizar juego',
     'DELETE_GAME': 'Eliminar juego',
+    'PASSWORD_RESET_REQUEST': 'Solicitud de recuperacion',
     'PASSWORD_RESET': 'Recuperación de contraseña',
     'ADMIN_ACTION': 'Acción administrativa',
     'UPDATE_PROFILE': 'Actualizar perfil',
+    'CHANGE_PASSWORD': 'Cambio de contraseña',
     'FAILED_LOGIN': 'Login fallido'
 }
 
@@ -904,10 +937,11 @@ def crear_log_audit(
         tabla = get_dynamodb_audit_table()
         
         audit_id = str(uuid.uuid4())
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = iso_now()
         
         item = {
             'audit_id': audit_id,
+            'log_scope': AUDIT_LOG_SCOPE,
             'user_id': user_id,
             'action': action,
             'action_name': AUDIT_ACTIONS.get(action, action),
@@ -916,7 +950,8 @@ def crear_log_audit(
             'ip_address': ip_address or 'unknown',
             'user_agent': user_agent or 'unknown',
             'details': details or {},
-            'status': status
+            'status': status,
+            'ttl': future_unix_timestamp(days=AUDIT_LOG_RETENTION_DAYS),
         }
         
         tabla.put_item(Item=item)
@@ -986,48 +1021,89 @@ def obtener_todos_logs(
     """
     try:
         tabla = get_dynamodb_audit_table()
-        
-        # Si hay filtros, usar scan (menos eficiente pero flexible)
-        if filters:
-            filter_expressions = []
-            expression_values = {}
-            expression_names = {}
-            
-            if filters.get('user_id'):
-                filter_expressions.append('user_id = :user_id')
-                expression_values[':user_id'] = filters['user_id']
-            
-            if filters.get('action'):
-                filter_expressions.append('action = :action')
-                expression_values[':action'] = filters['action']
-            
-            if filters.get('status'):
-                filter_expressions.append('status = :status')
-                expression_values[':status'] = filters['status']
-            
-            if filters.get('start_date'):
-                filter_expressions.append('timestamp >= :start_date')
-                expression_values[':start_date'] = filters['start_date']
-            
-            if filters.get('end_date'):
-                filter_expressions.append('timestamp <= :end_date')
-                expression_values[':end_date'] = filters['end_date']
-            
-            if filter_expressions:
-                filter_expression = ' AND '.join(filter_expressions)
-                
+        filters = filters or {}
+
+        key_condition = Key('log_scope').eq(AUDIT_LOG_SCOPE)
+        if filters.get('start_date') and filters.get('end_date'):
+            key_condition = key_condition & Key('timestamp').between(
+                filters['start_date'],
+                filters['end_date'],
+            )
+        elif filters.get('start_date'):
+            key_condition = key_condition & Key('timestamp').gte(filters['start_date'])
+        elif filters.get('end_date'):
+            key_condition = key_condition & Key('timestamp').lte(filters['end_date'])
+
+        filter_expression = None
+        if filters.get('user_id'):
+            filter_expression = Attr('user_id').eq(filters['user_id'])
+        if filters.get('action'):
+            action_filter = Attr('action').eq(filters['action'])
+            filter_expression = action_filter if filter_expression is None else filter_expression & action_filter
+        if filters.get('status'):
+            status_filter = Attr('status').eq(filters['status'])
+            filter_expression = status_filter if filter_expression is None else filter_expression & status_filter
+
+        try:
+            query_args = {
+                'IndexName': AUDIT_TIMESTAMP_INDEX_NAME,
+                'KeyConditionExpression': key_condition,
+                'Limit': limit,
+                'ScanIndexForward': False,
+            }
+            if filter_expression is not None:
+                query_args['FilterExpression'] = filter_expression
+            response = tabla.query(**query_args)
+            logs = response.get('Items', [])
+        except ClientError as e:
+            if e.response['Error']['Code'] != 'ValidationException':
+                raise
+            # Compatibilidad con tablas antiguas sin GSI nuevo.
+            if filters:
+                scan_filter_expression = None
+                expression_values = {}
+
+                if filters.get('user_id'):
+                    scan_filter_expression = 'user_id = :user_id'
+                    expression_values[':user_id'] = filters['user_id']
+                if filters.get('action'):
+                    expression_values[':action'] = filters['action']
+                    scan_filter_expression = (
+                        f'{scan_filter_expression} AND action = :action'
+                        if scan_filter_expression
+                        else 'action = :action'
+                    )
+                if filters.get('status'):
+                    expression_values[':status'] = filters['status']
+                    scan_filter_expression = (
+                        f'{scan_filter_expression} AND status = :status'
+                        if scan_filter_expression
+                        else 'status = :status'
+                    )
+                if filters.get('start_date'):
+                    expression_values[':start_date'] = filters['start_date']
+                    scan_filter_expression = (
+                        f'{scan_filter_expression} AND timestamp >= :start_date'
+                        if scan_filter_expression
+                        else 'timestamp >= :start_date'
+                    )
+                if filters.get('end_date'):
+                    expression_values[':end_date'] = filters['end_date']
+                    scan_filter_expression = (
+                        f'{scan_filter_expression} AND timestamp <= :end_date'
+                        if scan_filter_expression
+                        else 'timestamp <= :end_date'
+                    )
+
                 response = tabla.scan(
-                    FilterExpression=filter_expression,
+                    FilterExpression=scan_filter_expression,
                     ExpressionAttributeValues=expression_values,
-                    Limit=limit
-                )
+                    Limit=limit,
+                ) if scan_filter_expression else tabla.scan(Limit=limit)
             else:
                 response = tabla.scan(Limit=limit)
-        else:
-            response = tabla.scan(Limit=limit)
-        
-        logs = response.get('Items', [])
-        
+            logs = response.get('Items', [])
+
         # Ordenar por timestamp (más recientes primero)
         logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
@@ -1138,7 +1214,7 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
         
         tabla = get_dynamodb_audit_table()
         
-        cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff_date = (utcnow() - timedelta(days=days)).isoformat()
         
         # Buscar logs antiguos
         response = tabla.scan(
@@ -1193,3 +1269,128 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
     
     return output.getvalue()
 
+
+def obtener_usuario_por_id(user_id: str) -> Optional[Dict[str, Any]]:
+    """Obtiene un usuario por su identificador."""
+    try:
+        tabla = get_dynamodb_users_table()
+        response = tabla.get_item(Key={'user_id': user_id})
+        return response.get('Item')
+    except ClientError as e:
+        print(f"❌ Error de DynamoDB al obtener usuario por ID: {e.response['Error']['Message']}")
+        return None
+    except Exception as e:
+        print(f"❌ Error inesperado al obtener usuario por ID: {str(e)}")
+        return None
+
+
+def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str, Any]:
+    """Actualiza los datos básicos del perfil del usuario."""
+    try:
+        tabla = get_dynamodb_users_table()
+        campos = []
+        valores: Dict[str, Any] = {':updated_at': iso_now()}
+
+        for field in ('nombre', 'apellido', 'prefijo_pais', 'telefono'):
+            if field in cambios:
+                key = f':{field}'
+                campos.append(f'{field} = {key}')
+                valores[key] = (cambios.get(field) or '').strip()
+
+        if not campos:
+            return {'success': True, 'error': None}
+
+        update_expression = 'SET ' + ', '.join(campos) + ', updated_at = :updated_at'
+        tabla.update_item(
+            Key={'user_id': user_id},
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=valores,
+            ReturnValues='ALL_NEW',
+        )
+        return {'success': True, 'error': None}
+    except ClientError as e:
+        print(f"❌ Error de DynamoDB al actualizar perfil: {e.response['Error']['Message']}")
+        return {'success': False, 'error': e.response['Error']['Message']}
+    except Exception as e:
+        print(f"❌ Error inesperado al actualizar perfil: {str(e)}")
+        return {'success': False, 'error': str(e)}
+
+
+def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, Any]:
+    """Actualiza la contraseña de un usuario."""
+    try:
+        tabla = get_dynamodb_users_table()
+        tabla.update_item(
+            Key={'user_id': user_id},
+            UpdateExpression='SET password_hash = :password_hash, updated_at = :updated_at',
+            ExpressionAttributeValues={
+                ':password_hash': password_hash,
+                ':updated_at': iso_now(),
+            },
+            ReturnValues='ALL_NEW',
+        )
+        return {'success': True, 'error': None}
+    except ClientError as e:
+        print(f"❌ Error de DynamoDB al actualizar contraseña: {e.response['Error']['Message']}")
+        return {'success': False, 'error': e.response['Error']['Message']}
+    except Exception as e:
+        print(f"❌ Error inesperado al actualizar contraseña: {str(e)}")
+        return {'success': False, 'error': str(e)}
+
+
+def obtener_token_por_valor(reset_token: str, only_active: bool = True) -> List[Dict[str, Any]]:
+    """Busca tokens por valor intentando usar un índice y degradando a scan si no existe."""
+    tabla = get_dynamodb_reset_table()
+
+    try:
+        response = tabla.query(
+            IndexName=RESET_TOKEN_INDEX_NAME,
+            KeyConditionExpression=Key('reset_token').eq(reset_token),
+            Limit=5,
+            ScanIndexForward=False,
+        )
+        items = response.get('Items', [])
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ValidationException':
+            raise
+        response = tabla.scan(
+            FilterExpression='reset_token = :reset_token',
+            ExpressionAttributeValues={':reset_token': reset_token},
+        )
+        items = response.get('Items', [])
+
+    if only_active:
+        now = utcnow()
+        items = [
+            item
+            for item in items
+            if not item.get('used', False)
+            and datetime.fromisoformat(item['expires_at']) > now
+        ]
+    return items
+
+
+def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_bytes: int) -> Dict[str, Any]:
+    """Genera una URL firmada para que el navegador suba una imagen directo a S3."""
+    bucket_name = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
+    region_name = os.environ.get('AWS_REGION', 'us-east-1')
+    extension = os.path.splitext(nombre_archivo)[1].lower()
+    object_key = f"covers/{uuid.uuid4()}{extension}"
+    s3_client = get_s3_client()
+
+    response = s3_client.generate_presigned_post(
+        Bucket=bucket_name,
+        Key=object_key,
+        Fields={'Content-Type': content_type},
+        Conditions=[
+            {'Content-Type': content_type},
+            ['content-length-range', 1, max_upload_bytes],
+        ],
+        ExpiresIn=300,
+    )
+
+    return {
+        'upload': response,
+        'file_url': f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{object_key}",
+        'object_key': object_key,
+    }

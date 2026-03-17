@@ -1,62 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}GameVault - Resultado Demo{% endblock %}
+{% block title %}GameVault - Resultado demo{% endblock %}
 
 {% block content %}
-<!-- Barra de navegación -->
 <div class="nav-bar">
-    <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">🏠 Inicio</a>
-    <a href="{{ url_for('main.demo') }}" class="btn btn-primary">🚀 Nueva Demo</a>
+    <div class="nav-links">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+        <a href="{{ url_for('main.demo') }}" class="btn btn-primary">Nueva demo</a>
+    </div>
 </div>
 
 <section class="section text-center">
-    <h2>🎮 ¡Tu Demo Funcionó!</h2>
-    <p style="color: #a0a0a0; margin-bottom: 30px;">
-        La imagen fue procesada completamente en memoria usando <code>io.BytesIO</code> y <code>base64</code>. 
-        No se guardó nada en S3 ni en DynamoDB.
-    </p>
-    
-    <div style="background: #0f3460; border-radius: 15px; padding: 30px; max-width: 500px; margin: 0 auto;">
-        <div style="border-radius: 10px; overflow: hidden; margin-bottom: 20px;">
-            <img src="{{ imagen_base64 }}" alt="{{ titulo }}" style="width: 100%; max-height: 400px; object-fit: cover;">
-        </div>
-        <h3 style="color: #e94560; margin-bottom: 10px;">{{ titulo }}</h3>
-        <p style="color: #a0a0a0;">Imagen procesada: {{ filename }}</p>
-    </div>
-</section>
-
-<section class="section">
-    <h2>🔧 Detalles Técnicos</h2>
-    <div style="background: #1a1a2e; padding: 20px; border-radius: 10px;">
-        <p style="color: #a0a0a0; margin-bottom: 15px;">
-            <strong>Procesamiento In-Memory:</strong>
-        </p>
-        <pre>import io
-import base64
-
-# Leer imagen en memoria
-imagen_bytes = archivo.read()
-
-# Convertir a base64
-imagen_base64 = base64.b64encode(imagen_bytes).decode('utf-8')
-
-# Usar en HTML
-data_url = f"data:{content_type};base64,{imagen_base64}"
-
-# En el template:
-<img src="{{ imagen_base64 }}"></pre>
+    <h2>La demo funcionó</h2>
+    <p style="color:var(--text-secondary);margin-bottom:24px;">Todo se procesó en memoria. No se guardó nada en AWS.</p>
+    <div style="max-width:520px;margin:0 auto;padding:24px;background:var(--card-bg);border-radius:18px;">
+        <img src="{{ imagen_base64 }}" alt="{{ titulo }}" style="width:100%;max-height:420px;object-fit:cover;border-radius:12px;">
+        <h3 style="margin-top:16px;">{{ titulo }}</h3>
+        <p style="color:var(--text-secondary);">{{ filename }}</p>
     </div>
 </section>
 
 <section class="section text-center">
-    <h3 style="margin-bottom: 20px;">🚀 ¿Quieres guardar tus juegos真正的?</h3>
-    <p style="color: #a0a0a0; margin-bottom: 20px;">
-        Regístrate para subir imágenes reales a S3 y guardarlas en DynamoDB
-    </p>
-    <div style="display: flex; justify-content: center; gap: 15px;">
-        <a href="{{ url_for('main.registro') }}" class="btn btn-primary">📝 Registrarse</a>
-        <a href="{{ url_for('main.login') }}" class="btn btn-secondary">🔐 Iniciar Sesión</a>
+    <h3>¿Quieres guardar tus juegos de verdad?</h3>
+    <p style="color:var(--text-secondary);margin-bottom:20px;">Crea una cuenta y sube portadas reales directo a S3.</p>
+    <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
+        <a href="{{ url_for('main.registro') }}" class="btn btn-primary">Crear cuenta</a>
+        <a href="{{ url_for('main.login') }}" class="btn btn-secondary">Iniciar sesión</a>
     </div>
 </section>
 {% endblock %}
-
