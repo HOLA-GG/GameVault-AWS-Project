@@ -9,8 +9,6 @@ import uuid
 from functools import wraps
 from urllib.parse import urlparse
 
-import boto3
-from botocore.exceptions import ClientError
 from flask import (
     Blueprint,
     Response,
@@ -40,6 +38,7 @@ from app.models import (
     crear_reset_token,
     crear_url_firmada_lectura,
     crear_usuario,
+    database_healthcheck,
     eliminar_juego,
     eliminar_usuario,
     exportar_logs_csv,
@@ -115,8 +114,10 @@ def is_valid_image_file(file_storage) -> tuple[bool, str | None]:
 
 
 def is_valid_presigned_image_url(image_url: str) -> bool:
-    """Acepta solo URLs del bucket configurado para evitar referencias arbitrarias."""
+    """Acepta solo URLs del backend de storage configurado para evitar referencias arbitrarias."""
     if not image_url:
+        return False
+    if current_app.config.get('STORAGE_BACKEND') == 'none':
         return False
 
     parsed = urlparse(image_url)
@@ -142,7 +143,11 @@ def procesar_imagen_base64(archivo):
 
 
 def subir_imagen_a_s3(archivo):
-    """Sube una portada a S3 usando el backend como fallback."""
+    """Sube una portada usando el backend de storage disponible."""
+    if current_app.config.get('STORAGE_BACKEND') == 'none':
+        current_app.logger.info('image_upload_skipped storage_backend=none')
+        return None
+
     valid, error = is_valid_image_file(archivo)
     if not valid:
         current_app.logger.warning('image_validation_failed reason=%s', error)
@@ -151,24 +156,14 @@ def subir_imagen_a_s3(archivo):
     try:
         extension = os.path.splitext(secure_filename(archivo.filename))[1].lower()
         nombre_unico = f"covers/{uuid.uuid4()}{extension}"
-        s3_client = boto3.client('s3', region_name=current_app.config['S3_REGION'])
-        s3_client.upload_fileobj(
-            archivo,
-            current_app.config['S3_BUCKET_NAME'],
+        current_app.logger.warning(
+            'image_upload_not_implemented storage_backend=%s object_key=%s',
+            current_app.config.get('STORAGE_BACKEND'),
             nombre_unico,
-            ExtraArgs={
-                'ContentType': archivo.content_type,
-                'CacheControl': 'public, max-age=31536000',
-            },
         )
-        bucket = current_app.config['S3_BUCKET_NAME']
-        region = current_app.config['S3_REGION']
-        return f'https://{bucket}.s3.{region}.amazonaws.com/{nombre_unico}'
-    except ClientError as exc:
-        current_app.logger.error('s3_upload_failed error=%s', exc)
         return None
     except Exception as exc:
-        current_app.logger.error('s3_upload_unexpected_error error=%s', exc)
+        current_app.logger.error('image_upload_unexpected_error error=%s', exc)
         return None
 
 
@@ -343,7 +338,9 @@ def healthz():
         'status': 'ok',
         'app': 'GameVault',
         'env': current_app.config['APP_ENV'],
-        'storage': 'aws',
+        'database': current_app.config['DATABASE_BACKEND'],
+        'database_ok': database_healthcheck(),
+        'storage': current_app.config['STORAGE_BACKEND'],
     }
 
 
@@ -389,7 +386,10 @@ def dashboard():
 @main_bp.route('/api/uploads/presign', methods=['POST'])
 @require_login
 def presign_upload():
-    """Genera credenciales temporales para subir portadas directo a S3."""
+    """Genera credenciales temporales para subir portadas directo al storage configurado."""
+    if current_app.config.get('STORAGE_BACKEND') == 'none':
+        return jsonify({'error': 'El almacenamiento de imagenes aun no esta configurado.'}), 503
+
     filename = request.form.get('filename', '').strip() or (request.json or {}).get('filename', '').strip()
     content_type = request.form.get('content_type', '').strip() or (request.json or {}).get('content_type', '').strip()
 
@@ -432,21 +432,23 @@ def agregar_juego():
     if imagen_url:
         if not is_valid_presigned_image_url(imagen_url):
             errores.append('La portada generada no pertenece al bucket configurado.')
-    else:
+    elif imagen and imagen.filename:
         valid, error = is_valid_image_file(imagen)
         if not valid:
             errores.append(error)
+        elif current_app.config.get('STORAGE_BACKEND') == 'none':
+            errores.append('Las portadas aun no estan configuradas. Guarda el juego sin imagen por ahora.')
 
     if errores:
         for error in errores:
             flash(error, 'error')
         return redirect(url_for('main.dashboard'))
 
-    if not imagen_url:
+    if not imagen_url and imagen and imagen.filename:
         imagen_url = subir_imagen_a_s3(imagen)
 
-    if not imagen_url:
-        flash('No se pudo subir la portada a S3.', 'error')
+    if imagen and imagen.filename and not imagen_url:
+        flash('No se pudo subir la portada.', 'error')
         return redirect(url_for('main.dashboard'))
 
     game_id = str(uuid.uuid4())
@@ -528,6 +530,8 @@ def editar_juego_ruta(game_id):
         valid, error = is_valid_image_file(nueva_imagen)
         if not valid:
             errores.append(error)
+        elif current_app.config.get('STORAGE_BACKEND') == 'none':
+            errores.append('Las portadas aun no estan configuradas. Guarda los cambios sin imagen por ahora.')
 
     if errores:
         for error in errores:

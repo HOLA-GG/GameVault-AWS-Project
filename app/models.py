@@ -1,15 +1,14 @@
 """
-app/models.py - Capa de Datos Multi-Tenant para GameVault
-Maneja conexión y operaciones con Amazon DynamoDB y S3
-Esquema: Partition Key=user_id, Sort Key=game_id
+app/models.py - Capa de datos de GameVault sobre PostgreSQL/Neon.
 
-Incluye:
-- Operaciones de Juegos (CRUD)
-- Gestión de Usuarios y Auth
-- Password Reset Flow
-- Audit Logs (Logs de Auditoría)
+La app mantiene la misma interfaz pública de funciones para no reescribir
+las rutas, pero ahora persiste usuarios, juegos, tokens y logs en SQL.
 """
 
+from __future__ import annotations
+
+import csv
+import io
 import os
 import re
 import secrets
@@ -17,21 +16,15 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-import boto3
-from boto3.dynamodb.conditions import Attr, Key
-from botocore.client import Config
-from botocore.exceptions import ClientError
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text, create_engine, delete, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, scoped_session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-
-# ================================
-# CONFIGURACIÓN
-# ================================
 
 RESET_TOKEN_EXPIRY_MINUTES = int(os.environ.get('RESET_TOKEN_EXPIRY_MINUTES', 30))
 AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', 90))
-RESET_TOKEN_INDEX_NAME = os.environ.get('DYNAMODB_RESET_TOKEN_INDEX', 'reset-token-index')
-AUDIT_TIMESTAMP_INDEX_NAME = os.environ.get('DYNAMODB_AUDIT_TIMESTAMP_INDEX', 'scope-timestamp-index')
-AUDIT_LOG_SCOPE = 'global'
+STORAGE_BACKEND = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
 
 
 def utcnow() -> datetime:
@@ -45,43 +38,259 @@ def iso_now() -> str:
 
 
 def future_unix_timestamp(minutes: int = 0, days: int = 0) -> int:
-    """Calcula un timestamp UNIX futuro para usar como TTL."""
+    """Mantiene compatibilidad con el contrato anterior."""
     return int((utcnow() + timedelta(minutes=minutes, days=days)).timestamp())
 
 
-def get_dynamodb_table():
-    """Obtiene la tabla de DynamoDB configurada."""
-    dynamodb = boto3.resource(
-        'dynamodb',
-        region_name=os.environ.get('AWS_REGION', 'us-east-1'),
-        config=Config(
-            signature_version='s3v4',
-            s3={'addressing_style': 'path'}
-        )
+def normalize_database_url(raw_url: str | None) -> str:
+    """Convierte URLs a un formato que SQLAlchemy pueda usar."""
+    if raw_url:
+        if raw_url.startswith('postgresql://') and '+psycopg' not in raw_url:
+            return raw_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+        if raw_url.startswith('postgres://'):
+            return raw_url.replace('postgres://', 'postgresql+psycopg://', 1)
+        return raw_url
+
+    app_env = os.environ.get('APP_ENV', 'development').strip().lower()
+    if app_env == 'testing':
+        return 'sqlite+pysqlite:///gamevault_test.db'
+    return 'sqlite+pysqlite:///gamevault_dev.db'
+
+
+DATABASE_URL = normalize_database_url(os.environ.get('DATABASE_URL'))
+_engine = None
+_session_factory = None
+_database_initialized = False
+
+
+class Base(DeclarativeBase):
+    """Base declarativa SQLAlchemy."""
+
+
+class User(Base):
+    __tablename__ = 'users'
+
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    nombre: Mapped[str] = mapped_column(String(120))
+    apellido: Mapped[str] = mapped_column(String(120), default='')
+    prefijo_pais: Mapped[str] = mapped_column(String(10), default='')
+    telefono: Mapped[str] = mapped_column(String(20), default='')
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default='user')
+    status: Mapped[str] = mapped_column(String(20), default='active')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    games: Mapped[List['Game']] = relationship(cascade='all, delete-orphan', back_populates='user')
+    reset_tokens: Mapped[List['PasswordResetToken']] = relationship(cascade='all, delete-orphan', back_populates='user')
+    audit_logs: Mapped[List['AuditLog']] = relationship(cascade='all, delete-orphan', back_populates='user')
+
+
+class Game(Base):
+    __tablename__ = 'games'
+
+    game_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.user_id', ondelete='CASCADE'), index=True)
+    titulo: Mapped[str] = mapped_column(String(255))
+    descripcion: Mapped[str] = mapped_column(Text)
+    imagen_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plataforma: Mapped[str] = mapped_column(String(80), default='PC')
+    estado: Mapped[str] = mapped_column(String(80), default='N/A')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    user: Mapped[User] = relationship(back_populates='games')
+
+
+class PasswordResetToken(Base):
+    __tablename__ = 'password_reset_tokens'
+
+    token_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.user_id', ondelete='CASCADE'), index=True)
+    reset_token: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ip_address: Mapped[str] = mapped_column(String(64), default='unknown')
+
+    user: Mapped[User] = relationship(back_populates='reset_tokens')
+
+
+class AuditLog(Base):
+    __tablename__ = 'audit_logs'
+
+    audit_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey('users.user_id', ondelete='SET NULL'), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(80), index=True)
+    action_name: Mapped[str] = mapped_column(String(120))
+    resource: Mapped[str] = mapped_column(String(80))
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    ip_address: Mapped[str] = mapped_column(String(64), default='unknown')
+    user_agent: Mapped[str] = mapped_column(Text, default='unknown')
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(20), default='SUCCESS', index=True)
+
+    user: Mapped[User | None] = relationship(back_populates='audit_logs')
+
+
+AUDIT_ACTIONS = {
+    'LOGIN': 'Inicio de sesión',
+    'LOGOUT': 'Cierre de sesión',
+    'REGISTER': 'Registro de usuario',
+    'CREATE_GAME': 'Crear juego',
+    'UPDATE_GAME': 'Actualizar juego',
+    'DELETE_GAME': 'Eliminar juego',
+    'PASSWORD_RESET_REQUEST': 'Solicitud de recuperacion',
+    'PASSWORD_RESET': 'Recuperación de contraseña',
+    'ADMIN_ACTION': 'Acción administrativa',
+    'UPDATE_PROFILE': 'Actualizar perfil',
+    'CHANGE_PASSWORD': 'Cambio de contraseña',
+    'FAILED_LOGIN': 'Login fallido',
+}
+
+
+def get_engine():
+    """Obtiene el engine SQLAlchemy compartido."""
+    global _engine
+    if _engine is not None:
+        return _engine
+
+    kwargs: Dict[str, Any] = {'future': True, 'pool_pre_ping': True}
+    if DATABASE_URL.startswith('sqlite'):
+        kwargs['connect_args'] = {'check_same_thread': False}
+        if ':memory:' in DATABASE_URL:
+            kwargs['poolclass'] = StaticPool
+
+    _engine = create_engine(DATABASE_URL, **kwargs)
+    return _engine
+
+
+def get_session_factory():
+    """Obtiene la factoría de sesiones compartida."""
+    global _session_factory
+    if _session_factory is not None:
+        return _session_factory
+
+    _session_factory = scoped_session(
+        sessionmaker(bind=get_engine(), autoflush=False, autocommit=False, expire_on_commit=False)
     )
-    return dynamodb.Table(os.environ.get('DYNAMODB_TABLE', 'GameVault'))
+    return _session_factory
 
 
-def get_dynamodb_users_table():
-    """Obtiene la tabla de usuarios de DynamoDB."""
-    dynamodb = boto3.resource(
-        'dynamodb',
-        region_name=os.environ.get('AWS_REGION', 'us-east-1')
-    )
-    return dynamodb.Table(os.environ.get('DYNAMODB_USERS_TABLE', 'GameVaultUsers'))
+def init_database() -> None:
+    """Crea tablas si aún no existen."""
+    global _database_initialized
+    if _database_initialized:
+        return
+    Base.metadata.create_all(get_engine())
+    _database_initialized = True
 
 
-def get_s3_client():
-    """Obtiene el cliente de S3."""
-    return boto3.client(
-        's3',
-        region_name=os.environ.get('AWS_REGION', 'us-east-1')
-    )
+def database_healthcheck() -> bool:
+    """Confirma que la base de datos responde."""
+    try:
+        init_database()
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            session.execute(select(1))
+        return True
+    except Exception:
+        return False
 
 
-# ================================
-# UTILIDADES DE VALIDACIÓN
-# ================================
+def ensure_tables() -> None:
+    """Garantiza el esquema antes de operar."""
+    init_database()
+
+
+def _as_iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
+
+
+def user_to_dict(user: User | None) -> Optional[Dict[str, Any]]:
+    if user is None:
+        return None
+    return {
+        'user_id': user.user_id,
+        'email': user.email,
+        'nombre': user.nombre,
+        'apellido': user.apellido,
+        'prefijo_pais': user.prefijo_pais,
+        'telefono': user.telefono,
+        'password_hash': user.password_hash,
+        'role': user.role,
+        'status': user.status,
+        'created_at': _as_iso(user.created_at),
+        'updated_at': _as_iso(user.updated_at),
+    }
+
+
+def game_to_dict(game: Game | None) -> Optional[Dict[str, Any]]:
+    if game is None:
+        return None
+    return {
+        'game_id': game.game_id,
+        'user_id': game.user_id,
+        'titulo': game.titulo,
+        'descripcion': game.descripcion,
+        'imagen_url': game.imagen_url,
+        'plataforma': game.plataforma,
+        'estado': game.estado,
+        'created_at': _as_iso(game.created_at),
+        'updated_at': _as_iso(game.updated_at),
+    }
+
+
+def reset_token_to_dict(item: PasswordResetToken | None) -> Optional[Dict[str, Any]]:
+    if item is None:
+        return None
+    return {
+        'token_id': item.token_id,
+        'user_id': item.user_id,
+        'reset_token': item.reset_token,
+        'created_at': _as_iso(item.created_at),
+        'expires_at': _as_iso(item.expires_at),
+        'expires_at_unix': int(item.expires_at.timestamp()),
+        'used': item.used,
+        'used_at': _as_iso(item.used_at),
+        'ip_address': item.ip_address,
+    }
+
+
+def audit_log_to_dict(item: AuditLog | None) -> Optional[Dict[str, Any]]:
+    if item is None:
+        return None
+    return {
+        'audit_id': item.audit_id,
+        'user_id': item.user_id,
+        'action': item.action,
+        'action_name': item.action_name,
+        'resource': item.resource,
+        'timestamp': _as_iso(item.timestamp),
+        'ip_address': item.ip_address,
+        'user_agent': item.user_agent,
+        'details': item.details or {},
+        'status': item.status,
+    }
+
+
+def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
+    """Convierte filtros de fecha simple a datetime UTC."""
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    if end:
+        parsed = parsed + timedelta(days=1)
+    return parsed
+
 
 def validar_email(email):
     """Valida el formato del email."""
@@ -96,817 +305,284 @@ def validar_telefono(telefono):
 
 def validar_password(password):
     """Valida que la contraseña cumpla requisitos mínimos."""
-    return len(password) >= 8  # Mínimo 8 caracteres
+    return len(password) >= 8
 
-
-# ================================
-# OPERACIONES S3
-# ================================
 
 def eliminar_imagen_s3(imagen_url):
-    """
-    Elimina una imagen del bucket S3.
-    
-    Args:
-        imagen_url (str): URL completa de la imagen en S3
-    
-    Returns:
-        bool: True si se eliminó, False si hubo error
-    """
-    try:
-        # Extraer el nombre de la clave (key) de la URL
-        # Formato: https://bucket.s3.region.amazonaws.com/key
-        bucket_name = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
-        
-        # Parsear la URL para obtener la key
-        key = obtener_key_desde_url(imagen_url)
-        
-        if not key:
-            print("⚠️ No se pudo extraer la key de la URL")
-            return False
-        
-        # Eliminar el objeto de S3
-        s3_client = get_s3_client()
-        s3_client.delete_object(
-            Bucket=bucket_name,
-            Key=key
-        )
-        
-        print(f"✅ Imagen eliminada de S3: {key}")
-        return True
-        
-    except ClientError as e:
-        print(f"❌ Error de S3 al eliminar imagen: {e.response['Error']['Message']}")
-        return False
-    except Exception as e:
-        print(f"❌ Error inesperado al eliminar imagen: {str(e)}")
-        return False
+    """Compatibilidad temporal mientras el storage nuevo queda pendiente."""
+    return True
 
 
 def obtener_key_desde_url(imagen_url):
-    """
-    Extrae la key (nombre del objeto) desde una URL de S3.
-    
-    Args:
-        imagen_url (str): URL completa del objeto en S3
-    
-    Returns:
-        str: La key del objeto o None si no se puede extraer
-    """
-    try:
-        bucket_name = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
-        
-        # Diferentes formatos de URL de S3
-        if '.s3.' in imagen_url and '.amazonaws.com' in imagen_url:
-            # Formato: https://bucket.s3.region.amazonaws.com/key
-            return imagen_url.split(f'{bucket_name}.s3.')[1].split('.amazonaws.com/')[-1]
-        elif 'amazonaws.com/' in imagen_url:
-            # Formato alternativo
-            return imagen_url.split('amazonaws.com/')[-1]
-        else:
-            # Asumir que es solo la key
-            return imagen_url
-            
-    except Exception as e:
-        print(f"❌ Error al parsear URL: {str(e)}")
-        return None
+    """Compatibilidad temporal para futuras integraciones de storage."""
+    return imagen_url
 
 
 def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
-    """Genera una URL temporal para mostrar una imagen privada de S3."""
-    try:
-        if not imagen_url:
-            return imagen_url
+    """Por ahora devuelve la URL tal cual o vacío si no hay imagen."""
+    return imagen_url or ''
 
-        key = obtener_key_desde_url(imagen_url)
-        if not key:
-            return imagen_url
-
-        bucket_name = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
-        s3_client = get_s3_client()
-        return s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': bucket_name, 'Key': key},
-            ExpiresIn=expires_in,
-        )
-    except Exception as e:
-        print(f"⚠️ No se pudo firmar la imagen para lectura: {str(e)}")
-        return imagen_url
-
-
-# ================================
-# OPERACIONES DE JUEGOS (CRUD)
-# ================================
 
 def crear_juego(user_id, game_id, titulo, descripcion, imagen_url, plataforma='PC', estado='N/A'):
-    """
-    Guarda un nuevo juego en la tabla DynamoDB.
-    
-    Args:
-        user_id (str): Identificador del usuario/tenant (Partition Key)
-        game_id (str): Identificador único del juego (Sort Key)
-        titulo (str): Nombre del juego
-        descripcion (str): Descripción del juego
-        imagen_url (str): URL pública de la imagen en S3
-        plataforma (str): Plataforma del juego (PC, PlayStation, Xbox, Nintendo, Mobile, Otro)
-        estado (str): Estado del juego (Nuevo, Como Nuevo, Bueno, Regular, N/A)
-    
-    Returns:
-        dict: El item creado o None si hay error
-    """
-    try:
-        tabla = get_dynamodb_table()
-        
-        timestamp = iso_now()
-        item = {
-            'user_id': user_id,
-            'game_id': game_id,
-            'titulo': titulo,
-            'descripcion': descripcion,
-            'imagen_url': imagen_url,
-            'plataforma': plataforma,
-            'estado': estado,
-            'created_at': timestamp,
-            'updated_at': timestamp,
-        }
-        
-        response = tabla.put_item(Item=item)
-        
-        print(f"✅ Juego '{titulo}' guardado para usuario {user_id} con ID: {game_id}")
-        return item
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al crear juego: {e.response['Error']['Message']}")
-        return None
-    except Exception as e:
-        print(f"❌ Error inesperado al crear juego: {str(e)}")
-        return None
+    """Guarda un juego para un usuario."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        game = Game(
+            game_id=game_id,
+            user_id=user_id,
+            titulo=titulo.strip(),
+            descripcion=descripcion.strip(),
+            imagen_url=(imagen_url or '').strip() or None,
+            plataforma=plataforma,
+            estado=estado,
+            created_at=utcnow(),
+            updated_at=utcnow(),
+        )
+        session.add(game)
+        session.commit()
+        return game_to_dict(game)
 
 
 def obtener_juegos_por_usuario(user_id):
-    """
-    Obtiene todos los juegos de un usuario específico.
-    USA QUERY (eficiente) - NO SCAN (prohibido en producción).
-    
-    Args:
-        user_id (str): Identificador del usuario (Partition Key)
-    
-    Returns:
-        list: Lista de diccionarios con los datos de cada juego
-    """
-    try:
-        tabla = get_dynamodb_table()
-        
-        response = tabla.query(
-            KeyConditionExpression=Key('user_id').eq(user_id)
-        )
-        
-        juegos = response.get('Items', [])
-        print(f"✅ Usuario {user_id} tiene {len(juegos)} juegos en DynamoDB")
-        return juegos
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al obtener juegos: {e.response['Error']['Message']}")
-        return []
-    except Exception as e:
-        print(f"❌ Error inesperado al obtener juegos: {str(e)}")
-        return []
+    """Obtiene todos los juegos de un usuario."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        items = session.scalars(
+            select(Game).where(Game.user_id == user_id).order_by(Game.updated_at.desc(), Game.created_at.desc())
+        ).all()
+        return [game_to_dict(item) for item in items]
 
 
 def obtener_juego_por_id(user_id, game_id):
-    """
-    Obtiene un juego específico por su ID y usuario.
-    
-    Args:
-        user_id (str): Identificador del usuario (Partition Key)
-        game_id (str): Identificador del juego (Sort Key)
-    
-    Returns:
-        dict: Datos del juego o None si no existe
-    """
-    try:
-        tabla = get_dynamodb_table()
-        
-        response = tabla.get_item(
-            Key={
-                'user_id': user_id,
-                'game_id': game_id
-            }
-        )
-        juego = response.get('Item')
-        
-        if juego:
-            print(f"✅ Juego encontrado: {game_id} para usuario {user_id}")
-        else:
-            print(f"⚠️ Juego no encontrado: {game_id}")
-        
-        return juego
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB: {e.response['Error']['Message']}")
-        return None
+    """Obtiene un juego por ID y usuario."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        item = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
+        return game_to_dict(item)
 
 
 def eliminar_juego(user_id, game_id):
-    """
-    Elimina un juego de DynamoDB Y elimina la imagen de S3.
-    IMPORTANTE: Primero elimina la imagen de S3, luego el item de DynamoDB.
-    
-    Args:
-        user_id (str): Identificador del usuario (Partition Key)
-        game_id (str): Identificador del juego (Sort Key)
-    
-    Returns:
-        dict: {'success': bool, 'juego': dict o None, 'error': str o None}
-    """
-    try:
-        # Paso 1: Obtener el juego para saber la URL de la imagen
-        juego = obtener_juego_por_id(user_id, game_id)
-        
-        if juego is None:
+    """Elimina un juego del usuario."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        game = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
+        if game is None:
             return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
-        
-        # Paso 2: Eliminar la imagen de S3 PRIMERO
-        imagen_url = juego.get('imagen_url')
-        s3_eliminada = True
-        
-        if imagen_url:
-            s3_eliminada = eliminar_imagen_s3(imagen_url)
-            if not s3_eliminada:
-                print(f"⚠️ No se pudo eliminar la imagen de S3: {imagen_url}")
-                # Continuamos con la eliminación de DynamoDB aunque falle S3
-        
-        # Paso 3: Eliminar el item de DynamoDB
-        tabla = get_dynamodb_table()
-        response = tabla.delete_item(
-            Key={
-                'user_id': user_id,
-                'game_id': game_id
-            }
-        )
-        
-        print(f"✅ Juego {game_id} eliminado para usuario {user_id}")
-        return {'success': True, 'juego': juego, 's3_eliminada': s3_eliminada}
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al eliminar: {e.response['Error']['Message']}")
-        return {'success': False, 'juego': None, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al eliminar: {str(e)}")
-        return {'success': False, 'juego': None, 'error': str(e)}
+        juego_dict = game_to_dict(game)
+        session.delete(game)
+        session.commit()
+        return {'success': True, 'juego': juego_dict, 's3_eliminada': True}
 
 
 def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
-    """
-    Actualiza un juego existente.
-    Si viene una nueva imagen, elimina la anterior de S3 y sube la nueva.
-    
-    Args:
-        user_id (str): Identificador del usuario
-        game_id (str): Identificador del juego
-        nuevos_datos (dict): Diccionario con 'titulo' y/o 'descripcion'
-        nueva_imagen: Objeto file de Flask (opcional)
-    
-    Returns:
-        dict: {'success': bool, 'juego': dict o None, 'error': str o None}
-    """
-    try:
-        # Paso 1: Verificar que el juego existe
-        juego_actual = obtener_juego_por_id(user_id, game_id)
-        
-        if juego_actual is None:
+    """Actualiza un juego existente."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        game = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
+        if game is None:
             return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
-        
-        # Paso 2: Manejar nueva imagen si viene
-        nueva_url = juego_actual.get('imagen_url')  # Mantener la actual por defecto
-        imagen_anterior_url = juego_actual.get('imagen_url')
-        
-        if isinstance(nueva_imagen, str) and nueva_imagen:
-            nueva_url = nueva_imagen
-            if imagen_anterior_url and imagen_anterior_url != nueva_url:
-                eliminar_imagen_s3(imagen_anterior_url)
-        elif nueva_imagen:
-            # Subir nueva imagen a S3
-            from app.routes import subir_imagen_a_s3
-            nueva_url = subir_imagen_a_s3(nueva_imagen)
-            
-            if nueva_url is None:
-                return {'success': False, 'juego': None, 'error': 'Error al subir nueva imagen'}
-            
-            # Eliminar imagen anterior de S3
-            if imagen_anterior_url:
-                eliminar_imagen_s3(imagen_anterior_url)
-        
-        # Paso 3: Actualizar en DynamoDB
-        tabla = get_dynamodb_table()
-        
-        # Construir expresión de actualización
-        update_expression = "SET imagen_url = :url, updated_at = :updated_at"
-        expression_attributes = {
-            ':url': nueva_url,
-            ':updated_at': iso_now(),
-        }
-        
-        if 'titulo' in nuevos_datos and nuevos_datos['titulo']:
-            update_expression += ", titulo = :titulo"
-            expression_attributes[':titulo'] = nuevos_datos['titulo']
-        
-        if 'descripcion' in nuevos_datos and nuevos_datos['descripcion']:
-            update_expression += ", descripcion = :desc"
-            expression_attributes[':desc'] = nuevos_datos['descripcion']
-        
+
+        if nuevos_datos.get('titulo'):
+            game.titulo = nuevos_datos['titulo'].strip()
+        if nuevos_datos.get('descripcion'):
+            game.descripcion = nuevos_datos['descripcion'].strip()
         if 'plataforma' in nuevos_datos:
-            update_expression += ", plataforma = :plataforma"
-            expression_attributes[':plataforma'] = nuevos_datos['plataforma']
-        
+            game.plataforma = nuevos_datos['plataforma']
         if 'estado' in nuevos_datos:
-            update_expression += ", estado = :estado"
-            expression_attributes[':estado'] = nuevos_datos['estado']
-        
-        # Ejecutar actualización
-        response = tabla.update_item(
-            Key={
-                'user_id': user_id,
-                'game_id': game_id
-            },
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=expression_attributes,
-            ReturnValues='ALL_NEW'
-        )
-        
-        juego_actualizado = response.get('Attributes', {})
-        print(f"✅ Juego {game_id} actualizado para usuario {user_id}")
-        
-        return {'success': True, 'juego': juego_actualizado, 'error': None}
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al actualizar: {e.response['Error']['Message']}")
-        return {'success': False, 'juego': None, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al actualizar: {str(e)}")
-        return {'success': False, 'juego': None, 'error': str(e)}
+            game.estado = nuevos_datos['estado']
 
+        if isinstance(nueva_imagen, str):
+            game.imagen_url = nueva_imagen.strip() or None
+        elif nueva_imagen:
+            from app.routes import subir_imagen_a_s3
 
-# ================================
-# FUNCIONES DE USUARIO (AUTH)
-# ================================
+            uploaded_url = subir_imagen_a_s3(nueva_imagen)
+            if uploaded_url is None:
+                return {'success': False, 'juego': None, 'error': 'Error al subir nueva imagen'}
+            game.imagen_url = uploaded_url
+
+        game.updated_at = utcnow()
+        session.commit()
+        session.refresh(game)
+        return {'success': True, 'juego': game_to_dict(game), 'error': None}
+
 
 def crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash):
-    """
-    Crea un nuevo usuario en la tabla GameVaultUsers.
-    
-    Args:
-        nombre (str): Nombre del usuario
-        apellido (str): Apellidos del usuario
-        email (str): Correo electrónico único
-        prefijo_pais (str): Prefijo del país (ej: +52, +34)
-        telefono (str): Número de teléfono
-        password_hash (str): Hash de la contraseña
-    
-    Returns:
-        dict: El usuario creado o None si hay error
-    """
+    """Crea un usuario nuevo."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    email_normalizado = email.lower().strip()
+    user = User(
+        user_id=str(uuid.uuid4()),
+        email=email_normalizado,
+        nombre=nombre.strip(),
+        apellido=(apellido or '').strip(),
+        prefijo_pais=(prefijo_pais or '').strip(),
+        telefono=(telefono or '').strip(),
+        password_hash=password_hash,
+        role='user',
+        status='active',
+        created_at=utcnow(),
+        updated_at=utcnow(),
+    )
     try:
-        tabla = get_dynamodb_users_table()
-        
-        # Generar ID único para el usuario
-        user_id = str(uuid.uuid4())
-        
-        timestamp = iso_now()
-        item = {
-            'user_id': user_id,
-            'email': email.lower().strip(),
-            'nombre': nombre.strip(),
-            'apellido': (apellido or '').strip(),
-            'prefijo_pais': (prefijo_pais or '').strip(),
-            'telefono': (telefono or '').strip(),
-            'password_hash': password_hash,
-            'role': 'user',
-            'status': 'active',
-            'created_at': timestamp,
-            'updated_at': timestamp,
-        }
-        
-        response = tabla.put_item(Item=item)
-        
-        print(f"✅ Usuario '{email}' creado exitosamente con ID: {user_id}")
-        return item
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al crear usuario: {e.response['Error']['Message']}")
-        return None
-    except Exception as e:
-        print(f"❌ Error inesperado al crear usuario: {str(e)}")
+        with session_factory() as session:
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            return user_to_dict(user)
+    except IntegrityError:
         return None
 
 
 def obtener_usuario_por_email(email):
-    """
-    Obtiene un usuario por su email.
-    
-    Args:
-        email (str): Correo electrónico del usuario
-    
-    Returns:
-        dict: Datos del usuario o None si no existe
-    """
-    try:
-        tabla = get_dynamodb_users_table()
-        
-        response = tabla.query(
-            IndexName='email-index',
-            KeyConditionExpression=Key('email').eq(email.lower().strip())
-        )
-        
-        items = response.get('Items', [])
-        
-        if items:
-            print(f"✅ Usuario encontrado: {email}")
-            return items[0]
-        else:
-            print(f"⚠️ Usuario no encontrado: {email}")
-            return None
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al buscar usuario: {e.response['Error']['Message']}")
-        return None
-    except Exception as e:
-        print(f"❌ Error inesperado al buscar usuario: {str(e)}")
-        return None
+    """Obtiene un usuario por email."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        user = session.scalar(select(User).where(User.email == email.lower().strip()))
+        return user_to_dict(user)
 
 
 def verificar_credenciales(email, password):
-    """
-    Verifica las credenciales de un usuario.
-    
-    Args:
-        email (str): Correo electrónico
-        password (str): Contraseña en texto plano
-    
-    Returns:
-        dict: Datos del usuario si son válidas, None si no
-    """
-    try:
-        usuario = obtener_usuario_por_email(email)
-        
-        if usuario is None:
-            print(f"❌ Login fallido: usuario no existe - {email}")
-            return None
-        
-        return usuario
-        
-    except Exception as e:
-        print(f"❌ Error al verificar credenciales: {str(e)}")
-        return None
+    """Compatibilidad con la interfaz previa."""
+    return obtener_usuario_por_email(email)
 
 
 def obtener_todos_usuarios():
-    """
-    Obtiene todos los usuarios de la tabla (SCAN - usar con cuidado en producción).
-    
-    Returns:
-        list: Lista de todos los usuarios
-    """
-    try:
-        tabla = get_dynamodb_users_table()
-        
-        response = tabla.scan()
-        usuarios = response.get('Items', [])
-        
-        # Manejar paginación si hay más de 1MB de datos
-        while 'LastEvaluatedKey' in response:
-            response = tabla.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-            usuarios.extend(response.get('Items', []))
-        
-        print(f"✅ Total de usuarios encontrados: {len(usuarios)}")
-        return usuarios
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al obtener usuarios: {e.response['Error']['Message']}")
-        return []
-    except Exception as e:
-        print(f"❌ Error inesperado al obtener usuarios: {str(e)}")
-        return []
+    """Obtiene todos los usuarios."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        items = session.scalars(select(User).order_by(User.created_at.desc())).all()
+        return [user_to_dict(item) for item in items]
 
 
 def eliminar_usuario(user_id):
-    """
-    Elimina un usuario de la tabla.
-    
-    Args:
-        user_id (str): ID del usuario a eliminar
-    
-    Returns:
-        dict: {'success': bool, 'error': str o None}
-    """
-    try:
-        tabla = get_dynamodb_users_table()
-        
-        response = tabla.delete_item(
-            Key={'user_id': user_id}
-        )
-        
-        print(f"✅ Usuario {user_id} eliminado")
+    """Elimina un usuario y sus relaciones."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        user = session.get(User, user_id)
+        if user is None:
+            return {'success': False, 'error': 'Usuario no encontrado'}
+        session.delete(user)
+        session.commit()
         return {'success': True, 'error': None}
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al eliminar usuario: {e.response['Error']['Message']}")
-        return {'success': False, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al eliminar usuario: {str(e)}")
-        return {'success': False, 'error': str(e)}
 
 
 def actualizar_usuario_nombre(user_id, nombre):
-    """
-    Actualiza el nombre de un usuario.
-    
-    Args:
-        user_id (str): ID del usuario
-        nombre (str): Nuevo nombre
-    
-    Returns:
-        dict: {'success': bool, 'error': str o None}
-    """
-    try:
-        tabla = get_dynamodb_users_table()
-        
-        response = tabla.update_item(
-            Key={'user_id': user_id},
-            UpdateExpression='SET nombre = :nombre, updated_at = :updated_at',
-            ExpressionAttributeValues={
-                ':nombre': nombre.strip(),
-                ':updated_at': iso_now(),
-            },
-            ReturnValues='ALL_NEW'
-        )
-        
-        print(f"✅ Usuario {user_id} actualizado con nombre: {nombre}")
-        return {'success': True, 'error': None}
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al actualizar usuario: {e.response['Error']['Message']}")
-        return {'success': False, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al actualizar usuario: {str(e)}")
-        return {'success': False, 'error': str(e)}
+    """Actualiza el nombre principal de un usuario."""
+    return actualizar_usuario_perfil(user_id, {'nombre': nombre.strip()})
 
-
-# ================================
-# CONFIGURACIÓN ADICIONAL
-# ================================
-
-def get_dynamodb_reset_table():
-    """Obtiene la tabla de tokens de recuperación de contraseña."""
-    dynamodb = boto3.resource(
-        'dynamodb',
-        region_name=os.environ.get('AWS_REGION', 'us-east-1')
-    )
-    return dynamodb.Table(os.environ.get('DYNAMODB_RESET_TABLE', 'GameVaultPasswordReset'))
-
-
-def get_dynamodb_audit_table():
-    """Obtiene la tabla de logs de auditoría."""
-    dynamodb = boto3.resource(
-        'dynamodb',
-        region_name=os.environ.get('AWS_REGION', 'us-east-1')
-    )
-    return dynamodb.Table(os.environ.get('DYNAMODB_AUDIT_TABLE', 'GameVaultAuditLogs'))
-
-
-# ================================
-# PASSWORD RESET FLOW
-# ================================
 
 def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
-    """
-    Crea un token seguro para recuperación de contraseña.
-    
-    Args:
-        user_id (str): ID del usuario que solicita el reset
-        ip_address (str): IP del cliente (opcional)
-    
-    Returns:
-        dict: {'success': bool, 'token': str, 'expires_at': datetime, 'error': str}
-    """
-    try:
-        tabla = get_dynamodb_reset_table()
-        
-        # Generar token seguro (UUID + random bytes)
-        token_id = str(uuid.uuid4())
-        reset_token = f"{secrets.token_urlsafe(32)}"
-        
-        now = utcnow()
-        expires_at = now + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
-        
-        item = {
-            'token_id': token_id,
-            'user_id': user_id,
-            'reset_token': reset_token,  # Usar 'reset_token' en lugar de 'token' (palabra reservada)
-            'created_at': now.isoformat(),
-            'expires_at': expires_at.isoformat(),
-            'expires_at_unix': int(expires_at.timestamp()),
-            'used': False,
-            'ip_address': ip_address or 'unknown',
-            'ttl': int(expires_at.timestamp()),
-        }
-        
-        tabla.put_item(Item=item)
-        
-        print(f"✅ Token de reset creado para usuario {user_id}")
+    """Crea un token de recuperación de contraseña."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    now = utcnow()
+    expires_at = now + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
+    item = PasswordResetToken(
+        token_id=str(uuid.uuid4()),
+        user_id=user_id,
+        reset_token=secrets.token_urlsafe(32),
+        created_at=now,
+        expires_at=expires_at,
+        used=False,
+        ip_address=ip_address or 'unknown',
+    )
+    with session_factory() as session:
+        session.add(item)
+        session.commit()
         return {
             'success': True,
-            'token': reset_token,
+            'token': item.reset_token,
             'expires_at': expires_at,
-            'error': None
+            'error': None,
         }
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al crear token: {e.response['Error']['Message']}")
-        return {'success': False, 'token': None, 'expires_at': None, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al crear token: {str(e)}")
-        return {'success': False, 'token': None, 'expires_at': None, 'error': str(e)}
+
+
+def obtener_token_por_valor(reset_token: str, only_active: bool = True) -> List[Dict[str, Any]]:
+    """Busca tokens por valor."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        query = select(PasswordResetToken).where(PasswordResetToken.reset_token == reset_token)
+        if only_active:
+            query = query.where(
+                PasswordResetToken.used.is_(False),
+                PasswordResetToken.expires_at > utcnow(),
+            )
+        items = session.scalars(query.order_by(PasswordResetToken.created_at.desc())).all()
+        return [reset_token_to_dict(item) for item in items]
 
 
 def validar_reset_token(reset_token: str) -> Dict[str, Any]:
-    """
-    Valida un token de recuperación de contraseña.
-    
-    Args:
-        reset_token (str): Token a validar
-    
-    Returns:
-        dict: {'valid': bool, 'user_id': str, 'error': str}
-    """
-    try:
-        items = obtener_token_por_valor(reset_token, only_active=True)
-        
-        if not items:
-            return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
-        
-        item = items[0]
-        
-        # Verificar expiración
-        expires_at = datetime.fromisoformat(item['expires_at'])
-        now = utcnow()
-        
-        if expires_at < now:
-            return {'valid': False, 'user_id': None, 'error': 'Token expirado'}
-        
-        return {
-            'valid': True,
-            'user_id': item['user_id'],
-            'error': None
-        }
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al validar token: {e.response['Error']['Message']}")
-        return {'valid': False, 'user_id': None, 'error': 'Error al validar token'}
-    except Exception as e:
-        print(f"❌ Error inesperado al validar token: {str(e)}")
-        return {'valid': False, 'user_id': None, 'error': str(e)}
+    """Valida un token de recuperación."""
+    items = obtener_token_por_valor(reset_token, only_active=True)
+    if not items:
+        return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
+
+    item = items[0]
+    expires_at = datetime.fromisoformat(item['expires_at'])
+    if expires_at < utcnow():
+        return {'valid': False, 'user_id': None, 'error': 'Token expirado'}
+
+    return {'valid': True, 'user_id': item['user_id'], 'error': None}
 
 
 def usar_token(reset_token: str) -> Dict[str, Any]:
-    """
-    Marca un token como usado después de un cambio de contraseña exitoso.
-    
-    Args:
-        reset_token (str): Token a marcar como usado
-    
-    Returns:
-        dict: {'success': bool, 'error': str}
-    """
-    try:
-        tabla = get_dynamodb_reset_table()
-        items = obtener_token_por_valor(reset_token, only_active=False)
-        
-        if not items:
+    """Marca un token como usado."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        item = session.scalar(select(PasswordResetToken).where(PasswordResetToken.reset_token == reset_token))
+        if item is None:
             return {'success': False, 'error': 'Token no encontrado'}
-        
-        item = items[0]
-        token_id = item['token_id']
-        
-        # Marcar como usado
-        tabla.update_item(
-            Key={'token_id': token_id},
-            UpdateExpression='SET used = :used, used_at = :used_at',
-            ExpressionAttributeValues={
-                ':used': True,
-                ':used_at': iso_now(),
-            }
-        )
-        
-        print(f"✅ Token marcado como usado: {token_id}")
+        item.used = True
+        item.used_at = utcnow()
+        session.commit()
         return {'success': True, 'error': None}
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al usar token: {e.response['Error']['Message']}")
-        return {'success': False, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al usar token: {str(e)}")
-        return {'success': False, 'error': str(e)}
 
 
 def obtener_token_por_user_id(user_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Obtiene el token activo más reciente de un usuario.
-    
-    Args:
-        user_id (str): ID del usuario
-    
-    Returns:
-        dict: Token activo o None
-    """
-    try:
-        tabla = get_dynamodb_reset_table()
-        
-        response = tabla.query(
-            IndexName='user_id-index',
-            KeyConditionExpression=Key('user_id').eq(user_id),
-            Limit=1,
-            ScanIndexForward=False  # Más reciente primero
+    """Obtiene el token activo más reciente de un usuario."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        item = session.scalar(
+            select(PasswordResetToken)
+            .where(
+                PasswordResetToken.user_id == user_id,
+                PasswordResetToken.used.is_(False),
+                PasswordResetToken.expires_at > utcnow(),
+            )
+            .order_by(PasswordResetToken.created_at.desc())
         )
-        
-        items = response.get('Items', [])
-        
-        if items:
-            # Verificar que no esté usado ni expirado
-            item = items[0]
-            if not item.get('used', False):
-                expires_at = datetime.fromisoformat(item['expires_at'])
-                if expires_at > utcnow():
-                    return item
-        
-        return None
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al obtener token: {e.response['Error']['Message']}")
-        return None
-    except Exception as e:
-        print(f"❌ Error inesperado al obtener token: {str(e)}")
-        return None
+        return reset_token_to_dict(item)
 
 
 def eliminar_tokens_expirados() -> Dict[str, Any]:
-    """
-    Elimina tokens expirados de la tabla.
-    Debería ejecutarse periódicamente (ej: mediante Lambda + CloudWatch).
-    
-    Returns:
-        dict: {'deleted': int, 'error': str}
-    """
-    try:
-        tabla = get_dynamodb_reset_table()
-        
-        now = iso_now()
-        
-        # Usar scan para encontrar tokens expirados (en producción usar TTL de DynamoDB)
-        response = tabla.scan(
-            FilterExpression='used = :used AND expires_at < :now',
-            ExpressionAttributeValues={
-                ':used': False,
-                ':now': now
-            }
-        )
-        
-        items = response.get('Items', [])
-        deleted = 0
-        
+    """Elimina tokens expirados."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        items = session.scalars(
+            select(PasswordResetToken).where(
+                PasswordResetToken.used.is_(False),
+                PasswordResetToken.expires_at < utcnow(),
+            )
+        ).all()
+        deleted = len(items)
         for item in items:
-            tabla.delete_item(Key={'token_id': item['token_id']})
-            deleted += 1
-        
-        print(f"✅ {deleted} tokens expirados eliminados")
+            session.delete(item)
+        session.commit()
         return {'deleted': deleted, 'error': None}
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al limpiar tokens: {e.response['Error']['Message']}")
-        return {'deleted': 0, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al limpiar tokens: {str(e)}")
-        return {'deleted': 0, 'error': str(e)}
-
-
-# ================================
-# AUDIT LOGS (LOGS DE AUDITORÍA)
-# ================================
-
-AUDIT_ACTIONS = {
-    'LOGIN': 'Inicio de sesión',
-    'LOGOUT': 'Cierre de sesión',
-    'REGISTER': 'Registro de usuario',
-    'CREATE_GAME': 'Crear juego',
-    'UPDATE_GAME': 'Actualizar juego',
-    'DELETE_GAME': 'Eliminar juego',
-    'PASSWORD_RESET_REQUEST': 'Solicitud de recuperacion',
-    'PASSWORD_RESET': 'Recuperación de contraseña',
-    'ADMIN_ACTION': 'Acción administrativa',
-    'UPDATE_PROFILE': 'Actualizar perfil',
-    'CHANGE_PASSWORD': 'Cambio de contraseña',
-    'FAILED_LOGIN': 'Login fallido'
-}
 
 
 def crear_log_audit(
@@ -916,481 +592,177 @@ def crear_log_audit(
     details: Dict[str, Any] = None,
     ip_address: str = None,
     user_agent: str = None,
-    status: str = 'SUCCESS'
+    status: str = 'SUCCESS',
 ) -> Dict[str, Any]:
-    """
-    Crea un registro de auditoría para una acción.
-    
-    Args:
-        user_id (str): ID del usuario que realizó la acción
-        action (str): Tipo de acción (LOGIN, LOGOUT, CREATE, UPDATE, DELETE, etc.)
-        resource (str): Recurso afectado (users, games, auth, etc.)
-        details (dict): Detalles adicionales de la acción
-        ip_address (str): IP del cliente
-        user_agent (str): User agent del navegador
-        status (str): Estado de la acción (SUCCESS, FAILED, ERROR)
-    
-    Returns:
-        dict: {'success': bool, 'audit_id': str, 'error': str}
-    """
-    try:
-        tabla = get_dynamodb_audit_table()
-        
-        audit_id = str(uuid.uuid4())
-        timestamp = iso_now()
-        
-        item = {
-            'audit_id': audit_id,
-            'log_scope': AUDIT_LOG_SCOPE,
-            'user_id': user_id,
-            'action': action,
-            'action_name': AUDIT_ACTIONS.get(action, action),
-            'resource': resource,
-            'timestamp': timestamp,
-            'ip_address': ip_address or 'unknown',
-            'user_agent': user_agent or 'unknown',
-            'details': details or {},
-            'status': status,
-            'ttl': future_unix_timestamp(days=AUDIT_LOG_RETENTION_DAYS),
-        }
-        
-        tabla.put_item(Item=item)
-        
-        print(f"✅ Audit log creado: {action} por usuario {user_id}")
-        return {
-            'success': True,
-            'audit_id': audit_id,
-            'error': None
-        }
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al crear audit log: {e.response['Error']['Message']}")
-        return {'success': False, 'audit_id': None, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al crear audit log: {str(e)}")
-        return {'success': False, 'audit_id': None, 'error': str(e)}
+    """Crea un log de auditoría."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    item = AuditLog(
+        audit_id=str(uuid.uuid4()),
+        user_id=user_id,
+        action=action,
+        action_name=AUDIT_ACTIONS.get(action, action),
+        resource=resource,
+        timestamp=utcnow(),
+        ip_address=ip_address or 'unknown',
+        user_agent=user_agent or 'unknown',
+        details=details or {},
+        status=status,
+    )
+    with session_factory() as session:
+        session.add(item)
+        session.commit()
+        return {'success': True, 'audit_id': item.audit_id, 'error': None}
 
 
-def obtener_logs_por_usuario(
-    user_id: str,
-    limit: int = 50
-) -> List[Dict[str, Any]]:
-    """
-    Obtiene los logs de auditoría de un usuario específico.
-    
-    Args:
-        user_id (str): ID del usuario
-        limit (int): Máximo número de logs a retornar
-    
-    Returns:
-        list: Lista de logs de auditoría
-    """
-    try:
-        tabla = get_dynamodb_audit_table()
-        
-        response = tabla.query(
-            IndexName='user-timestamp-index',
-            KeyConditionExpression=Key('user_id').eq(user_id),
-            Limit=limit,
-            ScanIndexForward=False  # Más recientes primero
-        )
-        
-        return response.get('Items', [])
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al obtener logs: {e.response['Error']['Message']}")
-        return []
-    except Exception as e:
-        print(f"❌ Error inesperado al obtener logs: {str(e)}")
-        return []
+def obtener_logs_por_usuario(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Obtiene logs recientes de un usuario."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        items = session.scalars(
+            select(AuditLog).where(AuditLog.user_id == user_id).order_by(AuditLog.timestamp.desc()).limit(limit)
+        ).all()
+        return [audit_log_to_dict(item) for item in items]
 
 
-def obtener_todos_logs(
-    filters: Dict[str, Any] = None,
-    limit: int = 100
-) -> List[Dict[str, Any]]:
-    """
-    Obtiene todos los logs de auditoría con filtros opcionales.
-    
-    Args:
-        filters (dict): Filtros aplicables (user_id, action, status, start_date, end_date)
-        limit (int): Máximo número de logs a retornar
-    
-    Returns:
-        list: Lista de logs de auditoría
-    """
-    try:
-        tabla = get_dynamodb_audit_table()
-        filters = filters or {}
+def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    """Obtiene logs de auditoría con filtros opcionales."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    filters = filters or {}
 
-        key_condition = Key('log_scope').eq(AUDIT_LOG_SCOPE)
-        if filters.get('start_date') and filters.get('end_date'):
-            key_condition = key_condition & Key('timestamp').between(
-                filters['start_date'],
-                filters['end_date'],
-            )
-        elif filters.get('start_date'):
-            key_condition = key_condition & Key('timestamp').gte(filters['start_date'])
-        elif filters.get('end_date'):
-            key_condition = key_condition & Key('timestamp').lte(filters['end_date'])
+    query = select(AuditLog)
+    if filters.get('user_id'):
+        query = query.where(AuditLog.user_id == filters['user_id'])
+    if filters.get('action'):
+        query = query.where(AuditLog.action == filters['action'])
+    if filters.get('status'):
+        query = query.where(AuditLog.status == filters['status'])
 
-        filter_expression = None
-        if filters.get('user_id'):
-            filter_expression = Attr('user_id').eq(filters['user_id'])
-        if filters.get('action'):
-            action_filter = Attr('action').eq(filters['action'])
-            filter_expression = action_filter if filter_expression is None else filter_expression & action_filter
-        if filters.get('status'):
-            status_filter = Attr('status').eq(filters['status'])
-            filter_expression = status_filter if filter_expression is None else filter_expression & status_filter
+    start_date = parse_date_filter(filters.get('start_date', ''))
+    end_date = parse_date_filter(filters.get('end_date', ''), end=True)
+    if start_date:
+        query = query.where(AuditLog.timestamp >= start_date)
+    if end_date:
+        query = query.where(AuditLog.timestamp < end_date)
 
-        try:
-            query_args = {
-                'IndexName': AUDIT_TIMESTAMP_INDEX_NAME,
-                'KeyConditionExpression': key_condition,
-                'Limit': limit,
-                'ScanIndexForward': False,
-            }
-            if filter_expression is not None:
-                query_args['FilterExpression'] = filter_expression
-            response = tabla.query(**query_args)
-            logs = response.get('Items', [])
-        except ClientError as e:
-            if e.response['Error']['Code'] != 'ValidationException':
-                raise
-            # Compatibilidad con tablas antiguas sin GSI nuevo.
-            if filters:
-                scan_filter_expression = None
-                expression_values = {}
+    query = query.order_by(AuditLog.timestamp.desc()).limit(limit)
 
-                if filters.get('user_id'):
-                    scan_filter_expression = 'user_id = :user_id'
-                    expression_values[':user_id'] = filters['user_id']
-                if filters.get('action'):
-                    expression_values[':action'] = filters['action']
-                    scan_filter_expression = (
-                        f'{scan_filter_expression} AND action = :action'
-                        if scan_filter_expression
-                        else 'action = :action'
-                    )
-                if filters.get('status'):
-                    expression_values[':status'] = filters['status']
-                    scan_filter_expression = (
-                        f'{scan_filter_expression} AND status = :status'
-                        if scan_filter_expression
-                        else 'status = :status'
-                    )
-                if filters.get('start_date'):
-                    expression_values[':start_date'] = filters['start_date']
-                    scan_filter_expression = (
-                        f'{scan_filter_expression} AND timestamp >= :start_date'
-                        if scan_filter_expression
-                        else 'timestamp >= :start_date'
-                    )
-                if filters.get('end_date'):
-                    expression_values[':end_date'] = filters['end_date']
-                    scan_filter_expression = (
-                        f'{scan_filter_expression} AND timestamp <= :end_date'
-                        if scan_filter_expression
-                        else 'timestamp <= :end_date'
-                    )
-
-                response = tabla.scan(
-                    FilterExpression=scan_filter_expression,
-                    ExpressionAttributeValues=expression_values,
-                    Limit=limit,
-                ) if scan_filter_expression else tabla.scan(Limit=limit)
-            else:
-                response = tabla.scan(Limit=limit)
-            logs = response.get('Items', [])
-
-        # Ordenar por timestamp (más recientes primero)
-        logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
-        return logs[:limit]
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al obtener todos los logs: {e.response['Error']['Message']}")
-        return []
-    except Exception as e:
-        print(f"❌ Error inesperado al obtener todos los logs: {str(e)}")
-        return []
+    with session_factory() as session:
+        items = session.scalars(query).all()
+        return [audit_log_to_dict(item) for item in items]
 
 
 def obtener_estadisticas_logs() -> Dict[str, Any]:
-    """
-    Obtiene estadísticas generales de los logs de auditoría.
-    
-    Returns:
-        dict: Estadísticas del sistema
-    """
-    try:
-        tabla = get_dynamodb_audit_table()
-        
-        response = tabla.scan()
-        logs = response.get('Items', [])
-        
-        # Calcular estadísticas
-        total_logs = len(logs)
-        
-        # Logs por acción
-        action_counts = {}
-        for log in logs:
-            action = log.get('action', 'UNKNOWN')
-            action_counts[action] = action_counts.get(action, 0) + 1
-        
-        # Logs por status
-        status_counts = {}
-        for log in logs:
-            status = log.get('status', 'UNKNOWN')
-            status_counts[status] = status_counts.get(status, 0) + 1
-        
-        # Logs por día (últimos 7 días)
-        from collections import defaultdict
-        daily_counts = defaultdict(int)
-        
-        for log in logs:
-            timestamp = log.get('timestamp', '')
-            if timestamp:
-                try:
-                    date = timestamp[:10]  # YYYY-MM-DD
-                    daily_counts[date] += 1
-                except:
-                    pass
-        
-        # Últimos 7 días
-        import datetime as dt
-        last_7_days = []
-        for i in range(7):
-            date = (dt.datetime.now(timezone.utc) - dt.timedelta(days=i)).strftime('%Y-%m-%d')
-            last_7_days.append({
-                'date': date,
-                'count': daily_counts.get(date, 0)
-            })
-        last_7_days.reverse()
-        
-        # Usuarios más activos
-        user_counts = {}
-        for log in logs:
-            user_id = log.get('user_id', 'anonymous')
-            user_counts[user_id] = user_counts.get(user_id, 0) + 1
-        
-        top_users = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-        
-        return {
-            'total_logs': total_logs,
-            'action_counts': action_counts,
-            'status_counts': status_counts,
-            'daily_activity': last_7_days,
-            'top_users': top_users,
-            'success_rate': round(
-                (status_counts.get('SUCCESS', 0) / total_logs * 100) 
-                if total_logs > 0 else 100, 2
-            )
-        }
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al obtener estadísticas: {e.response['Error']['Message']}")
-        return {'error': str(e)}
-    except Exception as e:
-        print(f"❌ Error inesperado al obtener estadísticas: {str(e)}")
-        return {'error': str(e)}
+    """Calcula estadísticas simples de auditoría."""
+    logs = obtener_todos_logs(limit=5000)
+    total_logs = len(logs)
+
+    action_counts: Dict[str, int] = {}
+    status_counts: Dict[str, int] = {}
+    daily_counts: Dict[str, int] = {}
+    user_counts: Dict[str, int] = {}
+
+    for log in logs:
+        action = log.get('action', 'UNKNOWN')
+        status = log.get('status', 'UNKNOWN')
+        action_counts[action] = action_counts.get(action, 0) + 1
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+        timestamp = log.get('timestamp', '')
+        if timestamp:
+            date = timestamp[:10]
+            daily_counts[date] = daily_counts.get(date, 0) + 1
+
+        user_id = log.get('user_id') or 'anonymous'
+        user_counts[user_id] = user_counts.get(user_id, 0) + 1
+
+    last_7_days = []
+    for i in range(7):
+        date = (utcnow() - timedelta(days=i)).strftime('%Y-%m-%d')
+        last_7_days.append({'date': date, 'count': daily_counts.get(date, 0)})
+    last_7_days.reverse()
+
+    top_users = sorted(user_counts.items(), key=lambda item: item[1], reverse=True)[:5]
+    return {
+        'total_logs': total_logs,
+        'action_counts': action_counts,
+        'status_counts': status_counts,
+        'daily_activity': last_7_days,
+        'top_users': top_users,
+        'success_rate': round((status_counts.get('SUCCESS', 0) / total_logs * 100) if total_logs else 100, 2),
+    }
 
 
 def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
-    """
-    Elimina logs de auditoría más antiguos que N días.
-    Debería ejecutarse periódicamente mediante Lambda + CloudWatch.
-    
-    Args:
-        days (int): Número de días de retención
-    
-    Returns:
-        dict: {'deleted': int, 'error': str}
-    """
-    try:
-        if days is None:
-            days = AUDIT_LOG_RETENTION_DAYS
-        
-        tabla = get_dynamodb_audit_table()
-        
-        cutoff_date = (utcnow() - timedelta(days=days)).isoformat()
-        
-        # Buscar logs antiguos
-        response = tabla.scan(
-            FilterExpression='timestamp < :cutoff',
-            ExpressionAttributeValues={
-                ':cutoff': cutoff_date
-            }
-        )
-        
-        items = response.get('Items', [])
-        deleted = 0
-        
+    """Elimina logs antiguos."""
+    ensure_tables()
+    days = days or AUDIT_LOG_RETENTION_DAYS
+    cutoff_date = utcnow() - timedelta(days=days)
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        items = session.scalars(select(AuditLog).where(AuditLog.timestamp < cutoff_date)).all()
+        deleted = len(items)
         for item in items:
-            tabla.delete_item(Key={'audit_id': item['audit_id']})
-            deleted += 1
-        
-        print(f"✅ {deleted} logs antiguos eliminados (mayores a {days} días)")
+            session.delete(item)
+        session.commit()
         return {'deleted': deleted, 'error': None}
-        
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al limpiar logs: {e.response['Error']['Message']}")
-        return {'deleted': 0, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al limpiar logs: {str(e)}")
-        return {'deleted': 0, 'error': str(e)}
 
 
 def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
-    """
-    Exporta una lista de logs a formato CSV.
-    
-    Args:
-        logs (list): Lista de logs de auditoría
-    
-    Returns:
-        str: Contenido CSV
-    """
-    import csv
-    import io
-    
+    """Exporta logs a CSV."""
     output = io.StringIO()
     fieldnames = ['audit_id', 'user_id', 'action', 'resource', 'timestamp', 'ip_address', 'status', 'details']
-    
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
-    
     for log in logs:
-        # Simplificar details para CSV
-        row = {k: log.get(k, '') for k in fieldnames[:-1]}
+        row = {key: log.get(key, '') for key in fieldnames[:-1]}
         row['details'] = str(log.get('details', {}))
         writer.writerow(row)
-    
     return output.getvalue()
 
 
 def obtener_usuario_por_id(user_id: str) -> Optional[Dict[str, Any]]:
-    """Obtiene un usuario por su identificador."""
-    try:
-        tabla = get_dynamodb_users_table()
-        response = tabla.get_item(Key={'user_id': user_id})
-        return response.get('Item')
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al obtener usuario por ID: {e.response['Error']['Message']}")
-        return None
-    except Exception as e:
-        print(f"❌ Error inesperado al obtener usuario por ID: {str(e)}")
-        return None
+    """Obtiene un usuario por ID."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        user = session.get(User, user_id)
+        return user_to_dict(user)
 
 
 def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str, Any]:
-    """Actualiza los datos básicos del perfil del usuario."""
-    try:
-        tabla = get_dynamodb_users_table()
-        campos = []
-        valores: Dict[str, Any] = {':updated_at': iso_now()}
+    """Actualiza datos básicos del perfil."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        user = session.get(User, user_id)
+        if user is None:
+            return {'success': False, 'error': 'Usuario no encontrado'}
 
         for field in ('nombre', 'apellido', 'prefijo_pais', 'telefono'):
             if field in cambios:
-                key = f':{field}'
-                campos.append(f'{field} = {key}')
-                valores[key] = (cambios.get(field) or '').strip()
-
-        if not campos:
-            return {'success': True, 'error': None}
-
-        update_expression = 'SET ' + ', '.join(campos) + ', updated_at = :updated_at'
-        tabla.update_item(
-            Key={'user_id': user_id},
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=valores,
-            ReturnValues='ALL_NEW',
-        )
+                setattr(user, field, (cambios.get(field) or '').strip())
+        user.updated_at = utcnow()
+        session.commit()
         return {'success': True, 'error': None}
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al actualizar perfil: {e.response['Error']['Message']}")
-        return {'success': False, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al actualizar perfil: {str(e)}")
-        return {'success': False, 'error': str(e)}
 
 
 def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, Any]:
-    """Actualiza la contraseña de un usuario."""
-    try:
-        tabla = get_dynamodb_users_table()
-        tabla.update_item(
-            Key={'user_id': user_id},
-            UpdateExpression='SET password_hash = :password_hash, updated_at = :updated_at',
-            ExpressionAttributeValues={
-                ':password_hash': password_hash,
-                ':updated_at': iso_now(),
-            },
-            ReturnValues='ALL_NEW',
-        )
+    """Actualiza la contraseña del usuario."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        user = session.get(User, user_id)
+        if user is None:
+            return {'success': False, 'error': 'Usuario no encontrado'}
+        user.password_hash = password_hash
+        user.updated_at = utcnow()
+        session.commit()
         return {'success': True, 'error': None}
-    except ClientError as e:
-        print(f"❌ Error de DynamoDB al actualizar contraseña: {e.response['Error']['Message']}")
-        return {'success': False, 'error': e.response['Error']['Message']}
-    except Exception as e:
-        print(f"❌ Error inesperado al actualizar contraseña: {str(e)}")
-        return {'success': False, 'error': str(e)}
-
-
-def obtener_token_por_valor(reset_token: str, only_active: bool = True) -> List[Dict[str, Any]]:
-    """Busca tokens por valor intentando usar un índice y degradando a scan si no existe."""
-    tabla = get_dynamodb_reset_table()
-
-    try:
-        response = tabla.query(
-            IndexName=RESET_TOKEN_INDEX_NAME,
-            KeyConditionExpression=Key('reset_token').eq(reset_token),
-            Limit=5,
-            ScanIndexForward=False,
-        )
-        items = response.get('Items', [])
-    except ClientError as e:
-        if e.response['Error']['Code'] != 'ValidationException':
-            raise
-        response = tabla.scan(
-            FilterExpression='reset_token = :reset_token',
-            ExpressionAttributeValues={':reset_token': reset_token},
-        )
-        items = response.get('Items', [])
-
-    if only_active:
-        now = utcnow()
-        items = [
-            item
-            for item in items
-            if not item.get('used', False)
-            and datetime.fromisoformat(item['expires_at']) > now
-        ]
-    return items
 
 
 def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_bytes: int) -> Dict[str, Any]:
-    """Genera una URL firmada para que el navegador suba una imagen directo a S3."""
-    bucket_name = os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files')
-    region_name = os.environ.get('AWS_REGION', 'us-east-1')
-    extension = os.path.splitext(nombre_archivo)[1].lower()
-    object_key = f"covers/{uuid.uuid4()}{extension}"
-    s3_client = get_s3_client()
-
-    response = s3_client.generate_presigned_post(
-        Bucket=bucket_name,
-        Key=object_key,
-        Fields={'Content-Type': content_type},
-        Conditions=[
-            {'Content-Type': content_type},
-            ['content-length-range', 1, max_upload_bytes],
-        ],
-        ExpiresIn=300,
-    )
-
-    return {
-        'upload': response,
-        'file_url': f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{object_key}",
-        'object_key': object_key,
-    }
+    """Storage nuevo pendiente: por ahora no se generan cargas firmadas."""
+    raise RuntimeError('El almacenamiento de imágenes aún no está configurado.')

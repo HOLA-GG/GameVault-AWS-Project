@@ -62,7 +62,7 @@
         {% block content %}{% endblock %}
 
         <footer>
-            <p>GameVault para coleccionistas. Beta pública sobre Flask + AWS.</p>
+            <p>GameVault para coleccionistas. Beta pública sobre Flask + Neon.</p>
             <p>
                 <a href="{{ url_for('main.privacy') }}">Privacidad</a>
                 ·
@@ -95,7 +95,7 @@
             });
         }
 
-        async function uploadFileDirectToS3(file) {
+        async function uploadFileDirectToStorage(file) {
             const metadata = new FormData();
             metadata.append('filename', file.name);
             metadata.append('content_type', file.type);
@@ -124,7 +124,7 @@
             });
 
             if (!uploadResponse.ok) {
-                throw new Error('No se pudo subir la imagen a S3.');
+                throw new Error('No se pudo subir la imagen al almacenamiento configurado.');
             }
 
             return payload.file_url;
@@ -143,7 +143,11 @@
             });
 
             injectCsrfTokens();
-            window.gameVault = { csrfToken, uploadFileDirectToS3 };
+            window.gameVault = {
+                csrfToken,
+                uploadFileDirectToStorage,
+                uploadFileDirectToS3: uploadFileDirectToStorage
+            };
         });
     </script>
 </body>

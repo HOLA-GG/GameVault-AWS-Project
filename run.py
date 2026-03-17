@@ -30,9 +30,8 @@ if __name__ == '__main__':
     print(f"Entorno: {app.config['APP_ENV']}")
     print(f"Host: {host}:{port}")
     print(f"Debug: {debug}")
-    print(f"Tabla juegos: {app.config['DYNAMODB_TABLE']}")
-    print(f"Tabla usuarios: {app.config['DYNAMODB_USERS_TABLE']}")
-    print(f"Bucket S3: {app.config['S3_BUCKET_NAME']}")
+    print(f"Base de datos: {app.config['DATABASE_BACKEND']}")
+    print(f"Storage: {app.config['STORAGE_BACKEND']}")
     print('=' * 60)
 
     app.run(host=host, port=port, debug=debug)

@@ -100,10 +100,26 @@ def build_config() -> dict:
 
     session_secure_default = app_env == 'production'
     max_upload_mb = env_int('MAX_UPLOAD_MB', 5)
+    database_url = os.environ.get('DATABASE_URL', '')
+    if app_env == 'testing':
+        database_url = database_url or 'sqlite+pysqlite:///gamevault_test.db'
+    elif not database_url:
+        database_url = 'sqlite+pysqlite:///gamevault_dev.db'
+
+    storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower() or 'none'
+    if database_url.startswith('postgresql'):
+        database_backend = 'neon'
+    elif database_url.startswith('sqlite'):
+        database_backend = 'sqlite'
+    else:
+        database_backend = 'postgres'
 
     return {
         'APP_ENV': app_env,
         'SECRET_KEY': secret_key,
+        'DATABASE_URL': database_url,
+        'DATABASE_BACKEND': database_backend,
+        'STORAGE_BACKEND': storage_backend,
         'MAX_CONTENT_LENGTH': max_upload_mb * 1024 * 1024,
         'MAX_UPLOAD_MB': max_upload_mb,
         'MAX_IMAGE_UPLOAD_BYTES': max_upload_mb * 1024 * 1024,
@@ -123,11 +139,6 @@ def build_config() -> dict:
         'DEFAULT_USER_ID': os.environ.get('DEFAULT_USER_ID', 'user-demo-001'),
         'S3_BUCKET_NAME': os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files'),
         'S3_REGION': os.environ.get('AWS_REGION', 'us-east-1'),
-        'DYNAMODB_TABLE': os.environ.get('DYNAMODB_TABLE', 'GameVault'),
-        'DYNAMODB_USERS_TABLE': os.environ.get('DYNAMODB_USERS_TABLE', 'GameVaultUsers'),
-        'DYNAMODB_RESET_TABLE': os.environ.get('DYNAMODB_RESET_TABLE', 'GameVaultPasswordReset'),
-        'DYNAMODB_AUDIT_TABLE': os.environ.get('DYNAMODB_AUDIT_TABLE', 'GameVaultAuditLogs'),
-        'DYNAMODB_REGION': os.environ.get('AWS_REGION', 'us-east-1'),
         'RESET_TOKEN_EXPIRY_MINUTES': env_int('RESET_TOKEN_EXPIRY_MINUTES', 30),
         'AUDIT_LOG_RETENTION_DAYS': env_int('AUDIT_LOG_RETENTION_DAYS', 90),
         'GAMES_PER_PAGE': env_int('GAMES_PER_PAGE', 12),
@@ -186,7 +197,10 @@ def create_app() -> Flask:
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
         return ('Tu formulario expiro o no paso la validacion de seguridad.', 400)
 
+    from app.models import init_database
     from app.routes import main_bp
+
+    init_database()
 
     app.register_blueprint(main_bp, url_prefix='/')
     return app

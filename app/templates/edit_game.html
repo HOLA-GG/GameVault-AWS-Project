@@ -12,7 +12,7 @@
 
 <section class="section">
     <h2>Editar juego</h2>
-    <p style="color:var(--text-secondary);margin-bottom:20px;">Si cambias la portada, se eliminará la anterior del bucket S3.</p>
+    <p style="color:var(--text-secondary);margin-bottom:20px;">La portada es opcional. La siguiente fase conectará el almacenamiento definitivo.</p>
 
     <form action="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" method="POST" enctype="multipart/form-data" id="editGameForm">
         <input type="hidden" name="nueva_imagen_url" id="nueva_imagen_url">
@@ -50,7 +50,13 @@
         </div>
         <div class="form-group">
             <label>Portada actual</label>
-            <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" style="max-width:240px;border-radius:12px;">
+            {% if juego.imagen_url %}
+                <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" style="max-width:240px;border-radius:12px;">
+            {% else %}
+                <div style="max-width:240px;border-radius:12px;padding:28px;background:rgba(255,255,255,0.05);color:var(--text-secondary);text-align:center;">
+                    Sin portada
+                </div>
+            {% endif %}
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
             <button type="submit" class="btn-submit" id="editSubmitButton">Guardar cambios</button>
@@ -72,7 +78,7 @@
             button.disabled = true;
             button.textContent = 'Subiendo portada...';
             try {
-                imageUrlInput.value = await window.gameVault.uploadFileDirectToS3(fileInput.files[0]);
+                imageUrlInput.value = await window.gameVault.uploadFileDirectToStorage(fileInput.files[0]);
                 form.submit();
             } catch (error) {
                 alert(error.message || 'No se pudo subir la nueva portada.');

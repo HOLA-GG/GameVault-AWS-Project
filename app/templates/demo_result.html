@@ -12,7 +12,7 @@
 
 <section class="section text-center">
     <h2>La demo funcionó</h2>
-    <p style="color:var(--text-secondary);margin-bottom:24px;">Todo se procesó en memoria. No se guardó nada en AWS.</p>
+    <p style="color:var(--text-secondary);margin-bottom:24px;">Todo se procesó en memoria. No se guardó nada en la infraestructura real.</p>
     <div style="max-width:520px;margin:0 auto;padding:24px;background:var(--card-bg);border-radius:18px;">
         <img src="{{ imagen_base64 }}" alt="{{ titulo }}" style="width:100%;max-height:420px;object-fit:cover;border-radius:12px;">
         <h3 style="margin-top:16px;">{{ titulo }}</h3>
@@ -22,7 +22,7 @@
 
 <section class="section text-center">
     <h3>¿Quieres guardar tus juegos de verdad?</h3>
-    <p style="color:var(--text-secondary);margin-bottom:20px;">Crea una cuenta y sube portadas reales directo a S3.</p>
+    <p style="color:var(--text-secondary);margin-bottom:20px;">Crea una cuenta y empieza a registrar tu colección real.</p>
     <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
         <a href="{{ url_for('main.registro') }}" class="btn btn-primary">Crear cuenta</a>
         <a href="{{ url_for('main.login') }}" class="btn btn-secondary">Iniciar sesión</a>
