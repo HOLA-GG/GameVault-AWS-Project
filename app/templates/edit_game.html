@@ -5,14 +5,20 @@
 {% block content %}
 <div class="nav-bar">
     <div class="nav-links">
-        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Mi colección</a>
         <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Perfil</a>
+        {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Panel admin</a>
+        {% endif %}
     </div>
 </div>
 
 <section class="section">
     <h2>Editar juego</h2>
-    <p style="color:var(--text-secondary);margin-bottom:20px;">La portada es opcional. La siguiente fase conectará el almacenamiento definitivo.</p>
+    <p style="color:var(--text-secondary);margin-bottom:20px;">
+        La portada es opcional. La siguiente fase reforzará la gestión definitiva de imágenes.
+    </p>
 
     <form action="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" method="POST" enctype="multipart/form-data" id="editGameForm">
         <input type="hidden" name="nueva_imagen_url" id="nueva_imagen_url">
@@ -24,7 +30,7 @@
             <div class="form-group">
                 <label for="plataforma">Plataforma</label>
                 <select id="plataforma" name="plataforma" required>
-                    {% for value in ['PC','PlayStation','Xbox','Nintendo','Mobile','Otro'] %}
+                    {% for value in GAME_PLATFORM_OPTIONS %}
                         <option value="{{ value }}" {% if juego.plataforma == value %}selected{% endif %}>{{ value }}</option>
                     {% endfor %}
                 </select>
@@ -34,14 +40,49 @@
             <div class="form-group">
                 <label for="estado">Estado</label>
                 <select id="estado" name="estado" required>
-                    {% for value in ['N/A','Nuevo','Como Nuevo','Bueno','Regular'] %}
+                    {% for value in GAME_CONDITION_OPTIONS %}
                         <option value="{{ value }}" {% if juego.estado == value %}selected{% endif %}>{{ value }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="form-group">
+                <label for="categoria">Categoría</label>
+                <select id="categoria" name="categoria">
+                    {% for value in GAME_CATEGORY_OPTIONS %}
+                        <option value="{{ value }}" {% if juego.categoria == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prioridad">Prioridad</label>
+                <select id="prioridad" name="prioridad">
+                    {% for value in GAME_PRIORITY_OPTIONS %}
+                        <option value="{{ value }}" {% if juego.prioridad == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="calificacion">Calificación personal</label>
+                <select id="calificacion" name="calificacion">
+                    <option value="">Sin nota</option>
+                    {% for value in GAME_RATING_OPTIONS %}
+                        <option value="{{ value }}" {% if juego.calificacion == value %}selected{% endif %}>{{ value }}/10</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
                 <label for="nueva_imagen">Nueva portada</label>
                 <input type="file" id="nueva_imagen" name="nueva_imagen" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-card" for="es_favorito">
+                    <input type="checkbox" id="es_favorito" name="es_favorito" {% if juego.es_favorito %}checked{% endif %}>
+                    <span>Marcar como favorito</span>
+                </label>
             </div>
         </div>
         <div class="form-group">
@@ -73,6 +114,7 @@
         const button = document.getElementById('editSubmitButton');
 
         form.addEventListener('submit', async function (event) {
+            if (!window.gameVault.supportsDirectUploads) return;
             if (!fileInput.files.length || imageUrlInput.value) return;
             event.preventDefault();
             button.disabled = true;

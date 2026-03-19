@@ -4,4 +4,5 @@ __pycache__/
 *.py[cod]
 *.db
 *.db-journal
+app/static/uploads/
 .env

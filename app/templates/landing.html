@@ -11,8 +11,14 @@
     {% if session.get('user_id') %}
         <div class="user-info">
             <span>{{ session.get('nombre') }}</span>
-            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-small">Mi colección</a>
-            <a href="{{ url_for('main.profile') }}" class="btn btn-secondary btn-small">Perfil</a>
+            {% if session.get('role') == 'admin' %}
+                <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary btn-small">Panel admin</a>
+                <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary btn-small">Colecciones</a>
+                <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary btn-small">Logs</a>
+            {% else %}
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-small">Mi colección</a>
+                <a href="{{ url_for('main.profile') }}" class="btn btn-secondary btn-small">Perfil</a>
+            {% endif %}
             <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
                 <button type="submit" class="btn btn-secondary btn-small">Cerrar sesión</button>
             </form>
@@ -29,13 +35,115 @@
     <h2>Tu colección gamer, ordenada y segura</h2>
     <p>
         GameVault te ayuda a registrar, buscar y mantener tu biblioteca de videojuegos
-        con portadas en la nube, historial de cambios y una experiencia simple para coleccionistas.
+        con actividad reciente, métricas de colección e identidad propia para coleccionistas.
     </p>
     <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
         <a href="{{ url_for('main.registro') }}" class="btn btn-primary" style="font-size:1.05rem;padding:14px 28px;">Crear mi colección</a>
         <a href="{{ url_for('main.demo') }}" class="btn btn-secondary" style="font-size:1.05rem;padding:14px 28px;">Probar demo</a>
     </div>
 </section>
+
+{% if sample_collections %}
+<section class="section">
+    <div class="section-heading-inline">
+        <div>
+            <h2>Explora cómo se valora una colección</h2>
+            <p>Estos ejemplos son de prueba y sirven para mostrar cómo se verán las vitrinas calificadas en GameVault.</p>
+        </div>
+    </div>
+    <div class="collection-showcase-grid">
+        {% for collection in sample_collections %}
+            <article class="collection-showcase-card">
+                <div class="collection-showcase-card__header">
+                    <span class="feature-icon">🏆</span>
+                    <div>
+                        <h4>{{ collection.title }}</h4>
+                        <p>{{ collection.owner_name }}</p>
+                    </div>
+                </div>
+                <p>{{ collection.summary }}</p>
+                <div class="collection-showcase-meta">
+                    <span>{{ collection.total_games }} juegos</span>
+                    <span>{{ collection.favorites_count }} favoritos</span>
+                    <span>{{ collection.dominant_platform }}</span>
+                </div>
+                <div
+                    class="collection-rating-demo"
+                    data-subject-type="sample"
+                    data-subject-id="{{ collection.id }}"
+                    data-current-rating="{{ (collection.showcase_rating_average or 0)|round(0, 'common')|int }}"
+                >
+                    <div class="collection-rating-demo__label">
+                        <strong>Valorar colección</strong>
+                        <div class="collection-rating-demo__meta">
+                            <span class="collection-rating-demo__value">{{ collection.showcase_rating_average or 0 }}/5</span>
+                            <span class="collection-rating-demo__votes">{{ collection.showcase_votes_count }} votos</span>
+                        </div>
+                    </div>
+                    <div class="collection-stars" role="group" aria-label="Califica esta colección de ejemplo">
+                        {% for star in range(1, 6) %}
+                            <button type="button" class="star-chip {% if star <= (collection.showcase_rating_average or 0)|round(0, 'common')|int %}is-filled{% endif %}" data-rating="{{ star }}" aria-label="{{ star }} estrellas">★</button>
+                        {% endfor %}
+                    </div>
+                    <small>Votación abierta: una IP puede valorar una vez cada colección para evitar abuso.</small>
+                    <p class="collection-rating-demo__feedback" aria-live="polite"></p>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if public_collections %}
+<section class="section">
+    <div class="section-heading-inline">
+        <div>
+            <h2>Colecciones públicas destacadas</h2>
+            <p>Solo aparecen aquí si el coleccionista la hace pública y además autoriza mostrarla en la portada.</p>
+        </div>
+    </div>
+    <div class="features-grid">
+        {% for collection in public_collections %}
+            <article class="feature-card">
+                <span class="feature-icon">🌐</span>
+                <h4>{{ collection.owner_name }}</h4>
+                <p>{{ collection.total_games }} juegos · {{ collection.favorites_count }} favoritos · {{ collection.dominant_platform }}</p>
+                <div class="insight-strip compact">
+                    <div class="insight-tile">
+                        <strong>{{ collection.average_rating if collection.average_rating is not none else 'Sin nota' }}</strong>
+                        <span>rating medio</span>
+                    </div>
+                    <div class="insight-tile">
+                        <strong>{{ collection.last_updated_at[:10] if collection.last_updated_at else '—' }}</strong>
+                        <span>último cambio</span>
+                    </div>
+                </div>
+                <div
+                    class="collection-rating-demo"
+                    data-subject-type="public"
+                    data-subject-id="{{ collection.user_id }}"
+                    data-current-rating="{{ (collection.showcase_rating_average or 0)|round(0, 'common')|int }}"
+                >
+                    <div class="collection-rating-demo__label">
+                        <strong>Valorar vitrina pública</strong>
+                        <div class="collection-rating-demo__meta">
+                            <span class="collection-rating-demo__value">{{ collection.showcase_rating_average if collection.showcase_rating_average is not none else 0 }}/5</span>
+                            <span class="collection-rating-demo__votes">{{ collection.showcase_votes_count }} votos</span>
+                        </div>
+                    </div>
+                    <div class="collection-stars" role="group" aria-label="Califica esta colección pública">
+                        {% for star in range(1, 6) %}
+                            <button type="button" class="star-chip {% if star <= (collection.showcase_rating_average or 0)|round(0, 'common')|int %}is-filled{% endif %}" data-rating="{{ star }}" aria-label="{{ star }} estrellas">★</button>
+                        {% endfor %}
+                    </div>
+                    <small>Solo se muestra aquí si el autor la hizo pública y autorizó su aparición en portada.</small>
+                    <p class="collection-rating-demo__feedback" aria-live="polite"></p>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <section class="section">
     <h2 style="text-align:center;margin-bottom:30px;">Pensado para coleccionistas</h2>
@@ -46,9 +154,9 @@
             <p>Filtra por plataforma, estado y encuentra cualquier juego al instante.</p>
         </div>
         <div class="feature-card electric-wrapper color-yellow">
-            <span class="feature-icon">🖼️</span>
-            <h4>Portadas en la nube</h4>
-            <p>Organiza tu colección en la nube y accede a ella desde cualquier lugar.</p>
+            <span class="feature-icon">📊</span>
+            <h4>Tu colección cobra vida</h4>
+            <p>Ve tu actividad reciente, plataforma dominante y el estado real de tu biblioteca.</p>
         </div>
         <div class="feature-card electric-wrapper color-purple">
             <span class="feature-icon">🔒</span>
@@ -67,9 +175,9 @@
     <h2 style="text-align:center;margin-bottom:30px;">Cómo funciona</h2>
     <div class="steps-grid">
         <div class="step-card"><div class="step-number">1</div><h4>Crea tu cuenta</h4><p>Solo pedimos lo mínimo para arrancar.</p></div>
-        <div class="step-card"><div class="step-number">2</div><h4>Sube tus portadas</h4><p>La capa de imágenes quedará conectada en la siguiente iteración del producto.</p></div>
+        <div class="step-card"><div class="step-number">2</div><h4>Agrega detalles</h4><p>Guarda plataforma, estado, notas y, si quieres, portada.</p></div>
         <div class="step-card"><div class="step-number">3</div><h4>Busca y filtra</h4><p>Encuentra rápido lo que tienes y en qué estado está.</p></div>
-        <div class="step-card"><div class="step-number">4</div><h4>Mantén tu colección viva</h4><p>Edita, elimina y actualiza cuando quieras.</p></div>
+        <div class="step-card"><div class="step-number">4</div><h4>Haz seguimiento</h4><p>Revisa actividad, cambios recientes y cómo va creciendo tu colección.</p></div>
     </div>
 </section>
 
@@ -96,4 +204,129 @@
     <p>Prueba la experiencia y luego conviértela en tu biblioteca real.</p>
     <a href="{{ url_for('main.registro') }}" class="btn">Crear cuenta gratis</a>
 </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.collection-rating-demo').forEach(function (card) {
+            const stars = card.querySelectorAll('.star-chip');
+            const valueLabel = card.querySelector('.collection-rating-demo__value');
+            const votesLabel = card.querySelector('.collection-rating-demo__votes');
+            const feedbackLabel = card.querySelector('.collection-rating-demo__feedback');
+            const subjectType = card.dataset.subjectType;
+            const subjectId = card.dataset.subjectId;
+            let persistedRating = Number(card.dataset.currentRating || '0');
+            let isLocked = false;
+
+            function paintStars(rating) {
+                stars.forEach((star) => {
+                    star.classList.toggle('is-filled', Number(star.dataset.rating) <= rating);
+                });
+            }
+
+            function setFeedback(message, tone) {
+                if (!feedbackLabel) {
+                    return;
+                }
+                feedbackLabel.textContent = message || '';
+                feedbackLabel.dataset.tone = tone || '';
+            }
+
+            function setVotesCount(votes) {
+                if (!votesLabel) {
+                    return;
+                }
+                votesLabel.textContent = `${votes} ${votes === 1 ? 'voto' : 'votos'}`;
+            }
+
+            function setDisplayedAverage(rating) {
+                if (!valueLabel) {
+                    return;
+                }
+                valueLabel.textContent = `${Number(rating || 0).toFixed(1)}/5`;
+            }
+
+            function syncPersistedState(average, votesCount) {
+                persistedRating = Math.max(0, Math.min(5, Math.round(Number(average || 0))));
+                card.dataset.currentRating = String(persistedRating);
+                paintStars(persistedRating);
+                setDisplayedAverage(Number(average || 0));
+                setVotesCount(Number(votesCount || 0));
+            }
+
+            syncPersistedState(
+                Number(valueLabel ? valueLabel.textContent.split('/')[0] : persistedRating),
+                parseInt(votesLabel ? votesLabel.textContent : '0', 10),
+            );
+
+            stars.forEach((star) => {
+                star.addEventListener('mouseenter', function () {
+                    if (isLocked) {
+                        return;
+                    }
+                    paintStars(Number(this.dataset.rating));
+                });
+                star.addEventListener('click', function () {
+                    const chosenRating = Number(this.dataset.rating);
+                    if (isLocked || !subjectType || !subjectId) {
+                        return;
+                    }
+
+                    isLocked = true;
+                    card.classList.add('is-loading');
+                    setFeedback('Guardando tu voto...', 'info');
+
+                    fetch('{{ url_for("main.rate_showcase") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            subject_type: subjectType,
+                            subject_id: subjectId,
+                            rating: chosenRating,
+                        }),
+                    })
+                        .then(async function (response) {
+                            const payload = await response.json().catch(function () {
+                                return {};
+                            });
+                            return { ok: response.ok, status: response.status, payload: payload };
+                        })
+                        .then(function (result) {
+                            const payload = result.payload || {};
+                            if (payload.average !== undefined || payload.votes_count !== undefined) {
+                                syncPersistedState(payload.average, payload.votes_count);
+                            }
+
+                            if (result.status === 409) {
+                                setFeedback(payload.error || 'Esta colección ya fue valorada desde tu IP.', 'warning');
+                                return;
+                            }
+                            if (!result.ok) {
+                                setFeedback(payload.error || 'No se pudo guardar tu voto. Intenta de nuevo.', 'error');
+                                return;
+                            }
+
+                            setFeedback('Gracias. Tu valoración ya quedó registrada.', 'success');
+                        })
+                        .catch(function () {
+                            setFeedback('No se pudo guardar tu voto. Revisa tu conexión.', 'error');
+                            paintStars(persistedRating);
+                        })
+                        .finally(function () {
+                            isLocked = false;
+                            card.classList.remove('is-loading');
+                        });
+                });
+            });
+
+            card.addEventListener('mouseleave', function () {
+                if (isLocked) {
+                    return;
+                }
+                paintStars(Number(card.dataset.currentRating || '0'));
+            });
+        });
+    });
+</script>
 {% endblock %}

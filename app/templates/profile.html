@@ -5,8 +5,12 @@
 {% block content %}
 <div class="nav-bar">
     <div class="nav-links">
-        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Mi colección</a>
         <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Mi colección</a>
+        <a href="{{ url_for('main.profile') }}" class="btn btn-primary">Perfil</a>
+        {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Panel admin</a>
+        {% endif %}
     </div>
     <div class="nav-links">
         <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
@@ -18,6 +22,40 @@
 <section class="section">
     <h2>Mi perfil</h2>
     <p>Completa o corrige tu información. Estos datos son opcionales salvo tu nombre.</p>
+
+    <div class="insight-strip" style="margin-bottom:24px;">
+        <div class="insight-tile">
+            <strong>{{ profile_insights.total_games }}</strong>
+            <span>juegos registrados</span>
+        </div>
+        <div class="insight-tile">
+            <strong>{{ profile_insights.favorites_count }}</strong>
+            <span>favoritos</span>
+        </div>
+        <div class="insight-tile">
+            <strong>{{ profile_insights.backlog_count }}</strong>
+            <span>en backlog</span>
+        </div>
+        <div class="insight-tile">
+            <strong>{{ profile_insights.wishlist_count }}</strong>
+            <span>en wishlist</span>
+        </div>
+    </div>
+
+    <div class="features-grid" style="margin-bottom:24px;">
+        <div class="feature-card">
+            <h4>Salud de la colección</h4>
+            <p>{{ profile_insights.missing_images }} juegos siguen sin portada y {{ profile_insights.stale_games }} no se actualizan hace más de 30 días.</p>
+        </div>
+        <div class="feature-card">
+            <h4>Curaduría personal</h4>
+            <p>{% if profile_insights.average_rating %}Tu media actual es {{ profile_insights.average_rating }}/10.{% else %}Aún no has puntuado tus juegos.{% endif %}</p>
+        </div>
+        <div class="feature-card">
+            <h4>Enfoque</h4>
+            <p>{{ profile_insights.high_priority_count }} juegos están marcados como prioridad alta.</p>
+        </div>
+    </div>
 
     <form action="{{ url_for('main.profile') }}" method="POST">
         <input type="hidden" name="form_name" value="profile">
@@ -45,6 +83,22 @@
             <label for="email">Correo</label>
             <input type="email" id="email" value="{{ user.email }}" disabled>
         </div>
+        <div class="form-group">
+            <label for="collection_visibility">Visibilidad de tu colección</label>
+            <select id="collection_visibility" name="collection_visibility">
+                <option value="private" {% if user.collection_visibility != 'public' %}selected{% endif %}>Privada</option>
+                <option value="public" {% if user.collection_visibility == 'public' %}selected{% endif %}>Pública</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-card" for="homepage_showcase_opt_in">
+                <input type="checkbox" id="homepage_showcase_opt_in" name="homepage_showcase_opt_in" {% if user.homepage_showcase_opt_in %}checked{% endif %}>
+                <span>Permitir que GameVault la muestre en Inicio si está pública</span>
+            </label>
+            <small style="color:var(--text-secondary);display:block;margin-top:8px;">
+                Solo se mostrará en portada si la colección es pública y tiene contenido real.
+            </small>
+        </div>
         <button type="submit" class="btn-submit">Guardar perfil</button>
     </form>
 </section>
@@ -70,4 +124,31 @@
         <button type="submit" class="btn-submit">Actualizar contraseña</button>
     </form>
 </section>
+
+{% if recent_activity_logs %}
+<section class="section">
+    <div class="section-heading-inline">
+        <div>
+            <h3>Actividad reciente</h3>
+            <p>Desde aquí ves cambios de cuenta y movimientos de tu colección sin ensuciar el dashboard principal.</p>
+        </div>
+    </div>
+    <div class="activity-feed-grid">
+        {% for log in recent_activity_logs %}
+            <article class="activity-feed-card">
+                <div class="activity-feed-card__header">
+                    <strong>{{ log.action_name }}</strong>
+                    <span>{{ (log.timestamp or '')[:16]|replace('T', ' ') }}</span>
+                </div>
+                <p>{{ log.resource|replace('_', ' ')|title }}</p>
+                {% if log.details and log.details.title %}
+                    <small>{{ log.details.title }}</small>
+                {% elif log.details and log.details.email %}
+                    <small>{{ log.details.email }}</small>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 {% endblock %}

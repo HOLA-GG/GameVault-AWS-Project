@@ -91,6 +91,7 @@ def configure_sentry(app: Flask) -> None:
 def build_config() -> dict:
     """Construye la configuración central de la app."""
     app_env = os.environ.get('APP_ENV', 'development').strip().lower()
+    app_root = os.path.dirname(os.path.abspath(__file__))
     secret_key = os.environ.get('SECRET_KEY')
 
     if not secret_key:
@@ -107,6 +108,19 @@ def build_config() -> dict:
         database_url = 'sqlite+pysqlite:///gamevault_dev.db'
 
     storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower() or 'none'
+    local_upload_dir = os.environ.get('LOCAL_UPLOAD_DIR') or os.path.join(app_root, 'static', 'uploads')
+    local_upload_url_path = os.environ.get('LOCAL_UPLOAD_URL_PATH', '/static/uploads').rstrip('/')
+    direct_uploads_enabled = storage_backend not in {'none', 'local'}
+    show_reset_debug_token = env_bool('SHOW_RESET_DEBUG_TOKEN', app_env == 'development')
+    bootstrap_admin_enabled = env_bool('BOOTSTRAP_ADMIN_ENABLED', app_env == 'development')
+    bootstrap_admin_email = os.environ.get(
+        'BOOTSTRAP_ADMIN_EMAIL',
+        'admin@gamevault' if app_env == 'development' else '',
+    )
+    bootstrap_admin_password = os.environ.get(
+        'BOOTSTRAP_ADMIN_PASSWORD',
+        '12345678' if app_env == 'development' else '',
+    )
     if database_url.startswith('postgresql'):
         database_backend = 'neon'
     elif database_url.startswith('sqlite'):
@@ -120,6 +134,15 @@ def build_config() -> dict:
         'DATABASE_URL': database_url,
         'DATABASE_BACKEND': database_backend,
         'STORAGE_BACKEND': storage_backend,
+        'LOCAL_UPLOAD_DIR': local_upload_dir,
+        'LOCAL_UPLOAD_URL_PATH': local_upload_url_path,
+        'DIRECT_UPLOADS_ENABLED': direct_uploads_enabled,
+        'SHOW_RESET_DEBUG_TOKEN': show_reset_debug_token,
+        'BOOTSTRAP_ADMIN_ENABLED': bootstrap_admin_enabled,
+        'BOOTSTRAP_ADMIN_EMAIL': bootstrap_admin_email,
+        'BOOTSTRAP_ADMIN_PASSWORD': bootstrap_admin_password,
+        'BOOTSTRAP_ADMIN_NAME': os.environ.get('BOOTSTRAP_ADMIN_NAME', 'GameVault'),
+        'BOOTSTRAP_ADMIN_LAST_NAME': os.environ.get('BOOTSTRAP_ADMIN_LAST_NAME', 'Admin'),
         'MAX_CONTENT_LENGTH': max_upload_mb * 1024 * 1024,
         'MAX_UPLOAD_MB': max_upload_mb,
         'MAX_IMAGE_UPLOAD_BYTES': max_upload_mb * 1024 * 1024,
@@ -167,6 +190,7 @@ def create_app() -> Flask:
 
     @app.after_request
     def log_request(response):
+        request_id = getattr(g, 'request_id', str(uuid.uuid4()))
         app.logger.info(
             '%s %s status=%s remote_addr=%s',
             request.method,
@@ -174,7 +198,7 @@ def create_app() -> Flask:
             response.status_code,
             request.headers.get('X-Forwarded-For', request.remote_addr),
         )
-        response.headers['X-Request-Id'] = g.request_id
+        response.headers['X-Request-Id'] = request_id
         return response
 
     @app.context_processor
@@ -182,6 +206,8 @@ def create_app() -> Flask:
         return {
             'APP_ENV': app.config['APP_ENV'],
             'MAX_UPLOAD_MB': app.config['MAX_UPLOAD_MB'],
+            'STORAGE_BACKEND': app.config['STORAGE_BACKEND'],
+            'DIRECT_UPLOADS_ENABLED': app.config['DIRECT_UPLOADS_ENABLED'],
         }
 
     @app.errorhandler(413)
@@ -197,10 +223,17 @@ def create_app() -> Flask:
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
         return ('Tu formulario expiro o no paso la validacion de seguridad.', 400)
 
-    from app.models import init_database
+    from app.models import ensure_bootstrap_admin, init_database
     from app.routes import main_bp
 
     init_database()
+    if app.config['BOOTSTRAP_ADMIN_ENABLED']:
+        ensure_bootstrap_admin(
+            email=app.config['BOOTSTRAP_ADMIN_EMAIL'],
+            password=app.config['BOOTSTRAP_ADMIN_PASSWORD'],
+            nombre=app.config['BOOTSTRAP_ADMIN_NAME'],
+            apellido=app.config['BOOTSTRAP_ADMIN_LAST_NAME'],
+        )
 
     app.register_blueprint(main_bp, url_prefix='/')
     return app

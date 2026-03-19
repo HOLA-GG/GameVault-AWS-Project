@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: gamevault
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: STORAGE_BACKEND
+        value: none
+      - key: PREFERRED_URL_SCHEME
+        value: https
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_COOKIE_HTTPONLY
+        value: "true"
+      - key: SESSION_COOKIE_SAMESITE
+        value: Lax
+      - key: WTF_CSRF_ENABLED
+        value: "true"
+      - key: WTF_CSRF_TIME_LIMIT
+        value: "3600"
+      - key: WTF_CSRF_SSL_STRICT
+        value: "true"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RATELIMIT_STORAGE_URI
+        value: memory://
+      - key: MAX_UPLOAD_MB
+        value: "5"
+      - key: GAMES_PER_PAGE
+        value: "12"
+      - key: ADMIN_USERS_PER_PAGE
+        value: "25"
+      - key: ADMIN_LOGS_PER_PAGE
+        value: "50"
+      - key: RESET_TOKEN_EXPIRY_MINUTES
+        value: "30"
+      - key: AUDIT_LOG_RETENTION_DAYS
+        value: "90"

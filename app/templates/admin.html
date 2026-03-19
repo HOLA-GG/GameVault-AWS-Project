@@ -5,7 +5,9 @@
 {% block content %}
 <div class="nav-bar">
     <div class="nav-links">
-        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Mi colección</a>
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+        <a href="{{ url_for('main.admin_panel') }}" class="btn btn-primary">Usuarios</a>
+        <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary">Colecciones</a>
         <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary">Logs</a>
     </div>
     <div class="nav-links">
@@ -43,14 +45,18 @@
                                 </form>
                             </td>
                             <td>{{ (usuario.prefijo_pais or '') ~ (usuario.telefono or '') or '—' }}</td>
-                            <td>{{ usuario.role }}</td>
+                            <td>
+                                <span class="badge {{ 'badge-admin' if usuario.role == 'admin' else 'badge-user' }}">
+                                    {{ 'Admin' if usuario.role == 'admin' else 'Usuario' }}
+                                </span>
+                            </td>
                             <td>
                                 {% if usuario.user_id != session.get('user_id') %}
                                     <form action="{{ url_for('main.admin_eliminar_usuario', user_id=usuario.user_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('¿Eliminar a {{ usuario.email }}?');">
                                         <button type="submit" class="btn btn-danger btn-small">Eliminar</button>
                                     </form>
                                 {% else %}
-                                    <span style="color:var(--text-secondary);">Cuenta actual</span>
+                                    <span class="badge badge-admin">Cuenta actual</span>
                                 {% endif %}
                             </td>
                         </tr>

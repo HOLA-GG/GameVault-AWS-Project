@@ -8,6 +8,9 @@
         <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
         <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Mi colección</a>
         <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Perfil</a>
+        {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Panel admin</a>
+        {% endif %}
     </div>
     <div class="user-info">
         <span>{{ session.get('nombre') }}</span>
@@ -16,6 +19,61 @@
         </form>
     </div>
 </div>
+
+<section class="section">
+    <h2>Panel de colección</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <span class="feature-icon">🎮</span>
+            <h4>{{ dashboard_insights.total_games }} juegos</h4>
+            <p>Tu biblioteca actual ya cubre {{ dashboard_insights.platforms_count }} plataformas.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">⭐</span>
+            <h4>{{ dashboard_insights.favorites_count }} favoritos</h4>
+            <p>{{ dashboard_insights.high_priority_count }} juegos están marcados con prioridad alta.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">🗂️</span>
+            <h4>{{ dashboard_insights.dominant_category.label }}</h4>
+            <p>Es la categoría dominante con {{ dashboard_insights.dominant_category.count }} juegos.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">🖼️</span>
+            <h4>{{ dashboard_insights.missing_images }} sin portada</h4>
+            <p>Puedes completar esas portadas más adelante. La gestión de imágenes está preparada para una siguiente fase de mejora.</p>
+        </div>
+    </div>
+    <div class="insight-strip">
+        <div class="insight-tile">
+            <strong>{{ dashboard_insights.wishlist_count }}</strong>
+            <span>en wishlist</span>
+        </div>
+        <div class="insight-tile">
+            <strong>{{ dashboard_insights.backlog_count }}</strong>
+            <span>en backlog</span>
+        </div>
+        <div class="insight-tile">
+            <strong>{{ dashboard_insights.currently_playing_count }}</strong>
+            <span>jugando ahora</span>
+        </div>
+        <div class="insight-tile">
+            <strong>{% if dashboard_insights.average_rating %}{{ dashboard_insights.average_rating }}/10{% else %}Sin nota{% endif %}</strong>
+            <span>rating medio</span>
+        </div>
+    </div>
+    {% if dashboard_insights.next_focus %}
+        <div class="info-box" style="margin-top:18px;">
+            <strong>Siguiente foco:</strong>
+            {{ dashboard_insights.next_focus.titulo }} · {{ dashboard_insights.next_focus.categoria }} · prioridad {{ dashboard_insights.next_focus.prioridad|lower }}.
+        </div>
+    {% elif dashboard_insights.last_updated_game %}
+        <p style="margin-top:18px;color:var(--text-secondary);">
+            Último movimiento: <strong>{{ dashboard_insights.last_updated_game.titulo }}</strong>
+            en {{ dashboard_insights.last_updated_game.plataforma or 'Sin plataforma' }}.
+        </p>
+    {% endif %}
+</section>
 
 <section class="section">
     <h2>Agregar nuevo juego</h2>
@@ -42,17 +100,52 @@
             <div class="form-group">
                 <label for="estado">Estado</label>
                 <select id="estado" name="estado" required>
-                    <option value="N/A">N/A</option>
-                    <option value="Nuevo">Nuevo</option>
-                    <option value="Como Nuevo">Como nuevo</option>
-                    <option value="Bueno">Bueno</option>
-                    <option value="Regular">Regular</option>
+                    {% for value in GAME_CONDITION_OPTIONS %}
+                        <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="form-group">
+                <label for="categoria">Categoría</label>
+                <select id="categoria" name="categoria">
+                    {% for value in GAME_CATEGORY_OPTIONS %}
+                        <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prioridad">Prioridad</label>
+                <select id="prioridad" name="prioridad">
+                    {% for value in GAME_PRIORITY_OPTIONS %}
+                        <option value="{{ value }}" {% if value == 'Media' %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="calificacion">Calificación personal</label>
+                <select id="calificacion" name="calificacion">
+                    <option value="">Sin nota</option>
+                    {% for value in GAME_RATING_OPTIONS %}
+                        <option value="{{ value }}">{{ value }}/10</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
                 <label for="imagen">Portada</label>
                 <input type="file" id="imagen" name="imagen" accept="image/*">
-                <small style="color:var(--text-secondary);">Opcional por ahora. La integración de imágenes quedará lista en la siguiente fase.</small>
+                <small style="color:var(--text-secondary);">
+                    Opcional por ahora. La integración de imágenes seguirá evolucionando sin afectar tu colección.
+                </small>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-card" for="es_favorito">
+                    <input type="checkbox" id="es_favorito" name="es_favorito">
+                    <span>Marcar como favorito</span>
+                </label>
             </div>
         </div>
         <div class="form-group">
@@ -92,6 +185,24 @@
                 </select>
             </div>
             <div class="form-group">
+                <label for="filter_categoria">Categoría</label>
+                <select id="filter_categoria" name="categoria">
+                    <option value="">Todas</option>
+                    {% for value in categorias %}
+                        <option value="{{ value }}" {% if filters.categoria == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="favoritos">Favoritos</label>
+                <select id="favoritos" name="favoritos">
+                    <option value="">Todos</option>
+                    <option value="solo" {% if filters.favoritos == 'solo' %}selected{% endif %}>Solo favoritos</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label for="sort">Orden</label>
                 <select id="sort" name="sort">
                     <option value="updated_desc" {% if filters.sort == 'updated_desc' %}selected{% endif %}>Actualizados recientemente</option>
@@ -114,12 +225,15 @@
     <p style="color:var(--text-secondary);margin-bottom:20px;">
         Mostrando {{ total_filtered_games }} de {{ total_user_games }} juegos.
     </p>
+    <div class="section-note">
+        La actividad reciente ahora vive en tu perfil para que la colección se mantenga más limpia y enfocada.
+        <a href="{{ url_for('main.profile') }}">Ver actividad</a>
+    </div>
 
     {% if juegos %}
         <div class="games-grid">
             {% for juego in juegos %}
-                    {% set card_style = ['style-plasma', 'style-jagged', 'style-soft', 'style-glitch', 'color-rainbow', 'color-yellow', 'color-blue', 'color-red', 'color-purple'] %}
-                <article class="game-card electric-wrapper {{ card_style[loop.index0 % 9] }}">
+                <article class="game-card">
                     <div class="game-image-container">
                         {% if juego.imagen_url %}
                             <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" class="game-image">
@@ -131,12 +245,18 @@
                         <div class="game-badges">
                             <span class="badge plataforma">{{ juego.plataforma or 'PC' }}</span>
                             <span class="badge estado">{{ juego.estado or 'N/A' }}</span>
+                            <span class="badge categoria">{{ juego.categoria or 'Biblioteca' }}</span>
+                            {% if juego.es_favorito %}
+                                <span class="badge favorito">Favorito</span>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="game-info">
                         <h3>{{ juego.titulo }}</h3>
                         <p class="game-description">{{ juego.descripcion }}</p>
                         <div class="game-meta">
+                            <span class="meta-item">Prioridad: {{ juego.prioridad or 'Media' }}</span>
+                            <span class="meta-item">{% if juego.calificacion %}Tu nota: {{ juego.calificacion }}/10{% else %}Sin nota{% endif %}</span>
                             <span class="meta-item">Actualizado: {{ (juego.updated_at or juego.created_at or '')[:10] or 'sin fecha' }}</span>
                         </div>
                         <div class="game-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -150,7 +270,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state electric-wrapper style-plasma color-blue">
+        <div class="empty-state">
             <h3>Aún no tienes juegos visibles</h3>
             <p>Crea tu primer juego o ajusta los filtros para ver resultados.</p>
         </div>
@@ -179,6 +299,7 @@
         const button = document.getElementById('gameSubmitButton');
 
         form.addEventListener('submit', async function (event) {
+            if (!window.gameVault.supportsDirectUploads) return;
             if (!fileInput.files.length) return;
             if (imageUrlInput.value) return;
             event.preventDefault();

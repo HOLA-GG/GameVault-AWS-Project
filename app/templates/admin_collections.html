@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}GameVault - Colecciones{% endblock %}
+
+{% block content %}
+<div class="nav-bar">
+    <div class="nav-links">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+        <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('main.admin_collections') }}" class="btn btn-primary">Colecciones</a>
+        <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary">Logs</a>
+    </div>
+    <div class="nav-links">
+        <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-danger">Cerrar sesión</button>
+        </form>
+    </div>
+</div>
+
+<section class="section">
+    <div class="section-heading-inline">
+        <div>
+            <h2>Colecciones</h2>
+            <p>El panel admin ya no depende de “Mi colección”; desde aquí controlas lo público y lo privado.</p>
+        </div>
+    </div>
+
+    <form method="GET" style="margin-bottom:20px;">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="visibility">Visibilidad</label>
+                <select id="visibility" name="visibility">
+                    <option value="">Todas</option>
+                    <option value="public" {% if visibility == 'public' %}selected{% endif %}>Públicas</option>
+                    <option value="private" {% if visibility == 'private' %}selected{% endif %}>Privadas</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button type="submit" class="btn btn-primary">Aplicar</button>
+            <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    {% if collections %}
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Propietario</th>
+                        <th>Visibilidad</th>
+                        <th>Juegos</th>
+                        <th>Favoritos</th>
+                        <th>Rating medio</th>
+                        <th>Plataforma top</th>
+                        <th>Último cambio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for collection in collections %}
+                        <tr>
+                            <td>
+                                <strong>{{ collection.owner_name }}</strong><br>
+                                <span>{{ collection.owner_email }}</span>
+                            </td>
+                            <td>
+                                <span class="badge {{ 'badge-public' if collection.collection_visibility == 'public' else 'badge-private' }}">
+                                    {{ 'Pública' if collection.collection_visibility == 'public' else 'Privada' }}
+                                </span>
+                            </td>
+                            <td>{{ collection.total_games }}</td>
+                            <td>{{ collection.favorites_count }}</td>
+                            <td>{{ collection.average_rating if collection.average_rating is not none else 'Sin nota' }}</td>
+                            <td>{{ collection.dominant_platform }}</td>
+                            <td>{{ collection.last_updated_at[:10] if collection.last_updated_at else 'Sin cambios' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state"><p>No hay colecciones para esos filtros.</p></div>
+    {% endif %}
+</section>
+
+{% if pagination.total_pages > 1 %}
+<section class="section" style="text-align:center;">
+    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('main.admin_collections', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary">Anterior</a>
+        {% endif %}
+        <span style="padding:10px 16px;color:var(--text-secondary);">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+        {% if pagination.has_next %}
+            <a href="{{ url_for('main.admin_collections', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary">Siguiente</a>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

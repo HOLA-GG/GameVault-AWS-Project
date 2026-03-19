@@ -6,6 +6,8 @@ import base64
 import math
 import os
 import uuid
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import urlparse
 
@@ -28,10 +30,15 @@ from werkzeug.utils import secure_filename
 from app.extensions import limiter, mail
 from app.models import (
     AUDIT_ACTIONS,
+    aplicar_ratings_showcase,
     actualizar_juego,
     actualizar_password_usuario,
     actualizar_usuario_nombre,
     actualizar_usuario_perfil,
+    combinar_rating_showcase,
+    obtener_colecciones_publicas,
+    obtener_resumenes_colecciones,
+    registrar_rating_showcase,
     crear_juego,
     crear_log_audit,
     crear_presigned_upload,
@@ -46,6 +53,7 @@ from app.models import (
     obtener_estadisticas_logs,
     obtener_juego_por_id,
     obtener_juegos_por_usuario,
+    obtener_logs_por_usuario,
     obtener_todos_logs,
     obtener_todos_usuarios,
     obtener_usuario_por_email,
@@ -68,6 +76,47 @@ ALLOWED_IMAGE_MIME_TYPES = {
     'image/webp',
     'image/gif',
 }
+GAME_PLATFORM_OPTIONS = ['PC', 'PlayStation', 'Xbox', 'Nintendo', 'Mobile', 'Otro']
+GAME_CONDITION_OPTIONS = ['N/A', 'Nuevo', 'Como Nuevo', 'Bueno', 'Regular']
+GAME_CATEGORY_OPTIONS = ['Biblioteca', 'Jugando', 'Backlog', 'Completado', 'Wishlist']
+GAME_PRIORITY_OPTIONS = ['Baja', 'Media', 'Alta']
+GAME_RATING_OPTIONS = list(range(1, 11))
+
+LANDING_SAMPLE_COLLECTIONS = [
+    {
+        'id': 'demo-nintendo-reliquias',
+        'title': 'Nintendo reliquias',
+        'owner_name': 'Colección Demo',
+        'summary': 'Game Boy, SNES, N64 y ediciones con caja bien conservada.',
+        'total_games': 42,
+        'favorites_count': 12,
+        'average_rating': 4.5,
+        'base_votes_count': 18,
+        'dominant_platform': 'Nintendo',
+    },
+    {
+        'id': 'demo-jrpg-esenciales',
+        'title': 'JRPG esenciales',
+        'owner_name': 'Colección Demo',
+        'summary': 'Una selección orientada a saga, completismo y estado del empaque.',
+        'total_games': 29,
+        'favorites_count': 9,
+        'average_rating': 4.0,
+        'base_votes_count': 11,
+        'dominant_platform': 'PlayStation',
+    },
+    {
+        'id': 'demo-indies-vitrina',
+        'title': 'Indies de vitrina',
+        'owner_name': 'Colección Demo',
+        'summary': 'Colección pensada para descubrir indies físicos y sus ediciones especiales.',
+        'total_games': 18,
+        'favorites_count': 7,
+        'average_rating': 5.0,
+        'base_votes_count': 6,
+        'dominant_platform': 'Switch',
+    },
+]
 
 
 def require_login(view):
@@ -117,14 +166,25 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
     """Acepta solo URLs del backend de storage configurado para evitar referencias arbitrarias."""
     if not image_url:
         return False
-    if current_app.config.get('STORAGE_BACKEND') == 'none':
+    storage_backend = current_app.config.get('STORAGE_BACKEND')
+    if storage_backend == 'none':
         return False
+    if storage_backend == 'local':
+        return image_url.startswith(current_app.config['LOCAL_UPLOAD_URL_PATH'] + '/')
 
     parsed = urlparse(image_url)
     bucket_name = current_app.config['S3_BUCKET_NAME']
     region = current_app.config['S3_REGION']
     expected_host = f'{bucket_name}.s3.{region}.amazonaws.com'
     return parsed.scheme == 'https' and parsed.netloc == expected_host
+
+
+def get_request_ip() -> str:
+    """Obtiene la IP más confiable disponible para rate limiting blando por visitante."""
+    forwarded_for = request.headers.get('X-Forwarded-For', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.remote_addr or 'unknown'
 
 
 def procesar_imagen_base64(archivo):
@@ -144,7 +204,8 @@ def procesar_imagen_base64(archivo):
 
 def subir_imagen_a_s3(archivo):
     """Sube una portada usando el backend de storage disponible."""
-    if current_app.config.get('STORAGE_BACKEND') == 'none':
+    storage_backend = current_app.config.get('STORAGE_BACKEND')
+    if storage_backend == 'none':
         current_app.logger.info('image_upload_skipped storage_backend=none')
         return None
 
@@ -156,9 +217,16 @@ def subir_imagen_a_s3(archivo):
     try:
         extension = os.path.splitext(secure_filename(archivo.filename))[1].lower()
         nombre_unico = f"covers/{uuid.uuid4()}{extension}"
+        if storage_backend == 'local':
+            upload_dir = os.path.join(current_app.config['LOCAL_UPLOAD_DIR'], 'covers')
+            os.makedirs(upload_dir, exist_ok=True)
+            destination = os.path.join(upload_dir, os.path.basename(nombre_unico))
+            archivo.save(destination)
+            return f"{current_app.config['LOCAL_UPLOAD_URL_PATH']}/{nombre_unico}"
+
         current_app.logger.warning(
             'image_upload_not_implemented storage_backend=%s object_key=%s',
-            current_app.config.get('STORAGE_BACKEND'),
+            storage_backend,
             nombre_unico,
         )
         return None
@@ -216,6 +284,198 @@ def paginate_items(items, page: int, per_page: int) -> dict:
     }
 
 
+def parse_iso_datetime(value: str | None) -> datetime | None:
+    """Convierte strings ISO del dominio a datetimes comparables."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def normalize_game_metadata(form) -> dict:
+    """Normaliza campos opcionales para enriquecer la colección."""
+    categoria = form.get('categoria', 'Biblioteca').strip() or 'Biblioteca'
+    prioridad = form.get('prioridad', 'Media').strip() or 'Media'
+    calificacion_raw = form.get('calificacion', '').strip()
+    calificacion = None
+    if calificacion_raw:
+        try:
+            calificacion = int(calificacion_raw)
+        except ValueError:
+            calificacion = None
+    es_favorito = form.get('es_favorito') == 'on'
+    if categoria not in GAME_CATEGORY_OPTIONS:
+        categoria = 'Biblioteca'
+    if prioridad not in GAME_PRIORITY_OPTIONS:
+        prioridad = 'Media'
+    return {
+        'categoria': categoria,
+        'prioridad': prioridad,
+        'calificacion': calificacion if calificacion in GAME_RATING_OPTIONS else None,
+        'es_favorito': es_favorito,
+    }
+
+
+def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> dict:
+    """Calcula métricas ligeras para hacer el dashboard más útil."""
+    total_games = len(juegos)
+    platform_counts = Counter(juego.get('plataforma') or 'Sin plataforma' for juego in juegos)
+    status_counts = Counter(juego.get('estado') or 'N/A' for juego in juegos)
+    category_counts = Counter(juego.get('categoria') or 'Biblioteca' for juego in juegos)
+    now = datetime.now(timezone.utc)
+    recent_cutoff = now - timedelta(days=7)
+    stale_cutoff = now - timedelta(days=30)
+
+    recently_updated = 0
+    recently_added = 0
+    missing_images = 0
+    favorites_count = 0
+    high_priority_count = 0
+    stale_games = 0
+    ratings: list[int] = []
+    last_updated_game = None
+    last_updated_at = None
+
+    for juego in juegos:
+        if not juego.get('imagen_url'):
+            missing_images += 1
+        if juego.get('es_favorito'):
+            favorites_count += 1
+        if (juego.get('prioridad') or '').lower() == 'alta':
+            high_priority_count += 1
+        if isinstance(juego.get('calificacion'), int):
+            ratings.append(juego['calificacion'])
+
+        created_at = parse_iso_datetime(juego.get('created_at'))
+        updated_at = parse_iso_datetime(juego.get('updated_at')) or created_at
+        if created_at and created_at >= recent_cutoff:
+            recently_added += 1
+        if updated_at and updated_at >= recent_cutoff:
+            recently_updated += 1
+        if updated_at and updated_at < stale_cutoff:
+            stale_games += 1
+        if updated_at and (last_updated_at is None or updated_at > last_updated_at):
+            last_updated_at = updated_at
+            last_updated_game = juego
+
+    recent_activity = 0
+    for log in activity_logs:
+        timestamp = parse_iso_datetime(log.get('timestamp'))
+        if timestamp and timestamp >= recent_cutoff:
+            recent_activity += 1
+
+    dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
+    dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
+    dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
+    average_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
+    next_focus = None
+    priority_candidates = [
+        juego for juego in juegos if (juego.get('prioridad') or '').lower() == 'alta' and juego.get('categoria') != 'Completado'
+    ]
+    if priority_candidates:
+        priority_candidates.sort(
+            key=lambda item: parse_iso_datetime(item.get('updated_at')) or parse_iso_datetime(item.get('created_at')) or datetime.min.replace(tzinfo=timezone.utc)
+        )
+        next_focus = priority_candidates[0]
+
+    return {
+        'total_games': total_games,
+        'platforms_count': len(platform_counts),
+        'recently_added': recently_added,
+        'recently_updated': recently_updated,
+        'recent_activity': recent_activity,
+        'missing_images': missing_images,
+        'favorites_count': favorites_count,
+        'high_priority_count': high_priority_count,
+        'stale_games': stale_games,
+        'wishlist_count': category_counts.get('Wishlist', 0),
+        'backlog_count': category_counts.get('Backlog', 0),
+        'currently_playing_count': category_counts.get('Jugando', 0),
+        'average_rating': average_rating,
+        'dominant_platform': {'label': dominant_platform[0], 'count': dominant_platform[1]},
+        'dominant_status': {'label': dominant_status[0], 'count': dominant_status[1]},
+        'dominant_category': {'label': dominant_category[0], 'count': dominant_category[1]},
+        'last_updated_game': last_updated_game,
+        'next_focus': next_focus,
+    }
+
+
+def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
+    """Construye datos de apoyo local para recuperar acceso sin correo real."""
+    return {
+        'email': email,
+        'token': token,
+        'expires_at': expires_at,
+        'reset_url': url_for('main.reset_password_with_email', token=token, email=email, _external=True),
+        'validate_url': url_for('main.validate_token_page'),
+    }
+
+
+def get_action_badge_class(action: str) -> str:
+    """Asigna color visual según el tipo de actividad auditada."""
+    action = (action or '').upper()
+    action_groups = {
+        'action-auth': {'LOGIN', 'LOGOUT', 'FAILED_LOGIN', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET', 'CHANGE_PASSWORD'},
+        'action-games': {'CREATE_GAME', 'UPDATE_GAME', 'DELETE_GAME'},
+        'action-users': {'REGISTER', 'UPDATE_PROFILE'},
+        'action-admin': {'ADMIN_ACTION'},
+    }
+    for class_name, values in action_groups.items():
+        if action in values:
+            return class_name
+    return 'action-generic'
+
+
+def build_admin_log_groups(logs: list[dict]) -> list[dict]:
+    """Agrupa logs por cuenta para que el panel admin sea más legible."""
+    user_cache: dict[str, dict | None] = {}
+    grouped: dict[str, dict] = {}
+
+    for log in logs:
+        user_id = log.get('user_id') or 'system'
+        if user_id not in user_cache and user_id != 'system':
+            user_cache[user_id] = obtener_usuario_por_id(user_id)
+
+        user = user_cache.get(user_id)
+        bucket = grouped.setdefault(
+            user_id,
+            {
+                'user_id': user_id,
+                'email': (user or {}).get('email', '') if user_id != 'system' else 'sistema@local',
+                'nombre': (user or {}).get('nombre', '') if user_id != 'system' else 'Sistema',
+                'items': [],
+                'latest_timestamp': '',
+                'latest_action': '',
+            },
+        )
+        enriched = dict(log)
+        enriched['action_badge_class'] = get_action_badge_class(log.get('action', ''))
+        enriched['status_badge_class'] = (
+            'badge-log-success'
+            if log.get('status') == 'SUCCESS'
+            else 'badge-log-error'
+            if log.get('status') in {'FAILED', 'ERROR'}
+            else 'badge-log-neutral'
+        )
+        bucket['items'].append(enriched)
+        log_timestamp = log.get('timestamp', '') or ''
+        if log_timestamp >= bucket['latest_timestamp']:
+            bucket['latest_timestamp'] = log_timestamp
+            bucket['latest_action'] = log.get('action_name') or log.get('action') or 'Actividad'
+
+    ordered_groups = list(grouped.values())
+    for group in ordered_groups:
+        group['events_count'] = len(group['items'])
+        group['items'].sort(key=lambda item: item.get('timestamp', ''), reverse=True)
+    ordered_groups.sort(key=lambda item: item.get('latest_timestamp', ''), reverse=True)
+    return ordered_groups
+
+
 def build_query_args(**updates) -> dict:
     """Conserva filtros activos al paginar o cambiar orden."""
     args = dict(request.args)
@@ -232,6 +492,8 @@ def filter_and_sort_games(juegos, filters):
     query = filters.get('q', '').strip().lower()
     plataforma = filters.get('plataforma', '')
     estado = filters.get('estado', '')
+    categoria = filters.get('categoria', '')
+    favoritos = filters.get('favoritos', '')
     sort_by = filters.get('sort', 'updated_desc')
 
     filtered = []
@@ -249,6 +511,10 @@ def filter_and_sort_games(juegos, filters):
         if plataforma and juego.get('plataforma') != plataforma:
             continue
         if estado and juego.get('estado') != estado:
+            continue
+        if categoria and juego.get('categoria') != categoria:
+            continue
+        if favoritos == 'solo' and not juego.get('es_favorito'):
             continue
         filtered.append(juego)
 
@@ -285,7 +551,64 @@ def enrich_game_image_url(game: dict | None) -> dict | None:
 @main_bp.route('/')
 def landing():
     """Landing pública orientada a coleccionistas."""
-    return render_template('landing.html')
+    public_collections = aplicar_ratings_showcase(
+        obtener_colecciones_publicas(limit=6),
+        subject_type='public',
+        subject_id_key='user_id',
+    )
+    sample_collections = aplicar_ratings_showcase(
+        LANDING_SAMPLE_COLLECTIONS,
+        subject_type='sample',
+        subject_id_key='id',
+        default_rating_key='average_rating',
+        default_votes_key='base_votes_count',
+    )
+    return render_template(
+        'landing.html',
+        public_collections=public_collections,
+        sample_collections=sample_collections,
+    )
+
+
+@main_bp.route('/api/showcase/rate', methods=['POST'])
+def rate_showcase():
+    """Permite valorar colecciones públicas o demo, una vez por IP y colección."""
+    payload = request.get_json(silent=True) or {}
+    subject_type = (payload.get('subject_type') or '').strip().lower()
+    subject_id = str(payload.get('subject_id') or '').strip()
+    try:
+        rating = int(payload.get('rating'))
+    except (TypeError, ValueError):
+        rating = 0
+
+    if subject_type not in {'sample', 'public'} or not subject_id:
+        return jsonify({'error': 'Colección inválida.'}), 400
+
+    if subject_type == 'sample':
+        valid_ids = {item['id'] for item in LANDING_SAMPLE_COLLECTIONS}
+        if subject_id not in valid_ids:
+            return jsonify({'error': 'Colección de ejemplo no encontrada.'}), 404
+    else:
+        visible_public_ids = {item['user_id'] for item in obtener_colecciones_publicas(limit=100)}
+        if subject_id not in visible_public_ids:
+            return jsonify({'error': 'Colección pública no disponible para portada.'}), 404
+
+    result = registrar_rating_showcase(subject_type, subject_id, rating, get_request_ip())
+    if subject_type == 'sample' and ('average' in result or 'votes_count' in result):
+        sample_entry = next((item for item in LANDING_SAMPLE_COLLECTIONS if item['id'] == subject_id), None)
+        if sample_entry is not None:
+            merged_summary = combinar_rating_showcase(
+                {
+                    'average': result.get('average'),
+                    'votes_count': result.get('votes_count'),
+                },
+                base_average=sample_entry.get('average_rating'),
+                base_votes_count=sample_entry.get('base_votes_count', 0),
+            )
+            result['average'] = merged_summary['average']
+            result['votes_count'] = merged_summary['votes_count']
+    status_code = 409 if result.get('duplicate') else 200 if result.get('success') else 400
+    return jsonify(result), status_code
 
 
 @main_bp.route('/privacy')
@@ -354,12 +677,17 @@ def salud():
 @require_login
 def dashboard():
     """Dashboard privado con búsqueda, filtros y paginación."""
+    if session.get('role') == 'admin':
+        return redirect(url_for('main.admin_panel'))
     user_id = session['user_id']
     juegos = obtener_juegos_por_usuario(user_id)
+    activity_logs = obtener_logs_por_usuario(user_id, limit=8)
     filters = {
         'q': request.args.get('q', ''),
         'plataforma': request.args.get('plataforma', ''),
         'estado': request.args.get('estado', ''),
+        'categoria': request.args.get('categoria', ''),
+        'favoritos': request.args.get('favoritos', ''),
         'sort': request.args.get('sort', 'updated_desc'),
     }
     page = request.args.get('page', 1, type=int)
@@ -368,17 +696,26 @@ def dashboard():
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
     plataformas = sorted({juego.get('plataforma', 'PC') for juego in juegos if juego.get('plataforma')})
     estados = sorted({juego.get('estado', 'N/A') for juego in juegos if juego.get('estado')})
+    categorias = sorted({juego.get('categoria', 'Biblioteca') for juego in juegos if juego.get('categoria')})
     paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
+    dashboard_insights = build_dashboard_insights(juegos, activity_logs)
 
     return render_template(
         'index.html',
         juegos=paginated_games,
+        dashboard_insights=dashboard_insights,
         filters=filters,
         pagination=pagination,
         total_user_games=len(juegos),
         total_filtered_games=len(filtered_games),
         plataformas=plataformas,
         estados=estados,
+        categorias=categorias,
+        GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
+        GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
+        GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
+        GAME_PRIORITY_OPTIONS=GAME_PRIORITY_OPTIONS,
+        GAME_RATING_OPTIONS=GAME_RATING_OPTIONS,
         query_args_builder=build_query_args,
     )
 
@@ -420,6 +757,7 @@ def agregar_juego():
     descripcion = request.form.get('descripcion', '').strip()
     plataforma = request.form.get('plataforma', 'PC').strip()
     estado = request.form.get('estado', 'N/A').strip()
+    metadata = normalize_game_metadata(request.form)
     imagen = request.files.get('imagen')
     imagen_url = request.form.get('imagen_url', '').strip()
 
@@ -452,7 +790,19 @@ def agregar_juego():
         return redirect(url_for('main.dashboard'))
 
     game_id = str(uuid.uuid4())
-    resultado = crear_juego(session['user_id'], game_id, titulo, descripcion, imagen_url, plataforma, estado)
+    resultado = crear_juego(
+        session['user_id'],
+        game_id,
+        titulo,
+        descripcion,
+        imagen_url,
+        plataforma,
+        estado,
+        metadata['categoria'],
+        metadata['prioridad'],
+        metadata['calificacion'],
+        metadata['es_favorito'],
+    )
     if not resultado:
         flash('Error al guardar el juego.', 'error')
         return redirect(url_for('main.dashboard'))
@@ -461,7 +811,13 @@ def agregar_juego():
         user_id=session['user_id'],
         action='CREATE_GAME',
         resource='games',
-        details={'game_id': game_id, 'title': titulo},
+        details={
+            'game_id': game_id,
+            'title': titulo,
+            'categoria': metadata['categoria'],
+            'prioridad': metadata['prioridad'],
+            'es_favorito': metadata['es_favorito'],
+        },
         ip_address=request.remote_addr or 'unknown',
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
@@ -509,12 +865,21 @@ def editar_juego_ruta(game_id):
         return redirect(url_for('main.dashboard'))
 
     if request.method == 'GET':
-        return render_template('edit_game.html', juego=enrich_game_image_url(juego))
+        return render_template(
+            'edit_game.html',
+            juego=enrich_game_image_url(juego),
+            GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
+            GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
+            GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
+            GAME_PRIORITY_OPTIONS=GAME_PRIORITY_OPTIONS,
+            GAME_RATING_OPTIONS=GAME_RATING_OPTIONS,
+        )
 
     titulo = request.form.get('titulo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
     plataforma = request.form.get('plataforma', 'PC').strip()
     estado = request.form.get('estado', 'N/A').strip()
+    metadata = normalize_game_metadata(request.form)
     nueva_imagen = request.files.get('nueva_imagen')
     nueva_imagen_url = request.form.get('nueva_imagen_url', '').strip()
 
@@ -546,6 +911,10 @@ def editar_juego_ruta(game_id):
             'descripcion': descripcion,
             'plataforma': plataforma,
             'estado': estado,
+            'categoria': metadata['categoria'],
+            'prioridad': metadata['prioridad'],
+            'calificacion': metadata['calificacion'],
+            'es_favorito': metadata['es_favorito'],
         },
         nueva_imagen_url or (nueva_imagen if nueva_imagen and nueva_imagen.filename else None),
     )
@@ -558,7 +927,13 @@ def editar_juego_ruta(game_id):
         user_id=user_id,
         action='UPDATE_GAME',
         resource='games',
-        details={'game_id': game_id, 'title': titulo},
+        details={
+            'game_id': game_id,
+            'title': titulo,
+            'categoria': metadata['categoria'],
+            'prioridad': metadata['prioridad'],
+            'es_favorito': metadata['es_favorito'],
+        },
         ip_address=request.remote_addr or 'unknown',
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
@@ -707,13 +1082,23 @@ def logout():
 @require_login
 def profile():
     """Permite editar perfil y contraseña."""
+    if session.get('role') == 'admin':
+        return redirect(url_for('main.admin_panel'))
     user = obtener_usuario_por_id(session['user_id'])
     if user is None:
         flash('No se pudo cargar tu perfil.', 'error')
         return redirect(url_for('main.dashboard'))
+    juegos = obtener_juegos_por_usuario(session['user_id'])
+    recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8)
+    profile_insights = build_dashboard_insights(juegos, recent_activity_logs)
 
     if request.method == 'GET':
-        return render_template('profile.html', user=user)
+        return render_template(
+            'profile.html',
+            user=user,
+            profile_insights=profile_insights,
+            recent_activity_logs=recent_activity_logs,
+        )
 
     form_name = request.form.get('form_name', 'profile')
 
@@ -756,6 +1141,8 @@ def profile():
     apellido = request.form.get('apellido', '').strip()
     prefijo_pais = request.form.get('prefijo_pais', '').strip()
     telefono = request.form.get('telefono', '').strip()
+    collection_visibility = request.form.get('collection_visibility', 'private').strip().lower()
+    homepage_showcase_opt_in = request.form.get('homepage_showcase_opt_in') == 'on'
 
     errores = []
     if not nombre:
@@ -775,6 +1162,8 @@ def profile():
             'apellido': apellido,
             'prefijo_pais': prefijo_pais,
             'telefono': telefono,
+            'collection_visibility': collection_visibility,
+            'homepage_showcase_opt_in': homepage_showcase_opt_in and collection_visibility == 'public',
         },
     )
     if not resultado['success']:
@@ -816,7 +1205,7 @@ def forgot_password():
     if user:
         result = crear_reset_token(user['user_id'], request.remote_addr or 'unknown')
         if result['success']:
-            enviar_email_reset_password(email, result['token'])
+            email_sent = enviar_email_reset_password(email, result['token'])
             crear_log_audit(
                 user_id=user['user_id'],
                 action='PASSWORD_RESET_REQUEST',
@@ -826,6 +1215,13 @@ def forgot_password():
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='SUCCESS',
             )
+            if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
+                flash('Entorno de prueba: se muestra el acceso de recuperación porque el correo automático puede estar deshabilitado.', 'warning')
+                return render_template(
+                    'forgot_password.html',
+                    debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
+                    email_sent=email_sent,
+                )
         else:
             current_app.logger.error('password_reset_token_creation_failed user_id=%s', user['user_id'])
 
@@ -934,6 +1330,24 @@ def admin_panel():
     )
 
 
+@main_bp.route('/admin/collections')
+@require_admin
+def admin_collections():
+    """Vista administrativa de colecciones públicas y privadas."""
+    visibility = request.args.get('visibility', '').strip().lower()
+    collection_filter = visibility if visibility in {'public', 'private'} else None
+    collections = obtener_resumenes_colecciones(collection_filter)
+    page = request.args.get('page', 1, type=int)
+    pagination = paginate_items(collections, page, current_app.config['ADMIN_USERS_PER_PAGE'])
+    return render_template(
+        'admin_collections.html',
+        collections=pagination['items'],
+        visibility=visibility,
+        pagination=pagination,
+        query_args_builder=build_query_args,
+    )
+
+
 @main_bp.route('/admin/delete/<user_id>', methods=['POST'])
 @require_admin
 def admin_eliminar_usuario(user_id):
@@ -990,7 +1404,7 @@ def admin_editar_usuario(user_id):
 @main_bp.route('/admin/logs')
 @require_admin
 def admin_logs():
-    """Panel de logs de actividad con filtros y paginación."""
+    """Panel de logs de actividad en modo explorador por cuentas."""
     filters = {
         'user_id': request.args.get('user_id', '').strip(),
         'action': request.args.get('action', '').strip(),
@@ -998,14 +1412,23 @@ def admin_logs():
         'start_date': request.args.get('start_date', '').strip(),
         'end_date': request.args.get('end_date', '').strip(),
     }
-    logs = obtener_todos_logs(filters, limit=300)
+    logs = obtener_todos_logs(filters, limit=500)
     page = request.args.get('page', 1, type=int)
-    pagination = paginate_items(logs, page, current_app.config['ADMIN_LOGS_PER_PAGE'])
     stats = obtener_estadisticas_logs()
+    grouped_logs = build_admin_log_groups(logs)
+    pagination = paginate_items(grouped_logs, page, current_app.config['ADMIN_USERS_PER_PAGE'])
+    selected_user_id = request.args.get('selected_user_id', '').strip()
+    selected_group = None
+    if pagination['items']:
+        selected_group = next(
+            (group for group in pagination['items'] if group['user_id'] == selected_user_id),
+            pagination['items'][0],
+        )
 
     return render_template(
         'admin_logs.html',
-        logs=pagination['items'],
+        grouped_logs=pagination['items'],
+        selected_group=selected_group,
         stats=stats,
         filters=filters,
         AUDIT_ACTIONS=AUDIT_ACTIONS,

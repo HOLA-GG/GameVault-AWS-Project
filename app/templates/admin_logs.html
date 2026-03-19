@@ -5,8 +5,10 @@
 {% block content %}
 <div class="nav-bar">
     <div class="nav-links">
-        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Mi colección</a>
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
         <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary">Colecciones</a>
+        <a href="{{ url_for('main.admin_logs') }}" class="btn btn-primary">Logs</a>
     </div>
     <div class="nav-links">
         <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
@@ -21,6 +23,20 @@
         <p style="color:var(--text-secondary);margin-bottom:20px;">
             {{ stats.total_logs or 0 }} eventos registrados · {{ stats.success_rate }}% de éxito
         </p>
+        <div class="features-grid" style="margin-bottom:24px;">
+            <div class="feature-card">
+                <h4>Total eventos</h4>
+                <p>{{ stats.total_logs or 0 }} registros auditados en la plataforma.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Tasa de éxito</h4>
+                <p>{{ stats.success_rate }}% de acciones terminaron correctamente.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Usuarios activos</h4>
+                <p>{{ stats.top_users|length }} usuarios aparecen en el top de actividad reciente.</p>
+            </div>
+        </div>
     {% endif %}
 
     <form method="GET" style="margin-bottom:20px;">
@@ -79,32 +95,83 @@
         <button type="submit" class="btn btn-danger">Liberar espacio</button>
     </form>
 
-    {% if logs %}
-        <div class="table-container">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Usuario</th>
-                        <th>Acción</th>
-                        <th>Recurso</th>
-                        <th>Estado</th>
-                        <th>IP</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                        <tr>
-                            <td>{{ log.timestamp[:19].replace('T', ' ') }}</td>
-                            <td>{{ log.user_id }}</td>
-                            <td>{{ log.action_name or log.action }}</td>
-                            <td>{{ log.resource }}</td>
-                            <td>{{ log.status }}</td>
-                            <td>{{ log.ip_address }}</td>
-                        </tr>
+    {% if grouped_logs %}
+        <div class="log-explorer">
+            <aside class="log-account-browser">
+                <div class="log-account-browser__header">
+                    <h3>Cuentas auditadas</h3>
+                    <p>Abre una cuenta para ver solo su historial.</p>
+                </div>
+                <div class="log-account-list">
+                    {% for group in grouped_logs %}
+                        {% set is_selected = selected_group and selected_group.user_id == group.user_id %}
+                        <a
+                            class="log-account-card {% if is_selected %}is-selected{% endif %}"
+                            href="{{ url_for('main.admin_logs', **query_args_builder(selected_user_id=group.user_id)) }}"
+                        >
+                            <div class="log-account-card__top">
+                                <div class="log-account-link">
+                                    <strong>{{ group.nombre or 'Cuenta sin nombre' }}</strong>
+                                    <span>{{ group.email or group.user_id }}</span>
+                                </div>
+                                <span class="badge badge-log-neutral log-account-count">{{ group.events_count }} eventos</span>
+                            </div>
+                            <div class="log-account-card__bottom">
+                                <span class="badge badge-log-action {{ group['items'][0].action_badge_class }}">{{ group.latest_action }}</span>
+                                <small>{{ group.latest_timestamp[:19].replace('T', ' ') }}</small>
+                            </div>
+                        </a>
                     {% endfor %}
-                </tbody>
-            </table>
+                </div>
+            </aside>
+
+            <section class="log-activity-panel">
+                {% if selected_group %}
+                    <div class="log-group-header">
+                        <div>
+                            <h3>{{ selected_group.nombre or 'Cuenta sin nombre' }}</h3>
+                            <p>{{ selected_group.email or selected_group.user_id }}</p>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <span class="badge badge-log-resource">{{ selected_group.user_id }}</span>
+                            <span class="badge badge-log-neutral">{{ selected_group.events_count }} eventos</span>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Acción</th>
+                                    <th>Recurso</th>
+                                    <th>Estado</th>
+                                    <th>Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in selected_group['items'] %}
+                                    <tr>
+                                        <td>{{ log.timestamp[:19].replace('T', ' ') }}</td>
+                                        <td>
+                                            <span class="badge badge-log-action {{ log.action_badge_class }}">{{ log.action_name or log.action }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-log-resource">{{ log.resource|replace('_', ' ')|title }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ log.status_badge_class }}">{{ log.status }}</span>
+                                        </td>
+                                        <td>{{ log.ip_address }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state"><p>Selecciona una cuenta para ver su actividad.</p></div>
+                {% endif %}
+            </section>
         </div>
     {% else %}
         <div class="empty-state"><p>No hay logs para esos filtros.</p></div>
