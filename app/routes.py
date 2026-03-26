@@ -27,7 +27,7 @@ from flask_mail import Message
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
-from app.extensions import limiter, mail
+from app.extensions import csrf, limiter, mail
 from app.models import (
     AUDIT_ACTIONS,
     aplicar_ratings_showcase,
@@ -238,6 +238,10 @@ def subir_imagen_a_s3(archivo):
 def enviar_email_reset_password(destinatario: str, token: str) -> bool:
     """Envía el correo de recuperación con enlace directo."""
     try:
+        if current_app.config.get('MAIL_SUPPRESS_SEND'):
+            current_app.logger.warning('password_reset_email_suppressed email=%s', destinatario)
+            return False
+
         reset_url = url_for('main.reset_password_with_email', token=token, _external=True)
         expiry_minutes = current_app.config['RESET_TOKEN_EXPIRY_MINUTES']
 
@@ -571,6 +575,7 @@ def landing():
 
 
 @main_bp.route('/api/showcase/rate', methods=['POST'])
+@csrf.exempt
 def rate_showcase():
     """Permite valorar colecciones públicas o demo, una vez por IP y colección."""
     payload = request.get_json(silent=True) or {}
@@ -953,6 +958,8 @@ def registro():
 
     nombre = request.form.get('nombre', '').strip()
     email = request.form.get('email', '').strip().lower()
+    prefijo_pais = request.form.get('prefijo_pais', '').strip()
+    telefono = request.form.get('telefono', '').strip()
     password = request.form.get('password', '').strip()
     confirm_password = request.form.get('confirm_password', '').strip()
 
@@ -967,6 +974,8 @@ def registro():
         errores.append('La contraseña es requerida.')
     elif not validar_password(password):
         errores.append('La contraseña debe tener al menos 8 caracteres.')
+    if telefono and not validar_telefono(telefono):
+        errores.append('El teléfono debe contener entre 7 y 15 dígitos.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     if obtener_usuario_por_email(email):
@@ -978,7 +987,7 @@ def registro():
         return redirect(url_for('main.registro'))
 
     password_hash = generate_password_hash(password)
-    resultado = crear_usuario(nombre, '', email, '', '', password_hash)
+    resultado = crear_usuario(nombre, '', email, prefijo_pais, telefono, password_hash)
     if not resultado:
         flash('No se pudo crear tu cuenta. Intenta de nuevo.', 'error')
         return redirect(url_for('main.registro'))
@@ -1215,8 +1224,14 @@ def forgot_password():
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='SUCCESS',
             )
-            if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
-                flash('Entorno de prueba: se muestra el acceso de recuperación porque el correo automático puede estar deshabilitado.', 'warning')
+            should_show_debug = current_app.config.get('SHOW_RESET_DEBUG_TOKEN') or (
+                current_app.config.get('APP_ENV') != 'production' and not email_sent
+            )
+            if should_show_debug:
+                if email_sent:
+                    flash('Entorno de prueba: se muestra el acceso de recuperación para validar el flujo end-to-end.', 'warning')
+                else:
+                    flash('No se pudo enviar el correo automático. Usa este token temporal para continuar la recuperación.', 'warning')
                 return render_template(
                     'forgot_password.html',
                     debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
@@ -1226,6 +1241,46 @@ def forgot_password():
             current_app.logger.error('password_reset_token_creation_failed user_id=%s', user['user_id'])
 
     return redirect(url_for('main.forgot_password'))
+
+
+@main_bp.route('/forgot-password/manual-token', methods=['POST'])
+@limiter.limit('3 per hour', methods=['POST'])
+def forgot_password_manual_token():
+    """Permite recuperar token desde la web validando email + teléfono registrado."""
+    if session.get('user_id'):
+        return redirect(url_for('main.dashboard'))
+
+    email = request.form.get('email', '').strip().lower()
+    telefono = request.form.get('telefono', '').strip()
+    if not email or not telefono:
+        flash('Para la opción 2 debes indicar correo y teléfono.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
+    user = obtener_usuario_por_email(email)
+    if not user or str(user.get('telefono', '')).strip() != telefono:
+        flash('No se pudo validar los datos de recuperación.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
+    result = crear_reset_token(user['user_id'], request.remote_addr or 'unknown')
+    if not result.get('success'):
+        flash('No se pudo generar el token de recuperación. Intenta de nuevo.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
+    crear_log_audit(
+        user_id=user['user_id'],
+        action='PASSWORD_RESET_REQUEST',
+        resource='auth',
+        details={'email': email, 'channel': 'manual_token'},
+        ip_address=request.remote_addr or 'unknown',
+        user_agent=request.headers.get('User-Agent', 'unknown'),
+        status='SUCCESS',
+    )
+    flash('Token generado. Guárdalo y valídalo cuando quieras.', 'success')
+    return render_template(
+        'forgot_password.html',
+        debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
+        email_sent=False,
+    )
 
 
 @main_bp.route('/validate-token')
