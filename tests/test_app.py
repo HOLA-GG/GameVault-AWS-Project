@@ -195,6 +195,43 @@ def test_registration_redirects_to_dashboard(monkeypatch, client):
     assert response.headers['Location'].endswith('/dashboard')
 
 
+def test_registration_persists_phone_fields(monkeypatch, client):
+    import app.routes as routes
+
+    captured = {}
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: None)
+
+    def fake_crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash):
+        captured['prefijo_pais'] = prefijo_pais
+        captured['telefono'] = telefono
+        return {
+            'user_id': 'new-user',
+            'email': email,
+            'nombre': nombre,
+            'role': 'user',
+        }
+
+    monkeypatch.setattr(routes, 'crear_usuario', fake_crear_usuario)
+    monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
+
+    response = client.post(
+        '/registro',
+        data={
+            'nombre': 'Ana',
+            'email': 'ana@example.com',
+            'prefijo_pais': '+1',
+            'telefono': '5551234567',
+            'password': 'password123',
+            'confirm_password': 'password123',
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/dashboard')
+    assert captured['prefijo_pais'] == '+1'
+    assert captured['telefono'] == '5551234567'
+
+
 def test_forgot_password_never_exposes_token(monkeypatch, client):
     import app.routes as routes
 
@@ -245,6 +282,73 @@ def test_forgot_password_can_show_debug_token_locally(monkeypatch, client):
     assert response.status_code == 200
     assert b'local-debug-token' in response.data
     assert b'Recuperaci' in response.data
+
+
+def test_forgot_password_shows_recovery_token_when_email_delivery_fails_in_non_production(monkeypatch, client):
+    import app.routes as routes
+
+    client.application.config['SHOW_RESET_DEBUG_TOKEN'] = False
+    client.application.config['APP_ENV'] = 'testing'
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1'})
+    monkeypatch.setattr(
+        routes,
+        'crear_reset_token',
+        lambda _user_id, _ip: {
+            'success': True,
+            'token': 'fallback-debug-token',
+            'expires_at': '2030-01-01T00:00:00+00:00',
+            'error': None,
+        },
+    )
+    monkeypatch.setattr(routes, 'enviar_email_reset_password', lambda _email, _token: False)
+    monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
+
+    response = client.post('/forgot-password', data={'email': 'ana@example.com'})
+
+    assert response.status_code == 200
+    assert b'fallback-debug-token' in response.data
+    assert b'No se pudo enviar el correo autom' in response.data
+
+
+def test_forgot_password_manual_token_requires_email_and_phone(client):
+    response = client.post(
+        '/forgot-password/manual-token',
+        data={'email': 'ana@example.com', 'telefono': ''},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'Para la opci' in response.data
+
+
+def test_forgot_password_manual_token_shows_token_when_email_phone_match(monkeypatch, client):
+    import app.routes as routes
+
+    monkeypatch.setattr(
+        routes,
+        'obtener_usuario_por_email',
+        lambda _email: {'user_id': 'user-1', 'telefono': '5551234567'},
+    )
+    monkeypatch.setattr(
+        routes,
+        'crear_reset_token',
+        lambda _user_id, _ip: {
+            'success': True,
+            'token': 'manual-page-token',
+            'expires_at': '2030-01-01T00:00:00+00:00',
+            'error': None,
+        },
+    )
+    monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
+
+    response = client.post(
+        '/forgot-password/manual-token',
+        data={'email': 'ana@example.com', 'telefono': '5551234567'},
+    )
+
+    assert response.status_code == 200
+    assert b'manual-page-token' in response.data
+    assert b'Token generado' in response.data
 
 
 def test_logout_is_post_only(client):
