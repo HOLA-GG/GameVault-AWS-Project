@@ -179,6 +179,17 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
     return parsed.scheme == 'https' and parsed.netloc == expected_host
 
 
+def is_safe_url(target: str) -> bool:
+    """Valida que una URL sea segura para redirección (misma host o relativa)."""
+    if not target:
+        return False
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(target)
+    # Solo permitir URLs relativas o que coincidan con nuestro host
+    return (not test_url.netloc or test_url.netloc == ref_url.netloc) and \
+           test_url.scheme in ('', 'http', 'https')
+
+
 def get_request_ip() -> str:
     """Obtiene la IP más confiable disponible para rate limiting blando por visitante."""
     forwarded_for = request.headers.get('X-Forwarded-For', '')
@@ -1059,7 +1070,7 @@ def login():
     )
 
     next_url = request.args.get('next')
-    if next_url:
+    if next_url and is_safe_url(next_url):
         return redirect(next_url)
     if session.get('role') == 'admin':
         return redirect(url_for('main.admin_panel'))
