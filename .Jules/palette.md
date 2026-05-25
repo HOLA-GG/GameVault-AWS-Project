@@ -1,0 +1,3 @@
+## 2025-05-25 - Context-Aware Empty States
+**Learning:** Context-aware empty states (distinguishing between "no content" and "no search results") significantly reduce user confusion by providing clear, relevant CTAs. A generic "No items found" message is often ambiguous for new users versus power users with active filters.
+**Action:** Always verify if an empty view is absolute (empty database) or relative (active filters) and provide specific guidance/buttons for each scenario. Additionally, ensure decorative emojis/icons are hidden from screen readers using `aria-hidden="true"` to prevent verbal clutter.
