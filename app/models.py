@@ -203,9 +203,11 @@ def init_database() -> None:
     """Crea tablas si aún no existen."""
     global _database_initialized
     if not _database_initialized:
+        # Movemos la comprobación de compatibilidad de esquema dentro del bloque
+        # de inicialización única para evitar inspecciones costosas en cada consulta.
         Base.metadata.create_all(get_engine())
+        ensure_schema_compatibility()
         _database_initialized = True
-    ensure_schema_compatibility()
 
 
 def ensure_schema_compatibility() -> None:
