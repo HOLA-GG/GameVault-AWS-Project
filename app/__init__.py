@@ -175,7 +175,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.update(build_config())
     app.config.update(get_email_config())
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     configure_logging(app)
     configure_sentry(app)
@@ -199,6 +199,8 @@ def create_app() -> Flask:
             request.headers.get('X-Forwarded-For', request.remote_addr),
         )
         response.headers['X-Request-Id'] = request_id
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         return response
 
     @app.context_processor
