@@ -16,7 +16,20 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, inspect, select, text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    func,
+    inspect,
+    select,
+    text,
+)
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, scoped_session, selectinload, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -948,20 +961,51 @@ def obtener_colecciones_publicas(limit: int = 6) -> List[Dict[str, Any]]:
 
 
 def obtener_rating_showcase(subject_type: str, subject_id: str) -> Dict[str, Any]:
-    """Obtiene la valoración pública actual de un showcase."""
+    """Obtiene la valoración pública actual de un showcase mediante agregación en DB."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        items = session.scalars(
-            select(ShowcaseRating).where(
+        result = session.execute(
+            select(func.avg(ShowcaseRating.rating), func.count(ShowcaseRating.rating)).where(
                 ShowcaseRating.subject_type == subject_type,
                 ShowcaseRating.subject_id == subject_id,
             )
-        ).all()
-        if not items:
+        ).first()
+
+        if not result or result[1] == 0:
             return {'average': None, 'votes_count': 0}
-        average = round(sum(item.rating for item in items) / len(items), 1)
-        return {'average': average, 'votes_count': len(items)}
+
+        return {'average': round(float(result[0]), 1), 'votes_count': int(result[1])}
+
+
+def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Obtiene valoraciones para múltiples IDs en una sola consulta (evita N+1)."""
+    if not subject_ids:
+        return {}
+
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        results = session.execute(
+            select(
+                ShowcaseRating.subject_id,
+                func.avg(ShowcaseRating.rating),
+                func.count(ShowcaseRating.rating),
+            )
+            .where(
+                ShowcaseRating.subject_type == subject_type,
+                ShowcaseRating.subject_id.in_(subject_ids),
+            )
+            .group_by(ShowcaseRating.subject_id)
+        ).all()
+
+        mapped = {}
+        for row in results:
+            mapped[str(row[0])] = {
+                'average': round(float(row[1]), 1) if row[1] is not None else None,
+                'votes_count': int(row[2]),
+            }
+        return mapped
 
 
 def combinar_rating_showcase(
@@ -1006,13 +1050,21 @@ def aplicar_ratings_showcase(
     default_rating_key: str | None = None,
     default_votes_key: str | None = None,
 ) -> List[Dict[str, Any]]:
-    """Enriquece colecciones con valoración pública persistida."""
+    """Enriquece colecciones con valoración pública en batch para evitar N+1 queries."""
+    if not items:
+        return []
+
+    subject_ids = [str(item[subject_id_key]) for item in items]
+    ratings_map = obtener_ratings_multiple(subject_type, subject_ids)
+
     enriched: List[Dict[str, Any]] = []
     for item in items:
         entry = dict(item)
         subject_id = str(entry[subject_id_key])
+        actual_rating = ratings_map.get(subject_id, {'average': None, 'votes_count': 0})
+
         rating_summary = combinar_rating_showcase(
-            obtener_rating_showcase(subject_type, subject_id),
+            actual_rating,
             base_average=entry.get(default_rating_key) if default_rating_key else None,
             base_votes_count=entry.get(default_votes_key, 0) if default_votes_key else 0,
         )
