@@ -324,6 +324,7 @@ def test_forgot_password_manual_token_requires_email_and_phone(client):
 def test_forgot_password_manual_token_shows_token_when_email_phone_match(monkeypatch, client):
     import app.routes as routes
 
+    client.application.config['SHOW_RESET_DEBUG_TOKEN'] = True
     monkeypatch.setattr(
         routes,
         'obtener_usuario_por_email',
@@ -349,6 +350,36 @@ def test_forgot_password_manual_token_shows_token_when_email_phone_match(monkeyp
     assert response.status_code == 200
     assert b'manual-page-token' in response.data
     assert b'Token generado' in response.data
+
+
+def test_forgot_password_manual_token_redirects_in_production(monkeypatch, client):
+    import app.routes as routes
+
+    client.application.config['SHOW_RESET_DEBUG_TOKEN'] = False
+    monkeypatch.setattr(
+        routes,
+        'obtener_usuario_por_email',
+        lambda _email: {'user_id': 'user-1', 'telefono': '5551234567'},
+    )
+    monkeypatch.setattr(
+        routes,
+        'crear_reset_token',
+        lambda _user_id, _ip: {
+            'success': True,
+            'token': 'manual-page-token',
+            'expires_at': '2030-01-01T00:00:00+00:00',
+            'error': None,
+        },
+    )
+    monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
+
+    response = client.post(
+        '/forgot-password/manual-token',
+        data={'email': 'ana@example.com', 'telefono': '5551234567'},
+    )
+
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/forgot-password')
 
 
 def test_logout_is_post_only(client):

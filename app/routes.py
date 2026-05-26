@@ -192,9 +192,7 @@ def is_safe_url(target: str) -> bool:
 
 def get_request_ip() -> str:
     """Obtiene la IP más confiable disponible para rate limiting blando por visitante."""
-    forwarded_for = request.headers.get('X-Forwarded-For', '')
-    if forwarded_for:
-        return forwarded_for.split(',')[0].strip()
+    # ProxyFix ya se encarga de extraer la IP correcta de X-Forwarded-For si está configurado.
     return request.remote_addr or 'unknown'
 
 
@@ -1286,6 +1284,12 @@ def forgot_password_manual_token():
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
+
+    if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
+        # En producción no se muestra el token directamente por seguridad (evita account takeover).
+        flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
+        return redirect(url_for('main.forgot_password'))
+
     flash('Token generado. Guárdalo y valídalo cuando quieras.', 'success')
     return render_template(
         'forgot_password.html',
