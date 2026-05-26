@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
     <div class="accessibility-fab" data-position="bottom-right">
         <button
             type="button"
@@ -15,6 +17,7 @@
             id="accessibilityToggle"
             aria-expanded="false"
             aria-controls="accessibilityPanel"
+            aria-label="Herramientas de accesibilidad"
             title="Herramientas de accesibilidad"
         >
             <svg viewBox="0 0 24 24" aria-hidden="true" class="accessibility-icon">
@@ -31,9 +34,9 @@
             <div class="accessibility-group">
                 <span class="accessibility-label">Tema</span>
                 <div class="accessibility-row">
-                    <button type="button" class="theme-btn active" data-theme="dark" data-label="Oscuro" title="Modo Oscuro">🌙</button>
-                    <button type="button" class="theme-btn" data-theme="light" data-label="Claro" title="Modo Claro">☀️</button>
-                    <button type="button" class="theme-btn" data-theme="gamer" data-label="Gamer" title="Modo Gamer">🎮</button>
+                    <button type="button" class="theme-btn active" data-theme="dark" data-label="Oscuro" title="Modo Oscuro" aria-label="Cambiar a tema oscuro" aria-pressed="true">🌙</button>
+                    <button type="button" class="theme-btn" data-theme="light" data-label="Claro" title="Modo Claro" aria-label="Cambiar a tema claro" aria-pressed="false">☀️</button>
+                    <button type="button" class="theme-btn" data-theme="gamer" data-label="Gamer" title="Modo Gamer" aria-label="Cambiar a tema gamer" aria-pressed="false">🎮</button>
                 </div>
             </div>
 
@@ -61,17 +64,17 @@
             <div class="accessibility-group">
                 <span class="accessibility-label">Movimiento</span>
                 <div class="accessibility-row">
-                    <button type="button" class="accessibility-chip" id="motionToggle">Reducir animación</button>
+                    <button type="button" class="accessibility-chip" id="motionToggle" aria-pressed="false">Reducir animación</button>
                 </div>
             </div>
 
             <div class="accessibility-group">
                 <span class="accessibility-label">Ubicación del panel</span>
                 <div class="accessibility-grid">
-                    <button type="button" class="accessibility-chip" data-panel-position="top-left">↖ Superior izq.</button>
-                    <button type="button" class="accessibility-chip" data-panel-position="top-right">↗ Superior der.</button>
-                    <button type="button" class="accessibility-chip" data-panel-position="bottom-left">↙ Inferior izq.</button>
-                    <button type="button" class="accessibility-chip" data-panel-position="bottom-right">↘ Inferior der.</button>
+                    <button type="button" class="accessibility-chip" data-panel-position="top-left" aria-pressed="false">↖ Superior izq.</button>
+                    <button type="button" class="accessibility-chip" data-panel-position="top-right" aria-pressed="false">↗ Superior der.</button>
+                    <button type="button" class="accessibility-chip" data-panel-position="bottom-left" aria-pressed="false">↙ Inferior izq.</button>
+                    <button type="button" class="accessibility-chip" data-panel-position="bottom-right" aria-pressed="true">↘ Inferior der.</button>
                 </div>
             </div>
         </aside>
@@ -93,7 +96,9 @@
             {% endif %}
         {% endwith %}
 
-        {% block content %}{% endblock %}
+        <main id="main-content" tabindex="-1">
+            {% block content %}{% endblock %}
+        </main>
 
         <footer>
             <p>GameVault para coleccionistas. Beta pública sobre Flask + Neon.</p>
@@ -115,7 +120,9 @@
             rootElement.setAttribute('data-theme', theme);
             localStorage.setItem('gamevault-theme', theme);
             document.querySelectorAll('.theme-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === theme);
+                const isActive = btn.dataset.theme === theme;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             });
         }
 
@@ -139,6 +146,7 @@
             const toggle = document.getElementById('motionToggle');
             if (toggle) {
                 toggle.classList.toggle('active', enabled);
+                toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
                 toggle.textContent = enabled ? 'Animación reducida activada' : 'Reducir animación';
             }
         }
@@ -149,7 +157,9 @@
             fab.dataset.position = position;
             localStorage.setItem('gamevault-panel-position', position);
             document.querySelectorAll('[data-panel-position]').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.panelPosition === position);
+                const isActive = btn.dataset.panelPosition === position;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             });
         }
 
