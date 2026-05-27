@@ -9,7 +9,7 @@ import uuid
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from flask import (
     Blueprint,
@@ -183,11 +183,13 @@ def is_safe_url(target: str) -> bool:
     """Valida que una URL sea segura para redirección (misma host o relativa)."""
     if not target:
         return False
+    # Normalizar backslashes a forward slashes (algunos navegadores los tratan igual)
+    target = target.replace('\\', '/')
     ref_url = urlparse(request.host_url)
-    test_url = urlparse(target)
-    # Solo permitir URLs relativas o que coincidan con nuestro host
-    return (not test_url.netloc or test_url.netloc == ref_url.netloc) and \
-           test_url.scheme in ('', 'http', 'https')
+    # urljoin resuelve contra el host actual, manejando correctamente URLs relativas y múltiples slashes
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and \
+           test_url.netloc == ref_url.netloc
 
 
 def get_request_ip() -> str:
@@ -1266,7 +1268,13 @@ def forgot_password_manual_token():
         return redirect(url_for('main.forgot_password'))
 
     user = obtener_usuario_por_email(email)
+    # Validar si el usuario existe y el teléfono coincide
     if not user or str(user.get('telefono', '')).strip() != telefono:
+        # En producción no revelamos si los datos son incorrectos para evitar enumeración.
+        if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
+            flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
+            return redirect(url_for('main.forgot_password'))
+
         flash('No se pudo validar los datos de recuperación.', 'error')
         return redirect(url_for('main.forgot_password'))
 
@@ -1287,6 +1295,7 @@ def forgot_password_manual_token():
 
     if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
         # En producción no se muestra el token directamente por seguridad (evita account takeover).
+        # El mensaje es idéntico al caso en que los datos no coinciden.
         flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
         return redirect(url_for('main.forgot_password'))
 
