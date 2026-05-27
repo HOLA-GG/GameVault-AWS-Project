@@ -40,8 +40,8 @@
                             <td>{{ usuario.email }}</td>
                             <td>
                                 <form action="{{ url_for('main.admin_editar_usuario', user_id=usuario.user_id) }}" method="POST" style="display:flex;gap:8px;align-items:center;">
-                                    <input type="text" name="nombre" value="{{ usuario.nombre }}" required>
-                                    <button type="submit" class="btn btn-secondary btn-small">Guardar</button>
+                                    <input type="text" name="nombre" value="{{ usuario.nombre }}" required aria-label="Nombre de usuario para {{ usuario.email }}">
+                                    <button type="submit" class="btn btn-secondary btn-small" aria-label="Guardar nombre para {{ usuario.email }}">Guardar</button>
                                 </form>
                             </td>
                             <td>{{ (usuario.prefijo_pais or '') ~ (usuario.telefono or '') or '—' }}</td>
@@ -53,7 +53,7 @@
                             <td>
                                 {% if usuario.user_id != session.get('user_id') %}
                                     <form action="{{ url_for('main.admin_eliminar_usuario', user_id=usuario.user_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('¿Eliminar a {{ usuario.email }}?');">
-                                        <button type="submit" class="btn btn-danger btn-small">Eliminar</button>
+                                        <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar usuario {{ usuario.email }}">Eliminar</button>
                                     </form>
                                 {% else %}
                                     <span class="badge badge-admin">Cuenta actual</span>
