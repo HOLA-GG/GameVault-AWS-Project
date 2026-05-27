@@ -260,9 +260,9 @@
                             <span class="meta-item">Actualizado: {{ (juego.updated_at or juego.created_at or '')[:10] or 'sin fecha' }}</span>
                         </div>
                         <div class="game-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
-                            <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="btn btn-secondary btn-small">Editar</a>
+                            <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="btn btn-secondary btn-small" aria-label="Editar {{ juego.titulo }}">Editar</a>
                             <form action="{{ url_for('main.eliminar_juego_ruta', game_id=juego.game_id) }}" method="POST" onsubmit="return confirm('¿Eliminar {{ juego.titulo }}? Esta acción no se puede deshacer.');" style="display:inline;">
-                                <button type="submit" class="btn btn-danger btn-small">Eliminar</button>
+                                <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar {{ juego.titulo }}">Eliminar</button>
                             </form>
                         </div>
                     </div>
@@ -317,7 +317,7 @@
             if (imageUrlInput.value) return;
             event.preventDefault();
             button.disabled = true;
-            button.textContent = 'Subiendo portada...';
+            button.innerHTML = '<span class="loading-spinner"></span>Subiendo portada...';
             try {
                 imageUrlInput.value = await window.gameVault.uploadFileDirectToStorage(fileInput.files[0]);
                 form.submit();
