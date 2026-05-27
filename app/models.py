@@ -781,44 +781,77 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100) -> List
 
 
 def obtener_estadisticas_logs() -> Dict[str, Any]:
-    """Calcula estadísticas simples de auditoría."""
-    logs = obtener_todos_logs(limit=5000)
-    total_logs = len(logs)
+    """Calcula estadísticas simples de auditoría usando agregaciones en base de datos."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    now = utcnow()
 
-    action_counts: Dict[str, int] = {}
-    status_counts: Dict[str, int] = {}
-    daily_counts: Dict[str, int] = {}
-    user_counts: Dict[str, int] = {}
+    with session_factory() as session:
+        # 1. Total logs
+        total_logs = session.scalar(select(func.count(AuditLog.audit_id))) or 0
 
-    for log in logs:
-        action = log.get('action', 'UNKNOWN')
-        status = log.get('status', 'UNKNOWN')
-        action_counts[action] = action_counts.get(action, 0) + 1
-        status_counts[status] = status_counts.get(status, 0) + 1
+        if total_logs == 0:
+            return {
+                'total_logs': 0,
+                'action_counts': {},
+                'status_counts': {},
+                'daily_activity': [
+                    {'date': (now - timedelta(days=i)).strftime('%Y-%m-%d'), 'count': 0}
+                    for i in range(6, -1, -1)
+                ],
+                'top_users': [],
+                'success_rate': 100.0,
+            }
 
-        timestamp = log.get('timestamp', '')
-        if timestamp:
-            date = timestamp[:10]
-            daily_counts[date] = daily_counts.get(date, 0) + 1
+        # 2. Action counts
+        action_results = session.execute(
+            select(AuditLog.action, func.count(AuditLog.audit_id)).group_by(AuditLog.action)
+        ).all()
+        action_counts = {row[0]: row[1] for row in action_results}
 
-        user_id = log.get('user_id') or 'anonymous'
-        user_counts[user_id] = user_counts.get(user_id, 0) + 1
+        # 3. Status counts
+        status_results = session.execute(
+            select(AuditLog.status, func.count(AuditLog.audit_id)).group_by(AuditLog.status)
+        ).all()
+        status_counts = {row[0]: row[1] for row in status_results}
 
-    last_7_days = []
-    for i in range(7):
-        date = (utcnow() - timedelta(days=i)).strftime('%Y-%m-%d')
-        last_7_days.append({'date': date, 'count': daily_counts.get(date, 0)})
-    last_7_days.reverse()
+        # 4. Top users
+        user_results = session.execute(
+            select(AuditLog.user_id, func.count(AuditLog.audit_id))
+            .group_by(AuditLog.user_id)
+            .order_by(func.count(AuditLog.audit_id).desc())
+            .limit(5)
+        ).all()
+        top_users = [(row[0] or 'anonymous', row[1]) for row in user_results]
 
-    top_users = sorted(user_counts.items(), key=lambda item: item[1], reverse=True)[:5]
-    return {
-        'total_logs': total_logs,
-        'action_counts': action_counts,
-        'status_counts': status_counts,
-        'daily_activity': last_7_days,
-        'top_users': top_users,
-        'success_rate': round((status_counts.get('SUCCESS', 0) / total_logs * 100) if total_logs else 100, 2),
-    }
+        # 5. Daily activity (last 7 days)
+        cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=6)
+
+        # Portable grouping by date (YYYY-MM-DD)
+        daily_results = session.execute(
+            select(func.date(AuditLog.timestamp), func.count(AuditLog.audit_id))
+            .where(AuditLog.timestamp >= cutoff)
+            .group_by(func.date(AuditLog.timestamp))
+        ).all()
+
+        daily_map = {str(row[0]): row[1] for row in daily_results}
+
+        last_7_days = []
+        for i in range(7):
+            date_str = (now - timedelta(days=6 - i)).strftime('%Y-%m-%d')
+            last_7_days.append({'date': date_str, 'count': daily_map.get(date_str, 0)})
+
+        success_count = status_counts.get('SUCCESS', 0)
+        success_rate = round((success_count / total_logs * 100), 2)
+
+        return {
+            'total_logs': total_logs,
+            'action_counts': action_counts,
+            'status_counts': status_counts,
+            'daily_activity': last_7_days,
+            'top_users': top_users,
+            'success_rate': success_rate,
+        }
 
 
 def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
