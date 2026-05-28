@@ -586,6 +586,7 @@ def landing():
 
 
 @main_bp.route('/api/showcase/rate', methods=['POST'])
+@limiter.limit('10 per minute')
 @csrf.exempt
 def rate_showcase():
     """Permite valorar colecciones públicas o demo, una vez por IP y colección."""
@@ -959,6 +960,7 @@ def editar_juego_ruta(game_id):
 
 
 @main_bp.route('/registro', methods=['GET', 'POST'])
+@limiter.limit('5 per hour', methods=['POST'])
 def registro():
     """Registro simplificado para coleccionistas."""
     if session.get('user_id'):

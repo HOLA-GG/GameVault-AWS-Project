@@ -870,14 +870,27 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
 
 
 def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
-    """Exporta logs a CSV."""
+    """Exporta logs a CSV con protección contra CSV Injection."""
     output = io.StringIO()
     fieldnames = ['audit_id', 'user_id', 'action', 'resource', 'timestamp', 'ip_address', 'status', 'details']
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
+
+    risky_chars = ('=', '+', '-', '@', '|')
+
     for log in logs:
-        row = {key: log.get(key, '') for key in fieldnames[:-1]}
-        row['details'] = str(log.get('details', {}))
+        row = {}
+        for key in fieldnames[:-1]:
+            val = str(log.get(key, '') or '')
+            if val.startswith(risky_chars):
+                val = "'" + val
+            row[key] = val
+
+        details_val = str(log.get('details', {}) or '{}')
+        if details_val.startswith(risky_chars):
+            details_val = "'" + details_val
+        row['details'] = details_val
+
         writer.writerow(row)
     return output.getvalue()
 

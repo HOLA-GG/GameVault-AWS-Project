@@ -12,3 +12,8 @@
 **Vulnerability:** Open Redirect bypasses using `///` or `\\` and account enumeration via manual token recovery.
 **Learning:** Browser-specific interpretations of multiple slashes or backslashes can bypass simple `urlparse` checks. Also, returning different messages for valid vs invalid credentials allows account enumeration.
 **Prevention:** Use `urljoin` and backslash normalization for `is_safe_url`. Always return generic success messages in authentication flows (like password recovery) even if the user or associated data doesn't exist.
+
+## 2025-05-26 - Prevent CSV Injection in Audit Logs and Harden Security Headers
+**Vulnerability:** Potential CSV Injection in log exports and missing Referrer-Policy header.
+**Learning:** Audit logs often contain user-controlled data (like game titles or usernames) that can be exploited via CSV Injection if not sanitized. Also, missing Referrer-Policy can leak sensitive data in URLs.
+**Prevention:** Sanitize CSV exports by prepending a single quote to risky characters (=, +, -, @, |). Always include modern security headers like Referrer-Policy in the global response handler.

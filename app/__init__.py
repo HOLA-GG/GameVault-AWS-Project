@@ -196,11 +196,12 @@ def create_app() -> Flask:
             request.method,
             request.path,
             response.status_code,
-            request.headers.get('X-Forwarded-For', request.remote_addr),
+            request.remote_addr,
         )
         response.headers['X-Request-Id'] = request_id
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         return response
 
     @app.context_processor
