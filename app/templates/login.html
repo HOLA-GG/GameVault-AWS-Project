@@ -18,7 +18,7 @@
     <h2>Iniciar sesión</h2>
     <p>Accede a tu panel privado y sigue construyendo tu colección.</p>
 
-    <form action="{{ url_for('main.login') }}" method="POST">
+    <form action="{{ url_for('main.login') }}" method="POST" id="loginForm">
         <div class="form-group">
             <label for="email">Correo electrónico</label>
             <input type="email" id="email" name="email" placeholder="coleccionista@email.com" required autocomplete="email">
@@ -27,8 +27,23 @@
             <label for="password">Contraseña</label>
             <input type="password" id="password" name="password" placeholder="Tu contraseña" required autocomplete="current-password">
         </div>
-        <button type="submit" class="btn-submit" style="width:100%;">Entrar</button>
+        <button type="submit" class="btn-submit" id="loginSubmitButton" style="width:100%;">Entrar</button>
     </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('loginForm');
+            const button = document.getElementById('loginSubmitButton');
+            if (form && button) {
+                form.addEventListener('submit', function() {
+                    button.disabled = true;
+                    button.setAttribute('aria-busy', 'true');
+                    button.setAttribute('aria-label', 'Entrando...');
+                    button.textContent = 'Entrando...';
+                });
+            }
+        });
+    </script>
 
     <div class="auth-toggle">
         <p>¿Olvidaste tu contraseña?</p>
