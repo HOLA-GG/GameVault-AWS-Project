@@ -58,6 +58,7 @@ from app.models import (
     obtener_todos_usuarios,
     obtener_usuario_por_email,
     obtener_usuario_por_id,
+    obtener_usuarios_por_ids,
     usar_token,
     validar_email,
     validar_password,
@@ -447,15 +448,16 @@ def get_action_badge_class(action: str) -> str:
 
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
-    """Agrupa logs por cuenta para que el panel admin sea más legible."""
-    user_cache: dict[str, dict | None] = {}
+    """Agrupa logs por cuenta para que el panel admin sea más legible (optimizado con pre-fetch)."""
+    # Pre-fetch de todos los usuarios únicos para evitar N+1 queries.
+    unique_user_ids = {log.get('user_id') for log in logs if log.get('user_id')}
+    users_data = obtener_usuarios_por_ids(list(unique_user_ids))
+    user_cache = {u['user_id']: u for u in users_data}
+
     grouped: dict[str, dict] = {}
 
     for log in logs:
         user_id = log.get('user_id') or 'system'
-        if user_id not in user_cache and user_id != 'system':
-            user_cache[user_id] = obtener_usuario_por_id(user_id)
-
         user = user_cache.get(user_id)
         bucket = grouped.setdefault(
             user_id,

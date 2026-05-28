@@ -891,6 +891,19 @@ def obtener_usuario_por_id(user_id: str) -> Optional[Dict[str, Any]]:
         return user_to_dict(user)
 
 
+def obtener_usuarios_por_ids(user_ids: List[str]) -> List[Dict[str, Any]]:
+    """Obtiene múltiples usuarios por sus IDs en una sola consulta."""
+    if not user_ids:
+        return []
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        items = session.scalars(
+            select(User).where(User.user_id.in_(user_ids))
+        ).all()
+        return [user_to_dict(item) for item in items]
+
+
 def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str, Any]:
     """Actualiza datos básicos del perfil."""
     ensure_tables()

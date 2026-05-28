@@ -466,12 +466,15 @@ def test_admin_logs_groups_entries_by_account(monkeypatch, client):
     )
     monkeypatch.setattr(
         routes,
-        'obtener_usuario_por_id',
-        lambda user_id: {
-            'user_id': user_id,
-            'nombre': 'Ana' if user_id == 'user-1' else 'Luis',
-            'email': f'{user_id}@example.com',
-        },
+        'obtener_usuarios_por_ids',
+        lambda user_ids: [
+            {
+                'user_id': uid,
+                'nombre': 'Ana' if uid == 'user-1' else 'Luis',
+                'email': f'{uid}@example.com',
+            }
+            for uid in user_ids
+        ],
     )
     login_session(client, role='admin')
 
