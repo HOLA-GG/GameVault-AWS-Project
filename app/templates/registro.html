@@ -18,7 +18,7 @@
     <h2>Crea tu cuenta</h2>
     <p>Arranca con lo mínimo y completa tu perfil después.</p>
 
-    <form action="{{ url_for('main.registro') }}" method="POST">
+    <form action="{{ url_for('main.registro') }}" method="POST" id="registerForm">
         <div class="form-group">
             <label for="nombre">Nombre</label>
             <input type="text" id="nombre" name="nombre" placeholder="Ej: Juan" required autocomplete="name">
@@ -47,8 +47,23 @@
                 <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite tu contraseña" required autocomplete="new-password">
             </div>
         </div>
-        <button type="submit" class="btn-submit" style="width:100%;">Crear cuenta</button>
+        <button type="submit" class="btn-submit" id="registerSubmitButton" style="width:100%;">Crear cuenta</button>
     </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('registerForm');
+            const button = document.getElementById('registerSubmitButton');
+            if (form && button) {
+                form.addEventListener('submit', function() {
+                    button.disabled = true;
+                    button.setAttribute('aria-busy', 'true');
+                    button.setAttribute('aria-label', 'Creando cuenta...');
+                    button.textContent = 'Creando cuenta...';
+                });
+            }
+        });
+    </script>
 </section>
 
 <section class="section">
