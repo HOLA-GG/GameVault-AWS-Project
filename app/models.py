@@ -25,6 +25,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    delete,
     func,
     inspect,
     select,
@@ -694,19 +695,16 @@ def obtener_token_por_user_id(user_id: str) -> Optional[Dict[str, Any]]:
 
 
 def eliminar_tokens_expirados() -> Dict[str, Any]:
-    """Elimina tokens expirados."""
+    """Elimina tokens expirados (optimizado con batch delete)."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        items = session.scalars(
-            select(PasswordResetToken).where(
-                PasswordResetToken.used.is_(False),
-                PasswordResetToken.expires_at < utcnow(),
-            )
-        ).all()
-        deleted = len(items)
-        for item in items:
-            session.delete(item)
+        stmt = delete(PasswordResetToken).where(
+            PasswordResetToken.used.is_(False),
+            PasswordResetToken.expires_at < utcnow(),
+        )
+        result = session.execute(stmt)
+        deleted = result.rowcount
         session.commit()
         return {'deleted': deleted, 'error': None}
 
@@ -855,16 +853,15 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
 
 
 def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
-    """Elimina logs antiguos."""
+    """Elimina logs antiguos (optimizado con batch delete)."""
     ensure_tables()
     days = days or AUDIT_LOG_RETENTION_DAYS
     cutoff_date = utcnow() - timedelta(days=days)
     session_factory = get_session_factory()
     with session_factory() as session:
-        items = session.scalars(select(AuditLog).where(AuditLog.timestamp < cutoff_date)).all()
-        deleted = len(items)
-        for item in items:
-            session.delete(item)
+        stmt = delete(AuditLog).where(AuditLog.timestamp < cutoff_date)
+        result = session.execute(stmt)
+        deleted = result.rowcount
         session.commit()
         return {'deleted': deleted, 'error': None}
 
