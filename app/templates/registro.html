@@ -54,12 +54,30 @@
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('registerForm');
             const button = document.getElementById('registerSubmitButton');
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm_password');
+
+            function validatePassword() {
+                if (password.value !== confirmPassword.value) {
+                    confirmPassword.setCustomValidity('Las contraseñas no coinciden');
+                } else {
+                    confirmPassword.setCustomValidity('');
+                }
+            }
+
+            if (password && confirmPassword) {
+                password.addEventListener('change', validatePassword);
+                confirmPassword.addEventListener('input', validatePassword);
+            }
+
             if (form && button) {
                 form.addEventListener('submit', function() {
-                    button.disabled = true;
-                    button.setAttribute('aria-busy', 'true');
-                    button.setAttribute('aria-label', 'Creando cuenta...');
-                    button.textContent = 'Creando cuenta...';
+                    if (form.checkValidity()) {
+                        button.disabled = true;
+                        button.setAttribute('aria-busy', 'true');
+                        button.setAttribute('aria-label', 'Creando cuenta...');
+                        button.textContent = 'Creando cuenta...';
+                    }
                 });
             }
         });

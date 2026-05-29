@@ -5,3 +5,7 @@
 ## 2025-05-26 - Synchronized Accessible Loading States
 **Learning:** When providing visual loading feedback (e.g., changing button text to "Loading..."), the `aria-label` must stay synchronized with the visible `textContent` to avoid confusing screen reader users. Additionally, using `aria-busy="true"` on the submitting element provides a semantic signal that the action is in progress.
 **Action:** When implementing async UI feedback, ensure that any text changes are reflected in the element's ARIA attributes and use `aria-busy` to communicate state transition. If the design system lacks a spinner component, prioritize clear text feedback over custom CSS to maintain visual consistency.
+
+## 2025-05-27 - Real-Time Validation Feedback
+**Learning:** Using `setCustomValidity` within an `input` event listener provides immediate, native-feeling feedback for cross-field validation (like password confirmation). This reduces friction by preventing submission of invalid data rather than showing errors only after a failed POST request.
+**Action:** Prefer real-time `input` or `change` listeners for validation that depends on multiple fields, ensuring `setCustomValidity('')` is called when the state becomes valid to allow submission.
