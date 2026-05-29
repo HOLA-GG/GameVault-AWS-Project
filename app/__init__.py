@@ -200,8 +200,16 @@ def create_app() -> Flask:
         )
         response.headers['X-Request-Id'] = request_id
         response.headers['X-Content-Type-Options'] = 'nosniff'
+        # Prevent clickjacking
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        # Content-Security-Policy: defense-in-depth against XSS and injection
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: *.amazonaws.com;"
+        )
         return response
 
     @app.context_processor

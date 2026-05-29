@@ -97,3 +97,21 @@ def test_forgot_password_manual_token_enumeration(client):
     assert response.status_code == 200
     assert b'Si tus datos coinciden, se ha procesado la solicitud' in response.data
     assert b'No se pudo validar los datos' not in response.data
+
+def test_rate_showcase_csrf_protection(client):
+    """Verifica que el endpoint de rating esté protegido por CSRF."""
+    # Forzar habilitación de CSRF para la prueba
+    client.application.config['WTF_CSRF_ENABLED'] = True
+
+    # POST sin token CSRF
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 'sample',
+            'subject_id': 'demo-nintendo-reliquias',
+            'rating': 5,
+        }
+    )
+
+    # Debe retornar 400 Bad Request debido a la falta de token CSRF
+    assert response.status_code == 400
