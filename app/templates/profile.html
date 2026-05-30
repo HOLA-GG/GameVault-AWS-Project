@@ -105,7 +105,7 @@
 
 <section class="section">
     <h3>Cambiar contraseña</h3>
-    <form action="{{ url_for('main.profile') }}" method="POST">
+    <form action="{{ url_for('main.profile') }}" method="POST" id="passwordForm">
         <input type="hidden" name="form_name" value="password">
         <div class="form-row">
             <div class="form-group">
@@ -121,9 +121,41 @@
             <label for="confirm_password">Confirmar nueva contraseña</label>
             <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password">
         </div>
-        <button type="submit" class="btn-submit">Actualizar contraseña</button>
+        <button type="submit" class="btn-submit" id="passwordSubmitButton">Actualizar contraseña</button>
     </form>
 </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordForm = document.getElementById('passwordForm');
+        const passwordSubmitButton = document.getElementById('passwordSubmitButton');
+        const newPassword = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        if (newPassword && confirmPassword) {
+            function validatePassword() {
+                if (newPassword.value !== confirmPassword.value) {
+                    confirmPassword.setCustomValidity('Las contraseñas no coinciden');
+                } else {
+                    confirmPassword.setCustomValidity('');
+                }
+            }
+            newPassword.addEventListener('change', validatePassword);
+            confirmPassword.addEventListener('input', validatePassword);
+        }
+
+        if (passwordForm && passwordSubmitButton) {
+            passwordForm.addEventListener('submit', function() {
+                if (passwordForm.checkValidity()) {
+                    passwordSubmitButton.disabled = true;
+                    passwordSubmitButton.setAttribute('aria-busy', 'true');
+                    passwordSubmitButton.setAttribute('aria-label', 'Actualizando contraseña...');
+                    passwordSubmitButton.textContent = 'Actualizando contraseña...';
+                }
+            });
+        }
+    });
+</script>
 
 {% if recent_activity_logs %}
 <section class="section">
