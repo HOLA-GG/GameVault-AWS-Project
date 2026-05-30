@@ -39,6 +39,6 @@ jobs:
       # Este paso se ejecuta SOLO si es un Pull Request y los tests anteriores pasaron con éxito
       - name: Enable Auto-Merge
         if: github.event_name == 'pull_request'
-        run: gh pr enable-auto-merge "${{ github.event.pull_request.number }}" --merge
+        run: gh pr merge "${{ github.event.pull_request.number }}" --auto --merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
