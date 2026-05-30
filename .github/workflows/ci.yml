@@ -5,6 +5,11 @@ on:
     branches: [main, master]
   pull_request:
 
+# Añadimos permisos de escritura para que la Action pueda activar el auto-merge y leer los PRs
+permissions:
+  pull-requests: write
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -30,3 +35,10 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      # Este paso se ejecuta SOLO si es un Pull Request y los tests anteriores pasaron con éxito
+      - name: Enable Auto-Merge
+        if: github.event_name == 'pull_request'
+        run: gh pr enable-auto-merge "${{ github.event.pull_request.number }}" --merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
