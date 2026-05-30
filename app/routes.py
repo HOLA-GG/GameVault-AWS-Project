@@ -1044,7 +1044,7 @@ def login():
     usuario = verificar_credenciales(email, password)
     if usuario is None or not check_password_hash(usuario['password_hash'], password):
         crear_log_audit(
-            user_id=usuario['user_id'] if usuario else 'unknown',
+            user_id=usuario['user_id'] if usuario else None,
             action='FAILED_LOGIN',
             resource='auth',
             details={'email': email},
@@ -1226,7 +1226,7 @@ def forgot_password():
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
 
     if user:
-        result = crear_reset_token(user['user_id'], request.remote_addr or 'unknown')
+        result = crear_reset_token(user['user_id'], request.remote_addr or None)
         if result['success']:
             email_sent = enviar_email_reset_password(email, result['token'])
             crear_log_audit(
@@ -1281,7 +1281,7 @@ def forgot_password_manual_token():
         flash('No se pudo validar los datos de recuperación.', 'error')
         return redirect(url_for('main.forgot_password'))
 
-    result = crear_reset_token(user['user_id'], request.remote_addr or 'unknown')
+    result = crear_reset_token(user['user_id'], request.remote_addr or None)
     if not result.get('success'):
         flash('No se pudo generar el token de recuperación. Intenta de nuevo.', 'error')
         return redirect(url_for('main.forgot_password'))
