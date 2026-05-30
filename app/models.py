@@ -24,6 +24,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    case,
     create_engine,
     delete,
     func,
@@ -32,7 +33,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from werkzeug.security import generate_password_hash
 
@@ -950,70 +951,101 @@ def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, A
         return {'success': True, 'error': None}
 
 
-def build_collection_summary(user_dict: Dict[str, Any], games: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Resume una colección para landing pública o panel admin."""
-    ratings = [game['calificacion'] for game in games if isinstance(game.get('calificacion'), int)]
-    favorites_count = sum(1 for game in games if game.get('es_favorito'))
-    platform_counts: Dict[str, int] = {}
-    last_updated_at = ''
-
-    for game in games:
-        plataforma = game.get('plataforma') or 'Sin plataforma'
-        platform_counts[plataforma] = platform_counts.get(plataforma, 0) + 1
-        updated_at = game.get('updated_at') or game.get('created_at') or ''
-        if updated_at > last_updated_at:
-            last_updated_at = updated_at
-
-    dominant_platform = max(platform_counts.items(), key=lambda item: item[1])[0] if platform_counts else 'Sin juegos'
-    return {
-        'user_id': user_dict['user_id'],
-        'owner_name': user_dict.get('nombre') or 'Coleccionista',
-        'owner_email': user_dict.get('email'),
-        'collection_visibility': user_dict.get('collection_visibility', 'private'),
-        'homepage_showcase_opt_in': bool(user_dict.get('homepage_showcase_opt_in')),
-        'total_games': len(games),
-        'favorites_count': favorites_count,
-        'average_rating': round(sum(ratings) / len(ratings), 1) if ratings else None,
-        'dominant_platform': dominant_platform,
-        'last_updated_at': last_updated_at,
-    }
-
-
-def obtener_resumenes_colecciones(visibility: str | None = None) -> List[Dict[str, Any]]:
-    """Obtiene resúmenes de colecciones de usuarios."""
+def obtener_resumenes_colecciones(
+    visibility: str | None = None,
+    limit: int | None = None,
+    homepage_only: bool = False,
+) -> List[Dict[str, Any]]:
+    """Obtiene resúmenes de colecciones de usuarios (optimizado con agregación en SQL)."""
     ensure_tables()
     session_factory = get_session_factory()
+
+    # Subquery para métricas de juegos
+    game_metrics = (
+        select(
+            Game.user_id,
+            func.count(Game.game_id).label('total_games'),
+            func.sum(case((Game.es_favorito.is_(True), 1), else_=0)).label('favorites_count'),
+            func.avg(Game.calificacion).label('average_rating'),
+            func.max(func.coalesce(Game.updated_at, Game.created_at)).label('last_updated_at'),
+        )
+        .group_by(Game.user_id)
+        .subquery()
+    )
+
     with session_factory() as session:
-        query = select(User).options(selectinload(User.games)).order_by(User.updated_at.desc(), User.created_at.desc())
+        # Query principal uniendo User con el resumen de sus juegos
+        query = select(
+            User.user_id,
+            User.nombre,
+            User.email,
+            User.collection_visibility,
+            User.homepage_showcase_opt_in,
+            func.coalesce(game_metrics.c.total_games, 0).label('total_games'),
+            func.coalesce(game_metrics.c.favorites_count, 0).label('favorites_count'),
+            game_metrics.c.average_rating,
+            game_metrics.c.last_updated_at,
+        ).outerjoin(game_metrics, User.user_id == game_metrics.c.user_id)
+
         if visibility:
             query = query.where(User.collection_visibility == visibility)
-        users = session.scalars(query).all()
+        if homepage_only:
+            query = query.where(User.homepage_showcase_opt_in.is_(True), game_metrics.c.total_games > 0)
 
-        summaries: List[Dict[str, Any]] = []
-        for user in users:
-            user_dict = user_to_dict(user)
-            games = [game_to_dict(game) for game in user.games]
-            summaries.append(build_collection_summary(user_dict, games))
-
-        summaries.sort(
-            key=lambda item: (
-                item['average_rating'] if item['average_rating'] is not None else -1,
-                item['favorites_count'],
-                item['total_games'],
-                item['last_updated_at'],
-            ),
-            reverse=True,
+        # Ordenamiento en SQL: Rating desc, Favoritos desc, Total desc, Actualización desc
+        query = query.order_by(
+            func.coalesce(game_metrics.c.average_rating, -1).desc(),
+            func.coalesce(game_metrics.c.favorites_count, 0).desc(),
+            func.coalesce(game_metrics.c.total_games, 0).desc(),
+            game_metrics.c.last_updated_at.desc(),
         )
+
+        if limit:
+            query = query.limit(limit)
+
+        results = session.execute(query).all()
+        if not results:
+            return []
+
+        user_ids = [r.user_id for r in results]
+
+        # Batch query para plataformas dominantes (evita N+1 y cargar todos los juegos en memoria)
+        platform_query = (
+            select(Game.user_id, Game.plataforma, func.count(Game.plataforma))
+            .where(Game.user_id.in_(user_ids))
+            .group_by(Game.user_id, Game.plataforma)
+            .order_by(Game.user_id, func.count(Game.plataforma).desc())
+        )
+        platform_results = session.execute(platform_query).all()
+
+        dominant_platforms = {}
+        for row in platform_results:
+            if row[0] not in dominant_platforms:
+                dominant_platforms[row[0]] = row[1] or 'Sin plataforma'
+
+        summaries = []
+        for r in results:
+            summaries.append(
+                {
+                    'user_id': r.user_id,
+                    'owner_name': r.nombre or 'Coleccionista',
+                    'owner_email': r.email,
+                    'collection_visibility': r.collection_visibility,
+                    'homepage_showcase_opt_in': bool(r.homepage_showcase_opt_in),
+                    'total_games': int(r.total_games),
+                    'favorites_count': int(r.favorites_count),
+                    'average_rating': round(float(r.average_rating), 1) if r.average_rating is not None else None,
+                    'dominant_platform': dominant_platforms.get(r.user_id, 'Sin juegos'),
+                    'last_updated_at': _as_iso(r.last_updated_at) or '',
+                }
+            )
+
         return summaries
 
 
 def obtener_colecciones_publicas(limit: int = 6) -> List[Dict[str, Any]]:
-    """Devuelve colecciones públicas con algo real que mostrar."""
-    summaries = [
-        item for item in obtener_resumenes_colecciones('public')
-        if item['total_games'] > 0 and item.get('homepage_showcase_opt_in')
-    ]
-    return summaries[:limit]
+    """Devuelve colecciones públicas con algo real que mostrar (ahora optimizado)."""
+    return obtener_resumenes_colecciones(visibility='public', limit=limit, homepage_only=True)
 
 
 def obtener_rating_showcase(subject_type: str, subject_id: str) -> Dict[str, Any]:
