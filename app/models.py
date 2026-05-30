@@ -8,6 +8,7 @@ las rutas, pero ahora persiste usuarios, juegos, tokens y logs en SQL.
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
 import re
@@ -43,6 +44,11 @@ AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', 90))
 STORAGE_BACKEND = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
 LOCAL_UPLOAD_DIR = os.environ.get('LOCAL_UPLOAD_DIR', os.path.join(os.path.dirname(__file__), 'static', 'uploads'))
 LOCAL_UPLOAD_URL_PATH = os.environ.get('LOCAL_UPLOAD_URL_PATH', '/static/uploads').rstrip('/')
+
+
+def hash_token(token: str) -> str:
+    """Genera un hash seguro para tokens de un solo uso (SHA-256)."""
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
 
 def utcnow() -> datetime:
@@ -615,10 +621,11 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
     session_factory = get_session_factory()
     now = utcnow()
     expires_at = now + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
+    raw_token = secrets.token_urlsafe(32)
     item = PasswordResetToken(
         token_id=str(uuid.uuid4()),
         user_id=user_id,
-        reset_token=secrets.token_urlsafe(32),
+        reset_token=hash_token(raw_token),
         created_at=now,
         expires_at=expires_at,
         used=False,
@@ -629,7 +636,7 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
         session.commit()
         return {
             'success': True,
-            'token': item.reset_token,
+            'token': raw_token,
             'expires_at': expires_at,
             'error': None,
         }
@@ -639,8 +646,9 @@ def obtener_token_por_valor(reset_token: str, only_active: bool = True) -> List[
     """Busca tokens por valor."""
     ensure_tables()
     session_factory = get_session_factory()
+    hashed = hash_token(reset_token)
     with session_factory() as session:
-        query = select(PasswordResetToken).where(PasswordResetToken.reset_token == reset_token)
+        query = select(PasswordResetToken).where(PasswordResetToken.reset_token == hashed)
         if only_active:
             query = query.where(
                 PasswordResetToken.used.is_(False),
@@ -668,8 +676,9 @@ def usar_token(reset_token: str) -> Dict[str, Any]:
     """Marca un token como usado."""
     ensure_tables()
     session_factory = get_session_factory()
+    hashed = hash_token(reset_token)
     with session_factory() as session:
-        item = session.scalar(select(PasswordResetToken).where(PasswordResetToken.reset_token == reset_token))
+        item = session.scalar(select(PasswordResetToken).where(PasswordResetToken.reset_token == hashed))
         if item is None:
             return {'success': False, 'error': 'Token no encontrado'}
         item.used = True
