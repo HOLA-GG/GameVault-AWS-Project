@@ -9,3 +9,7 @@
 ## 2025-05-27 - Real-Time Validation Feedback
 **Learning:** Using `setCustomValidity` within an `input` event listener provides immediate, native-feeling feedback for cross-field validation (like password confirmation). This reduces friction by preventing submission of invalid data rather than showing errors only after a failed POST request.
 **Action:** Prefer real-time `input` or `change` listeners for validation that depends on multiple fields, ensuring `setCustomValidity('')` is called when the state becomes valid to allow submission.
+
+## 2025-05-31 - Unified Auth Feedback & Metric Clarity
+**Learning:** Standardizing asynchronous feedback across all authentication and recovery flows (using `aria-busy`, `disabled`, and synchronized text updates) ensures a predictable and accessible experience. Additionally, hiding decorative emojis in data-heavy dashboard metrics prevents verbal clutter, allowing screen reader users to focus on the actual numbers and labels.
+**Action:** Apply the standardized form ID naming pattern (`Form`/`SubmitButton`) and the JavaScript loading state logic to all new submission flows. Audit all landing and dashboard metrics to ensure decorative icons are explicitly hidden with `aria-hidden="true"`.
