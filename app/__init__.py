@@ -203,13 +203,23 @@ def create_app() -> Flask:
         # Prevent clickjacking
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # Enforce HTTPS in production
+        if app.config.get('APP_ENV') == 'production':
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+
+        # Minimize attack surface by disabling unused browser features
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
+
         # Content-Security-Policy: defense-in-depth against XSS and injection
-        response.headers['Content-Security-Policy'] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: *.amazonaws.com;"
-        )
+        csp_parts = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: *.amazonaws.com",
+            "upgrade-insecure-requests"
+        ]
+        response.headers['Content-Security-Policy'] = "; ".join(csp_parts)
         return response
 
     @app.context_processor
