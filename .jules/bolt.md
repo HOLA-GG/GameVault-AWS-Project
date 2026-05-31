@@ -13,3 +13,7 @@
 ## 2025-06-15 - In-memory List Aggregation and Sorting
 **Learning:** Functions like `obtener_resumenes_colecciones` that fetch all items (via `selectinload`) to calculate averages, counts, and perform complex multi-criteria sorting in Python create a massive O(N) memory and CPU bottleneck. SQL is significantly faster at grouping, aggregating, and sorting.
 **Action:** Always offload summary metrics (avg, count, sum) and multi-column sorting to SQL subqueries. Use batch fetching for attributes that require mode calculation (like dominant platform) to maintain O(1) query complexity for the returned page.
+
+## 2025-06-20 - Redundant Iterations and Python Sorting
+**Learning:** Functions like `build_dashboard_insights` were performing 5+ passes over the same collection to calculate different metrics (using Counter, multiple loops, and filters). Additionally, admin routes were re-sorting data that already had SQL `ORDER BY` applied. Python sorts are O(N log N) and redundant if the DB already did the work.
+**Action:** Consolidate multi-pass metrics into a single-pass loop. Reuse parsed objects (like datetimes) within that loop. Trust database-level ordering to avoid redundant CPU-intensive sorting in the application layer.

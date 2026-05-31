@@ -83,6 +83,13 @@ GAME_CATEGORY_OPTIONS = ['Biblioteca', 'Jugando', 'Backlog', 'Completado', 'Wish
 GAME_PRIORITY_OPTIONS = ['Baja', 'Media', 'Alta']
 GAME_RATING_OPTIONS = list(range(1, 11))
 
+ACTION_BADGE_GROUPS = {
+    'action-auth': {'LOGIN', 'LOGOUT', 'FAILED_LOGIN', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET', 'CHANGE_PASSWORD'},
+    'action-games': {'CREATE_GAME', 'UPDATE_GAME', 'DELETE_GAME'},
+    'action-users': {'REGISTER', 'UPDATE_PROFILE'},
+    'action-admin': {'ADMIN_ACTION'},
+}
+
 LANDING_SAMPLE_COLLECTIONS = [
     {
         'id': 'demo-nintendo-reliquias',
@@ -338,69 +345,66 @@ def normalize_game_metadata(form) -> dict:
 
 
 def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> dict:
-    """Calcula métricas ligeras para hacer el dashboard más útil."""
-    total_games = len(juegos)
-    platform_counts = Counter(juego.get('plataforma') or 'Sin plataforma' for juego in juegos)
-    status_counts = Counter(juego.get('estado') or 'N/A' for juego in juegos)
-    category_counts = Counter(juego.get('categoria') or 'Biblioteca' for juego in juegos)
+    """Calcula métricas ligeras para el dashboard (optimizado: pass único)."""
     now = datetime.now(timezone.utc)
     recent_cutoff = now - timedelta(days=7)
     stale_cutoff = now - timedelta(days=30)
 
-    recently_updated = 0
-    recently_added = 0
-    missing_images = 0
-    favorites_count = 0
-    high_priority_count = 0
-    stale_games = 0
-    ratings: list[int] = []
-    last_updated_game = None
-    last_updated_at = None
+    platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
+    recently_updated = recently_added = missing_images = favorites_count = 0
+    high_priority_count = stale_games = ratings_sum = ratings_count = 0
+    last_updated_game = last_updated_at = next_focus = next_focus_at = None
 
     for juego in juegos:
+        platform_counts[juego.get('plataforma') or 'Sin plataforma'] += 1
+        status_counts[juego.get('estado') or 'N/A'] += 1
+        cat = juego.get('categoria') or 'Biblioteca'
+        category_counts[cat] += 1
+
         if not juego.get('imagen_url'):
             missing_images += 1
         if juego.get('es_favorito'):
             favorites_count += 1
-        if (juego.get('prioridad') or '').lower() == 'alta':
-            high_priority_count += 1
-        if isinstance(juego.get('calificacion'), int):
-            ratings.append(juego['calificacion'])
 
-        created_at = parse_iso_datetime(juego.get('created_at'))
-        updated_at = parse_iso_datetime(juego.get('updated_at')) or created_at
-        if created_at and created_at >= recent_cutoff:
+        prio_raw = (juego.get('prioridad') or '').lower()
+        if prio_raw == 'alta':
+            high_priority_count += 1
+
+        calif = juego.get('calificacion')
+        if isinstance(calif, int):
+            ratings_sum += calif
+            ratings_count += 1
+
+        dt_created = parse_iso_datetime(juego.get('created_at'))
+        dt_updated = parse_iso_datetime(juego.get('updated_at')) or dt_created
+
+        if dt_created and dt_created >= recent_cutoff:
             recently_added += 1
-        if updated_at and updated_at >= recent_cutoff:
-            recently_updated += 1
-        if updated_at and updated_at < stale_cutoff:
-            stale_games += 1
-        if updated_at and (last_updated_at is None or updated_at > last_updated_at):
-            last_updated_at = updated_at
-            last_updated_game = juego
+        if dt_updated:
+            if dt_updated >= recent_cutoff:
+                recently_updated += 1
+            if dt_updated < stale_cutoff:
+                stale_games += 1
+            if last_updated_at is None or dt_updated > last_updated_at:
+                last_updated_at, last_updated_game = dt_updated, juego
+
+        if prio_raw == 'alta' and cat != 'Completado':
+            comp_dt = dt_updated or datetime.min.replace(tzinfo=timezone.utc)
+            if next_focus is None or comp_dt < next_focus_at:
+                next_focus, next_focus_at = juego, comp_dt
 
     recent_activity = 0
     for log in activity_logs:
-        timestamp = parse_iso_datetime(log.get('timestamp'))
-        if timestamp and timestamp >= recent_cutoff:
+        ts = parse_iso_datetime(log.get('timestamp'))
+        if ts and ts >= recent_cutoff:
             recent_activity += 1
 
     dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
     dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
     dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
-    average_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
-    next_focus = None
-    priority_candidates = [
-        juego for juego in juegos if (juego.get('prioridad') or '').lower() == 'alta' and juego.get('categoria') != 'Completado'
-    ]
-    if priority_candidates:
-        priority_candidates.sort(
-            key=lambda item: parse_iso_datetime(item.get('updated_at')) or parse_iso_datetime(item.get('created_at')) or datetime.min.replace(tzinfo=timezone.utc)
-        )
-        next_focus = priority_candidates[0]
 
     return {
-        'total_games': total_games,
+        'total_games': len(juegos),
         'platforms_count': len(platform_counts),
         'recently_added': recently_added,
         'recently_updated': recently_updated,
@@ -412,7 +416,7 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         'wishlist_count': category_counts.get('Wishlist', 0),
         'backlog_count': category_counts.get('Backlog', 0),
         'currently_playing_count': category_counts.get('Jugando', 0),
-        'average_rating': average_rating,
+        'average_rating': round(ratings_sum / ratings_count, 1) if ratings_count > 0 else None,
         'dominant_platform': {'label': dominant_platform[0], 'count': dominant_platform[1]},
         'dominant_status': {'label': dominant_status[0], 'count': dominant_status[1]},
         'dominant_category': {'label': dominant_category[0], 'count': dominant_category[1]},
@@ -435,20 +439,14 @@ def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
 def get_action_badge_class(action: str) -> str:
     """Asigna color visual según el tipo de actividad auditada."""
     action = (action or '').upper()
-    action_groups = {
-        'action-auth': {'LOGIN', 'LOGOUT', 'FAILED_LOGIN', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET', 'CHANGE_PASSWORD'},
-        'action-games': {'CREATE_GAME', 'UPDATE_GAME', 'DELETE_GAME'},
-        'action-users': {'REGISTER', 'UPDATE_PROFILE'},
-        'action-admin': {'ADMIN_ACTION'},
-    }
-    for class_name, values in action_groups.items():
+    for class_name, values in ACTION_BADGE_GROUPS.items():
         if action in values:
             return class_name
     return 'action-generic'
 
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
-    """Agrupa logs por cuenta para que el panel admin sea más legible (optimizado con pre-fetch)."""
+    """Agrupa logs por cuenta (optimizado: asume logs ya ordenados por timestamp desc)."""
     # Pre-fetch de todos los usuarios únicos para evitar N+1 queries.
     unique_user_ids = {log.get('user_id') for log in logs if log.get('user_id')}
     users_data = obtener_usuarios_por_ids(list(unique_user_ids))
@@ -458,18 +456,17 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
 
     for log in logs:
         user_id = log.get('user_id') or 'system'
-        user = user_cache.get(user_id)
-        bucket = grouped.setdefault(
-            user_id,
-            {
+        if user_id not in grouped:
+            user = user_cache.get(user_id)
+            grouped[user_id] = {
                 'user_id': user_id,
                 'email': (user or {}).get('email', '') if user_id != 'system' else 'sistema@local',
                 'nombre': (user or {}).get('nombre', '') if user_id != 'system' else 'Sistema',
                 'items': [],
-                'latest_timestamp': '',
-                'latest_action': '',
-            },
-        )
+                'latest_timestamp': log.get('timestamp', ''),
+                'latest_action': log.get('action_name') or log.get('action') or 'Actividad',
+            }
+        bucket = grouped[user_id]
         enriched = dict(log)
         enriched['action_badge_class'] = get_action_badge_class(log.get('action', ''))
         enriched['status_badge_class'] = (
@@ -480,16 +477,10 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
             else 'badge-log-neutral'
         )
         bucket['items'].append(enriched)
-        log_timestamp = log.get('timestamp', '') or ''
-        if log_timestamp >= bucket['latest_timestamp']:
-            bucket['latest_timestamp'] = log_timestamp
-            bucket['latest_action'] = log.get('action_name') or log.get('action') or 'Actividad'
 
     ordered_groups = list(grouped.values())
     for group in ordered_groups:
         group['events_count'] = len(group['items'])
-        group['items'].sort(key=lambda item: item.get('timestamp', ''), reverse=True)
-    ordered_groups.sort(key=lambda item: item.get('latest_timestamp', ''), reverse=True)
     return ordered_groups
 
 
@@ -1400,7 +1391,6 @@ def reset_password_with_email(token):
 def admin_panel():
     """Panel simple de administración con paginación."""
     usuarios = obtener_todos_usuarios()
-    usuarios.sort(key=lambda item: item.get('created_at', ''), reverse=True)
     page = request.args.get('page', 1, type=int)
     pagination = paginate_items(usuarios, page, current_app.config['ADMIN_USERS_PER_PAGE'])
     return render_template(
