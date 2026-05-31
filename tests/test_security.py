@@ -115,3 +115,29 @@ def test_rate_showcase_csrf_protection(client):
 
     # Debe retornar 400 Bad Request debido a la falta de token CSRF
     assert response.status_code == 400
+
+def test_security_headers(client):
+    """Verifica que las cabeceras de seguridad estén presentes y configuradas correctamente."""
+    response = client.get('/')
+
+    assert response.headers['X-Content-Type-Options'] == 'nosniff'
+    assert response.headers['X-Frame-Options'] == 'SAMEORIGIN'
+    assert response.headers['Referrer-Policy'] == 'strict-origin-when-cross-origin'
+    assert 'upgrade-insecure-requests' in response.headers['Content-Security-Policy']
+    assert 'Permissions-Policy' in response.headers
+    assert 'camera=()' in response.headers['Permissions-Policy']
+
+def test_hsts_header_in_production(app):
+    """Verifica que HSTS esté presente en producción."""
+    app.config['APP_ENV'] = 'production'
+    with app.test_client() as client:
+        response = client.get('/')
+        assert 'Strict-Transport-Security' in response.headers
+        assert 'max-age=31536000' in response.headers['Strict-Transport-Security']
+
+def test_hsts_header_not_in_dev(app):
+    """Verifica que HSTS no esté presente en desarrollo/test por defecto."""
+    app.config['APP_ENV'] = 'testing'
+    with app.test_client() as client:
+        response = client.get('/')
+        assert 'Strict-Transport-Security' not in response.headers
