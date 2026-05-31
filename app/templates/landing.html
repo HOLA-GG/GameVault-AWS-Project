@@ -55,7 +55,7 @@
         {% for collection in sample_collections %}
             <article class="collection-showcase-card">
                 <div class="collection-showcase-card__header">
-                    <span class="feature-icon">🏆</span>
+                    <span class="feature-icon" aria-hidden="true">🏆</span>
                     <div>
                         <h4>{{ collection.title }}</h4>
                         <p>{{ collection.owner_name }}</p>
@@ -105,7 +105,7 @@
     <div class="features-grid">
         {% for collection in public_collections %}
             <article class="feature-card">
-                <span class="feature-icon">🌐</span>
+                <span class="feature-icon" aria-hidden="true">🌐</span>
                 <h4>{{ collection.owner_name }}</h4>
                 <p>{{ collection.total_games }} juegos · {{ collection.favorites_count }} favoritos · {{ collection.dominant_platform }}</p>
                 <div class="insight-strip compact">
@@ -149,22 +149,22 @@
     <h2 style="text-align:center;margin-bottom:30px;">Pensado para coleccionistas</h2>
     <div class="features-grid">
         <div class="feature-card electric-wrapper color-blue">
-            <span class="feature-icon">🗂️</span>
+            <span class="feature-icon" aria-hidden="true">🗂️</span>
             <h4>Orden real</h4>
             <p>Filtra por plataforma, estado y encuentra cualquier juego al instante.</p>
         </div>
         <div class="feature-card electric-wrapper color-yellow">
-            <span class="feature-icon">📊</span>
+            <span class="feature-icon" aria-hidden="true">📊</span>
             <h4>Tu colección cobra vida</h4>
             <p>Ve tu actividad reciente, plataforma dominante y el estado real de tu biblioteca.</p>
         </div>
         <div class="feature-card electric-wrapper color-purple">
-            <span class="feature-icon">🔒</span>
+            <span class="feature-icon" aria-hidden="true">🔒</span>
             <h4>Cuenta privada</h4>
             <p>Tu panel es personal y ya no comparte datos demo dentro del dashboard real.</p>
         </div>
         <div class="feature-card electric-wrapper color-rainbow">
-            <span class="feature-icon">📈</span>
+            <span class="feature-icon" aria-hidden="true">📈</span>
             <h4>Base para crecer</h4>
             <p>Logs, recuperación de contraseña y despliegue listo para pasar a beta pública.</p>
         </div>
