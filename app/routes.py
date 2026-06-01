@@ -345,20 +345,30 @@ def normalize_game_metadata(form) -> dict:
 
 
 def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> dict:
-    """Calcula métricas ligeras para el dashboard (optimizado: pass único)."""
+    """Calcula métricas ligeras para el dashboard (optimizado: pass único y comparaciones ISO)."""
     now = datetime.now(timezone.utc)
-    recent_cutoff = now - timedelta(days=7)
-    stale_cutoff = now - timedelta(days=30)
+    recent_cutoff_iso = (now - timedelta(days=7)).isoformat()
+    stale_cutoff_iso = (now - timedelta(days=30)).isoformat()
+    min_iso = "0001-01-01T00:00:00+00:00"
 
     platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
+    unique_platforms, unique_statuses, unique_categories = set(), set(), set()
+
     recently_updated = recently_added = missing_images = favorites_count = 0
     high_priority_count = stale_games = ratings_sum = ratings_count = 0
-    last_updated_game = last_updated_at = next_focus = next_focus_at = None
+    last_updated_game = last_updated_at_iso = next_focus = next_focus_at_iso = None
 
     for juego in juegos:
-        platform_counts[juego.get('plataforma') or 'Sin plataforma'] += 1
-        status_counts[juego.get('estado') or 'N/A'] += 1
+        plat = juego.get('plataforma')
+        if plat: unique_platforms.add(plat)
+        platform_counts[plat or 'Sin plataforma'] += 1
+
+        est = juego.get('estado')
+        if est: unique_statuses.add(est)
+        status_counts[est or 'N/A'] += 1
+
         cat = juego.get('categoria') or 'Biblioteca'
+        unique_categories.add(cat)
         category_counts[cat] += 1
 
         if not juego.get('imagen_url'):
@@ -375,28 +385,28 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
             ratings_sum += calif
             ratings_count += 1
 
-        dt_created = parse_iso_datetime(juego.get('created_at'))
-        dt_updated = parse_iso_datetime(juego.get('updated_at')) or dt_created
+        iso_created = juego.get('created_at') or min_iso
+        iso_updated = juego.get('updated_at') or iso_created
 
-        if dt_created and dt_created >= recent_cutoff:
+        if iso_created >= recent_cutoff_iso:
             recently_added += 1
-        if dt_updated:
-            if dt_updated >= recent_cutoff:
-                recently_updated += 1
-            if dt_updated < stale_cutoff:
-                stale_games += 1
-            if last_updated_at is None or dt_updated > last_updated_at:
-                last_updated_at, last_updated_game = dt_updated, juego
+
+        if iso_updated >= recent_cutoff_iso:
+            recently_updated += 1
+        if iso_updated < stale_cutoff_iso:
+            stale_games += 1
+
+        if last_updated_at_iso is None or iso_updated > last_updated_at_iso:
+            last_updated_at_iso, last_updated_game = iso_updated, juego
 
         if prio_raw == 'alta' and cat != 'Completado':
-            comp_dt = dt_updated or datetime.min.replace(tzinfo=timezone.utc)
-            if next_focus is None or comp_dt < next_focus_at:
-                next_focus, next_focus_at = juego, comp_dt
+            if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
+                next_focus, next_focus_at_iso = juego, iso_updated
 
     recent_activity = 0
     for log in activity_logs:
-        ts = parse_iso_datetime(log.get('timestamp'))
-        if ts and ts >= recent_cutoff:
+        ts_iso = log.get('timestamp')
+        if ts_iso and ts_iso >= recent_cutoff_iso:
             recent_activity += 1
 
     dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
@@ -422,6 +432,11 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         'dominant_category': {'label': dominant_category[0], 'count': dominant_category[1]},
         'last_updated_game': last_updated_game,
         'next_focus': next_focus,
+        'filter_options': {
+            'plataformas': sorted(list(unique_platforms)),
+            'estados': sorted(list(unique_statuses)),
+            'categorias': sorted(list(unique_categories)),
+        }
     }
 
 
@@ -496,7 +511,7 @@ def build_query_args(**updates) -> dict:
 
 
 def filter_and_sort_games(juegos, filters):
-    """Aplica búsqueda, filtros y orden en memoria."""
+    """Aplica búsqueda, filtros y orden en memoria (Optimizado)."""
     query = filters.get('q', '').strip().lower()
     plataforma = filters.get('plataforma', '')
     estado = filters.get('estado', '')
@@ -506,16 +521,7 @@ def filter_and_sort_games(juegos, filters):
 
     filtered = []
     for juego in juegos:
-        haystack = ' '.join(
-            [
-                juego.get('titulo', ''),
-                juego.get('descripcion', ''),
-                juego.get('plataforma', ''),
-                juego.get('estado', ''),
-            ]
-        ).lower()
-        if query and query not in haystack:
-            continue
+        # Chequeos baratos primero para fallar rápido antes de construir el haystack
         if plataforma and juego.get('plataforma') != plataforma:
             continue
         if estado and juego.get('estado') != estado:
@@ -524,6 +530,13 @@ def filter_and_sort_games(juegos, filters):
             continue
         if favoritos == 'solo' and not juego.get('es_favorito'):
             continue
+
+        # La búsqueda por texto es la operación más costosa, solo se hace si es necesario
+        if query:
+            haystack = f"{juego.get('titulo', '')} {juego.get('descripcion', '')} {juego.get('plataforma', '')} {juego.get('estado', '')}".lower()
+            if query not in haystack:
+                continue
+
         filtered.append(juego)
 
     def sort_key(item):
@@ -703,11 +716,9 @@ def dashboard():
 
     filtered_games = filter_and_sort_games(juegos, filters)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
-    plataformas = sorted({juego.get('plataforma', 'PC') for juego in juegos if juego.get('plataforma')})
-    estados = sorted({juego.get('estado', 'N/A') for juego in juegos if juego.get('estado')})
-    categorias = sorted({juego.get('categoria', 'Biblioteca') for juego in juegos if juego.get('categoria')})
     paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
     dashboard_insights = build_dashboard_insights(juegos, activity_logs)
+    filter_opts = dashboard_insights.get('filter_options', {})
 
     return render_template(
         'index.html',
@@ -717,9 +728,9 @@ def dashboard():
         pagination=pagination,
         total_user_games=len(juegos),
         total_filtered_games=len(filtered_games),
-        plataformas=plataformas,
-        estados=estados,
-        categorias=categorias,
+        plataformas=filter_opts.get('plataformas', []),
+        estados=filter_opts.get('estados', []),
+        categorias=filter_opts.get('categorias', []),
         GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
         GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
         GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
