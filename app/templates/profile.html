@@ -57,7 +57,7 @@
         </div>
     </div>
 
-    <form action="{{ url_for('main.profile') }}" method="POST">
+    <form action="{{ url_for('main.profile') }}" method="POST" id="profileForm">
         <input type="hidden" name="form_name" value="profile">
         <div class="form-row">
             <div class="form-group">
@@ -99,7 +99,7 @@
                 Solo se mostrará en portada si la colección es pública y tiene contenido real.
             </small>
         </div>
-        <button type="submit" class="btn-submit">Guardar perfil</button>
+        <button type="submit" class="btn-submit" id="profileSubmitButton">Guardar perfil</button>
     </form>
 </section>
 
@@ -127,6 +127,8 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const profileForm = document.getElementById('profileForm');
+        const profileSubmitButton = document.getElementById('profileSubmitButton');
         const passwordForm = document.getElementById('passwordForm');
         const passwordSubmitButton = document.getElementById('passwordSubmitButton');
         const newPassword = document.getElementById('password');
@@ -142,6 +144,17 @@
             }
             newPassword.addEventListener('change', validatePassword);
             confirmPassword.addEventListener('input', validatePassword);
+        }
+
+        if (profileForm && profileSubmitButton) {
+            profileForm.addEventListener('submit', function() {
+                if (profileForm.checkValidity()) {
+                    profileSubmitButton.disabled = true;
+                    profileSubmitButton.setAttribute('aria-busy', 'true');
+                    profileSubmitButton.setAttribute('aria-label', 'Guardando perfil...');
+                    profileSubmitButton.textContent = 'Guardando perfil...';
+                }
+            });
         }
 
         if (passwordForm && passwordSubmitButton) {
