@@ -17,3 +17,8 @@
 **Vulnerability:** Potential CSV Injection in log exports and missing Referrer-Policy header.
 **Learning:** Audit logs often contain user-controlled data (like game titles or usernames) that can be exploited via CSV Injection if not sanitized. Also, missing Referrer-Policy can leak sensitive data in URLs.
 **Prevention:** Sanitize CSV exports by prepending a single quote to risky characters (=, +, -, @, |). Always include modern security headers like Referrer-Policy in the global response handler.
+
+## 2025-06-01 - Prevent Token Leakage in Audit Logs
+**Vulnerability:** Exposure of password reset tokens in server request logs.
+**Learning:** Request paths are often logged by default, which can leak sensitive data like recovery tokens passed as URL parameters.
+**Prevention:** Implement path redaction in the global request logger by checking the `request.endpoint` and masking the path before logging.

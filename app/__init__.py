@@ -191,10 +191,15 @@ def create_app() -> Flask:
     @app.after_request
     def log_request(response):
         request_id = getattr(g, 'request_id', str(uuid.uuid4()))
+        log_path = request.path
+        # Avoid leaking sensitive tokens in audit logs (defense-in-depth)
+        if request.endpoint == 'main.reset_password_with_email':
+            log_path = '/reset-password/[REDACTED]'
+
         app.logger.info(
             '%s %s status=%s remote_addr=%s',
             request.method,
-            request.path,
+            log_path,
             response.status_code,
             request.remote_addr,
         )
@@ -203,6 +208,8 @@ def create_app() -> Flask:
         # Prevent clickjacking
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        # Legacy XSS protection for older browsers
+        response.headers['X-XSS-Protection'] = '1; mode=block'
 
         # Enforce HTTPS in production
         if app.config.get('APP_ENV') == 'production':
@@ -217,6 +224,10 @@ def create_app() -> Flask:
             "script-src 'self' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: *.amazonaws.com",
+            "connect-src 'self' *.amazonaws.com",
+            "frame-ancestors 'self'",
+            "form-action 'self'",
+            "base-uri 'self'",
             "upgrade-insecure-requests"
         ]
         response.headers['Content-Security-Policy'] = "; ".join(csp_parts)
