@@ -1,0 +1,141 @@
+============================================================
+GAMEVAULT LOCAL
+============================================================
+Entorno: testing
+Host: 127.0.0.1:5000
+Debug: True
+Base de datos: sqlite
+Storage: none
+============================================================
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 631-326-424
+2026-06-01 10:06:36,956 level=INFO logger=app request_id=27e85671-5b9c-4c30-9785-0c65d764037c message=GET /login status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:36] "GET /login HTTP/1.1" 200 -
+2026-06-01 10:06:37,123 level=INFO logger=app request_id=4122798f-3695-4df3-b211-c4ec5aeefbc2 message=GET /static/css/styles.css status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:37] "GET /static/css/styles.css HTTP/1.1" 200 -
+2026-06-01 10:06:38,032 level=INFO logger=app request_id=3bb5b582-cf8b-4d93-817b-599d775a60bc message=POST /login status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:38] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-06-01 10:06:38,041 level=INFO logger=app request_id=002605ac-3871-4d99-9681-3ed99d4e869e message=GET /login status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:38] "GET /login HTTP/1.1" 200 -
+2026-06-01 10:06:38,062 level=INFO logger=app request_id=16a30466-9d06-47bf-bc4e-046999c8b37b message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:38] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:06:38,080 level=INFO logger=app request_id=4a4d49f0-2b68-4e37-83e0-4e768fe83f78 message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:38] "GET /registro HTTP/1.1" 200 -
+2026-06-01 10:06:38,121 level=INFO logger=app request_id=2024ac80-7ae6-45d9-9fcc-bc90d3b1ef7f message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:38] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:06:40,143 level=INFO logger=app request_id=e8ce3e08-e6a4-4cab-8220-dbe975a384f7 message=POST /registro status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:40] "[32mPOST /registro HTTP/1.1[0m" 302 -
+2026-06-01 10:06:40,214 level=INFO logger=app request_id=fb27b5db-cb79-43c1-8aad-e60a6a329cf2 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:40] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:06:40,229 level=INFO logger=app request_id=9b753560-7486-4dba-809a-f9dce06fc246 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:40] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:06:42,401 level=INFO logger=app request_id=5b650745-0bef-464b-8a62-fa7f63df2c7a message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:42] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:06:42,411 level=INFO logger=app request_id=3a346e21-eaf6-4a26-bdd8-a0c6c9a082b2 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:42] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:06:42,425 level=INFO logger=app request_id=b7888e70-d2d8-45ad-85cd-8dc7b9e86366 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:42] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:06:44,105 level=INFO logger=app request_id=d710cf2a-44da-4be2-b5e3-7838ab5247d6 message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:44] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:06:44,114 level=INFO logger=app request_id=ef585038-9c2a-4002-a7fa-e560550848e2 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:44] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:06:44,128 level=INFO logger=app request_id=99274964-1be0-4093-9a22-4205cba12a68 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:44] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:06:45,734 level=INFO logger=app request_id=22ed114e-cfad-450c-a7e5-2b78e819c774 message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:45] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:06:45,744 level=INFO logger=app request_id=c3d8c24c-6b17-46c0-ac9e-bdfaa4f0b4fe message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:45] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:06:45,763 level=INFO logger=app request_id=450304fa-f6f3-4de2-914e-35b9066fc481 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:45] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:06:45,768 level=INFO logger=app request_id=f4c4205d-b050-4349-8088-e6033072b0eb message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:45] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:06:45,827 level=INFO logger=app request_id=aea57e3b-d915-49c3-bd64-a06822662001 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:06:45] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:07,052 level=INFO logger=app request_id=ab4f82d5-5d5e-44b9-bca2-16502bbcad33 message=GET /login status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "GET /login HTTP/1.1" 200 -
+2026-06-01 10:07:07,064 level=INFO logger=app request_id=fe7de2a2-75ec-4426-b345-5c3825f26b8a message=GET /static/css/styles.css status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "GET /static/css/styles.css HTTP/1.1" 200 -
+2026-06-01 10:07:07,244 level=INFO logger=app request_id=5023d476-b3e1-4833-9def-acac653e3557 message=POST /login status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-06-01 10:07:07,252 level=INFO logger=app request_id=3395b896-f9a0-42ed-b121-12314258673d message=GET /login status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "GET /login HTTP/1.1" 200 -
+2026-06-01 10:07:07,269 level=INFO logger=app request_id=aaadb271-20bd-454f-940a-b0ca839054bd message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "GET /registro HTTP/1.1" 200 -
+2026-06-01 10:07:07,270 level=INFO logger=app request_id=1a1fd62b-0a5e-402c-a585-1ca5f8678327 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:07,279 level=INFO logger=app request_id=24e8730e-7e78-4cf7-ab73-48b1142acc67 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:07,906 level=INFO logger=app request_id=844cf853-60fa-424b-9292-e7fa53ee98d6 message=POST /registro status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "[32mPOST /registro HTTP/1.1[0m" 302 -
+2026-06-01 10:07:07,916 level=INFO logger=app request_id=0e26a408-86f7-45db-9567-067872efe2b9 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:07,928 level=INFO logger=app request_id=75eae17c-1aac-4fe3-b6a6-3e0c0a8970c4 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:07] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:09,517 level=INFO logger=app request_id=a856de9c-72d5-4608-9ace-2bd5319b6b68 message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:09] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:07:09,527 level=INFO logger=app request_id=266d4af1-2e00-4a43-abec-e6f624014480 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:09] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:09,539 level=INFO logger=app request_id=80227999-3d8b-4ca5-8c75-072551f2d859 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:09] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:11,134 level=INFO logger=app request_id=27193e87-7b45-41cd-9456-dce5be795b95 message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:11] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:07:11,144 level=INFO logger=app request_id=bd074bc1-4b04-4c8f-a02f-7da55617493a message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:11] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:11,155 level=INFO logger=app request_id=cef20f6c-ea8b-4979-8bc4-edef882c588a message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:11] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:12,782 level=INFO logger=app request_id=f66ec5ee-54a5-44f6-9114-02505b7634ed message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:12] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:07:12,792 level=INFO logger=app request_id=4d880712-c5ed-47e0-8d41-4b59d4300592 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:12] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:12,805 level=INFO logger=app request_id=daeed1dc-2fd0-469f-8b56-b7379fe1fb90 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:12] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:12,813 level=INFO logger=app request_id=71fd4606-1952-475f-880a-e326df10c266 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:12] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:12,864 level=INFO logger=app request_id=ffe2501b-ccb5-4a72-aee2-244f6af9d073 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:12] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:13,244 level=INFO logger=app request_id=0c53c5ae-1fff-4ac3-a55c-114072ec9402 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:13] "GET /dashboard?q=Zelda&plataforma=&estado=&categoria=&favoritos=&sort=updated_desc HTTP/1.1" 200 -
+2026-06-01 10:07:13,259 level=INFO logger=app request_id=e1406d84-f0f0-4d93-b059-802b6814346a message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:13] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:35,959 level=INFO logger=app request_id=d9f63cdd-a8cf-4261-b67d-68c48f4faa3e message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:35] "GET /registro HTTP/1.1" 200 -
+2026-06-01 10:07:35,971 level=INFO logger=app request_id=542d9a52-bba4-4532-be71-3d3659ef6bdb message=GET /static/css/styles.css status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:35] "GET /static/css/styles.css HTTP/1.1" 200 -
+2026-06-01 10:07:36,355 level=INFO logger=app request_id=b610f885-f7da-4dc5-be37-b30a93c53f9d message=POST /registro status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:36] "[32mPOST /registro HTTP/1.1[0m" 302 -
+2026-06-01 10:07:36,364 level=INFO logger=app request_id=150e38c0-9272-455b-ab46-e4d0fd343148 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:36] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:36,378 level=INFO logger=app request_id=5479b780-2edf-488d-915f-3659f040335c message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:36] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:38,065 level=INFO logger=app request_id=ee563ff6-85b6-4d26-b157-de7ecc05ccbd message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:38] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:07:38,074 level=INFO logger=app request_id=93b5944f-8a66-4451-8c70-3fdfa1944013 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:38] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:38,088 level=INFO logger=app request_id=657875e4-5aed-4195-ba80-5d79affd4f53 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:38] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:38,700 level=INFO logger=app request_id=9a11d840-aa7d-46e0-be46-864edf8f9114 message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:38] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:07:38,709 level=INFO logger=app request_id=b6fddeff-7a08-47de-a5b6-636652cce0cc message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:38] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:38,722 level=INFO logger=app request_id=5f1e6e3e-98c1-4f06-9026-e04a8b2194d7 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:38] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:40,350 level=INFO logger=app request_id=2607b8bf-6483-4a64-84aa-1cd22b921e25 message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:40] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-01 10:07:40,359 level=INFO logger=app request_id=66671e7b-606a-4f5c-9807-c64f96723364 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:40] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:40,373 level=INFO logger=app request_id=3d9e1703-0d1e-45db-856c-bcf5e56e1233 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:40] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:40,381 level=INFO logger=app request_id=5db9666b-4e23-40de-aa69-dce20d738880 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:40] "GET /dashboard HTTP/1.1" 200 -
+2026-06-01 10:07:40,429 level=INFO logger=app request_id=444c18af-bc89-4cba-821e-1c4c29264e6e message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:40] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-01 10:07:40,912 level=INFO logger=app request_id=29437c1a-3b56-4ad1-ab1b-d2300d38e788 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:40] "GET /dashboard?q=Zelda&plataforma=&estado=&categoria=&favoritos=&sort=updated_desc HTTP/1.1" 200 -
+2026-06-01 10:07:40,924 level=INFO logger=app request_id=9d85f49e-d9a7-478e-a011-ea76d07418b0 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [01/Jun/2026 10:07:40] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -

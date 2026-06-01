@@ -17,3 +17,7 @@
 ## 2025-06-20 - Redundant Iterations and Python Sorting
 **Learning:** Functions like `build_dashboard_insights` were performing 5+ passes over the same collection to calculate different metrics (using Counter, multiple loops, and filters). Additionally, admin routes were re-sorting data that already had SQL `ORDER BY` applied. Python sorts are O(N log N) and redundant if the DB already did the work.
 **Action:** Consolidate multi-pass metrics into a single-pass loop. Reuse parsed objects (like datetimes) within that loop. Trust database-level ordering to avoid redundant CPU-intensive sorting in the application layer.
+
+## 2025-06-25 - ISO 8601 String Comparison vs Datetime Parsing
+**Learning:** Parsing ISO 8601 strings into `datetime` objects for every item in a large collection is expensive. Since ISO 8601 is lexicographically sortable, comparing strings directly for "greater than" or "less than" (e.g., for recent/stale checks) is significantly faster and logically equivalent.
+**Action:** Use string comparisons for ISO 8601 dates in hot loops where only relative ordering or cutoff checks are needed.
