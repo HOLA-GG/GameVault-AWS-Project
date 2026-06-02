@@ -13,3 +13,7 @@
 ## 2025-05-31 - Unified Auth Feedback & Metric Clarity
 **Learning:** Standardizing asynchronous feedback across all authentication and recovery flows (using `aria-busy`, `disabled`, and synchronized text updates) ensures a predictable and accessible experience. Additionally, hiding decorative emojis in data-heavy dashboard metrics prevents verbal clutter, allowing screen reader users to focus on the actual numbers and labels.
 **Action:** Apply the standardized form ID naming pattern (`Form`/`SubmitButton`) and the JavaScript loading state logic to all new submission flows. Audit all landing and dashboard metrics to ensure decorative icons are explicitly hidden with `aria-hidden="true"`.
+
+## 2025-06-02 - Defensive Destructive Interactions
+**Learning:** Destructive actions like clearing system logs require a double-layer of UX protection: a confirmation dialog to prevent accidental clicks and an immediate loading state to prevent double-submissions. Using the native `confirm()` is highly accessible and familiar, while synchronized ARIA attributes (`aria-busy`, `aria-label`) provide necessary feedback for screen readers during the execution.
+**Action:** Always pair `confirm()` with a synchronized loading state (disabled button + text/ARIA updates) for all destructive operations in the admin panel.
