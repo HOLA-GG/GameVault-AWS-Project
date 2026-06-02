@@ -90,6 +90,13 @@ ACTION_BADGE_GROUPS = {
     'action-admin': {'ADMIN_ACTION'},
 }
 
+# Pre-calculated reverse mapping for O(1) badge class lookup.
+_ACTION_BADGE_MAP = {
+    action: class_name
+    for class_name, actions in ACTION_BADGE_GROUPS.items()
+    for action in actions
+}
+
 LANDING_SAMPLE_COLLECTIONS = [
     {
         'id': 'demo-nintendo-reliquias',
@@ -452,12 +459,8 @@ def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
 
 
 def get_action_badge_class(action: str) -> str:
-    """Asigna color visual según el tipo de actividad auditada."""
-    action = (action or '').upper()
-    for class_name, values in ACTION_BADGE_GROUPS.items():
-        if action in values:
-            return class_name
-    return 'action-generic'
+    """Asigna color visual según el tipo de actividad auditada (Optimizado: O(1))."""
+    return _ACTION_BADGE_MAP.get((action or '').upper(), 'action-generic')
 
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
@@ -531,11 +534,14 @@ def filter_and_sort_games(juegos, filters):
         if favoritos == 'solo' and not juego.get('es_favorito'):
             continue
 
-        # La búsqueda por texto es la operación más costosa, solo se hace si es necesario
-        if query:
-            haystack = f"{juego.get('titulo', '')} {juego.get('descripcion', '')} {juego.get('plataforma', '')} {juego.get('estado', '')}".lower()
-            if query not in haystack:
-                continue
+        # La búsqueda por texto es la operación más costosa, optimizada con short-circuit
+        if query and not (
+            query in (juego.get('titulo') or '').lower() or
+            query in (juego.get('plataforma') or '').lower() or
+            query in (juego.get('estado') or '').lower() or
+            query in (juego.get('descripcion') or '').lower()
+        ):
+            continue
 
         filtered.append(juego)
 
