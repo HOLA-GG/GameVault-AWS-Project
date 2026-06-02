@@ -81,7 +81,7 @@
         </div>
     </form>
 
-    <form action="{{ url_for('main.admin_logs_clear') }}" method="POST" style="margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+    <form action="{{ url_for('main.admin_logs_clear') }}" method="POST" style="margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end;" id="clearLogsForm">
         <div class="form-group" style="max-width:180px;">
             <label for="dias">Retención manual</label>
             <select id="dias" name="dias">
@@ -92,7 +92,7 @@
                 <option value="90">90 días</option>
             </select>
         </div>
-        <button type="submit" class="btn btn-danger">Liberar espacio</button>
+        <button type="submit" class="btn btn-danger" id="clearLogsSubmitButton">Liberar espacio</button>
     </form>
 
     {% if grouped_logs %}
@@ -191,4 +191,23 @@
     </div>
 </section>
 {% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('clearLogsForm');
+        const button = document.getElementById('clearLogsSubmitButton');
+        if (form && button) {
+            form.addEventListener('submit', function(event) {
+                if (confirm('¿Eliminar logs antiguos? Esta acción no se puede deshacer.')) {
+                    button.disabled = true;
+                    button.setAttribute('aria-busy', 'true');
+                    button.setAttribute('aria-label', 'Liberando...');
+                    button.textContent = 'Liberando...';
+                } else {
+                    event.preventDefault();
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}
