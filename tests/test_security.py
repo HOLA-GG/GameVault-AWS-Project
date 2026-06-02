@@ -141,3 +141,15 @@ def test_hsts_header_not_in_dev(app):
     with app.test_client() as client:
         response = client.get('/')
         assert 'Strict-Transport-Security' not in response.headers
+
+def test_rate_limiting_demo(client):
+    """Verifica que el límite de tasa en el endpoint de demo esté funcionando."""
+    # El límite es 5 por minuto
+    for _ in range(5):
+        response = client.post('/demo', data={'titulo': 'Test'}, follow_redirects=True)
+        assert response.status_code == 200
+
+    # El sexto intento debería ser bloqueado
+    response = client.post('/demo', data={'titulo': 'Test'}, follow_redirects=True)
+    assert response.status_code == 429
+    assert b'Demasiados intentos' in response.data

@@ -646,6 +646,7 @@ def terms():
 
 
 @main_bp.route('/demo', methods=['GET', 'POST'])
+@limiter.limit('5 per minute', methods=['POST'])
 def demo():
     """Demo pública sin persistencia."""
     if request.method == 'POST':
@@ -742,6 +743,7 @@ def dashboard():
 
 @main_bp.route('/api/uploads/presign', methods=['POST'])
 @require_login
+@limiter.limit('10 per minute')
 def presign_upload():
     """Genera credenciales temporales para subir portadas directo al storage configurado."""
     if current_app.config.get('STORAGE_BACKEND') == 'none':
@@ -771,6 +773,7 @@ def presign_upload():
 
 @main_bp.route('/agregar', methods=['POST'])
 @require_login
+@limiter.limit('10 per minute')
 def agregar_juego():
     """Crea un juego nuevo para el usuario autenticado."""
     titulo = request.form.get('titulo', '').strip()
@@ -848,6 +851,7 @@ def agregar_juego():
 
 @main_bp.route('/delete/<game_id>', methods=['POST'])
 @require_login
+@limiter.limit('10 per minute')
 def eliminar_juego_ruta(game_id):
     """Elimina un juego del usuario autenticado."""
     user_id = session['user_id']
@@ -876,6 +880,7 @@ def eliminar_juego_ruta(game_id):
 
 @main_bp.route('/edit/<game_id>', methods=['GET', 'POST'])
 @require_login
+@limiter.limit('10 per minute', methods=['POST'])
 def editar_juego_ruta(game_id):
     """Edita un juego existente."""
     user_id = session['user_id']
@@ -1084,6 +1089,7 @@ def login():
 
 @main_bp.route('/logout', methods=['POST'])
 @require_login
+@limiter.limit('5 per minute')
 def logout():
     """Cierra sesión solo por POST."""
     user_id = session.get('user_id')
@@ -1105,6 +1111,7 @@ def logout():
 
 @main_bp.route('/perfil', methods=['GET', 'POST'])
 @require_login
+@limiter.limit('10 per minute', methods=['POST'])
 def profile():
     """Permite editar perfil y contraseña."""
     if session.get('role') == 'admin':
@@ -1433,6 +1440,7 @@ def admin_collections():
 
 @main_bp.route('/admin/delete/<user_id>', methods=['POST'])
 @require_admin
+@limiter.limit('10 per minute')
 def admin_eliminar_usuario(user_id):
     """Elimina un usuario salvo al propio admin actual."""
     if session.get('user_id') == user_id:
@@ -1459,6 +1467,7 @@ def admin_eliminar_usuario(user_id):
 
 @main_bp.route('/admin/edit/<user_id>', methods=['POST'])
 @require_admin
+@limiter.limit('10 per minute')
 def admin_editar_usuario(user_id):
     """Edita el nombre principal de un usuario."""
     nuevo_nombre = request.form.get('nombre', '').strip()
@@ -1539,6 +1548,7 @@ def admin_logs_export():
 
 @main_bp.route('/admin/logs/clear', methods=['POST'])
 @require_admin
+@limiter.limit('1 per minute')
 def admin_logs_clear():
     """Limpia logs antiguos de manera manual."""
     dias = max(request.form.get('dias', 7, type=int), 1)
