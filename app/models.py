@@ -588,13 +588,27 @@ def verificar_credenciales(email, password):
     return obtener_usuario_por_email(email)
 
 
-def obtener_todos_usuarios():
-    """Obtiene todos los usuarios."""
+def obtener_todos_usuarios(limit: int | None = None, offset: int | None = None) -> List[Dict[str, Any]]:
+    """Obtiene todos los usuarios (ahora con soporte para paginación en DB)."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    query = select(User).order_by(User.created_at.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    if offset is not None:
+        query = query.offset(offset)
+
+    with session_factory() as session:
+        items = session.scalars(query).all()
+        return [user_to_dict(item) for item in items]
+
+
+def contar_usuarios() -> int:
+    """Retorna el conteo total de usuarios en la base de datos."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        items = session.scalars(select(User).order_by(User.created_at.desc())).all()
-        return [user_to_dict(item) for item in items]
+        return session.scalar(select(func.count(User.user_id))) or 0
 
 
 def eliminar_usuario(user_id):

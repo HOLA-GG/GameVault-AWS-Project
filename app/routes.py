@@ -43,6 +43,7 @@ from app.models import (
     crear_log_audit,
     crear_presigned_upload,
     crear_reset_token,
+    contar_usuarios,
     crear_url_firmada_lectura,
     crear_usuario,
     database_healthcheck,
@@ -1413,15 +1414,31 @@ def reset_password_with_email(token):
 @main_bp.route('/admin')
 @require_admin
 def admin_panel():
-    """Panel simple de administración con paginación."""
-    usuarios = obtener_todos_usuarios()
-    page = request.args.get('page', 1, type=int)
-    pagination = paginate_items(usuarios, page, current_app.config['ADMIN_USERS_PER_PAGE'])
+    """Panel simple de administración con paginación (Optimizado: paginación en DB)."""
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = current_app.config['ADMIN_USERS_PER_PAGE']
+    offset = (page - 1) * per_page
+
+    usuarios = obtener_todos_usuarios(limit=per_page, offset=offset)
+    total_usuarios = contar_usuarios()
+
+    # Construcción manual de metadatos de paginación para mantener compatibilidad con la plantilla
+    total_pages = max(1, math.ceil(total_usuarios / per_page)) if per_page else 1
+    current_page = max(1, min(page, total_pages))
+    pagination = {
+        'page': current_page,
+        'total_pages': total_pages,
+        'has_prev': current_page > 1,
+        'has_next': current_page < total_pages,
+        'prev_page': current_page - 1,
+        'next_page': current_page + 1,
+    }
+
     return render_template(
         'admin.html',
-        usuarios=pagination['items'],
+        usuarios=usuarios,
         pagination=pagination,
-        total_usuarios=len(usuarios),
+        total_usuarios=total_usuarios,
         query_args_builder=build_query_args,
     )
 
