@@ -21,3 +21,7 @@
 ## 2025-06-25 - ISO 8601 String Comparison vs Datetime Parsing
 **Learning:** Parsing ISO 8601 strings into `datetime` objects for every item in a large collection is expensive. Since ISO 8601 is lexicographically sortable, comparing strings directly for "greater than" or "less than" (e.g., for recent/stale checks) is significantly faster and logically equivalent.
 **Action:** Use string comparisons for ISO 8601 dates in hot loops where only relative ordering or cutoff checks are needed.
+
+## 2025-07-05 - In-memory Pagination of User List
+**Learning:** Fetching all records from a table (like `users`) to perform in-memory pagination with `paginate_items` creates a massive (N)$ bottleneck in memory and CPU as the table grows.
+**Action:** Always implement pagination at the database level using `LIMIT` and `OFFSET` (via SQLAlchemy `.limit()` and `.offset()`) paired with a separate `COUNT` query for metadata. Ensure the `page` input is sanitized with `max(1, page)` to prevent negative offset errors.
