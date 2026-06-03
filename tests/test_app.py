@@ -520,3 +520,32 @@ def test_admin_collections_route_renders(client):
 
     assert response.status_code == 200
     assert b'Colecciones' in response.data
+
+
+def test_password_change_invalidates_all_tokens(app):
+    """Verifica que al cambiar la contraseña se eliminen todos los tokens de recuperación activos."""
+    from app.models import (
+        actualizar_password_usuario,
+        crear_reset_token,
+        crear_usuario,
+        validar_reset_token,
+    )
+
+    # 1. Crear un usuario de prueba
+    user = crear_usuario("Test", "User", "security-test@example.com", "", "12345678", "old-hash")
+    user_id = user['user_id']
+
+    # 2. Generar múltiples tokens de recuperación
+    token1 = crear_reset_token(user_id)['token']
+    token2 = crear_reset_token(user_id)['token']
+
+    # 3. Validar que los tokens son válidos inicialmente
+    assert validar_reset_token(token1)['valid'] is True
+    assert validar_reset_token(token2)['valid'] is True
+
+    # 4. Actualizar la contraseña (esto debería invalidar los tokens)
+    actualizar_password_usuario(user_id, "new-hash")
+
+    # 5. Verificar que los tokens ya no son válidos
+    assert validar_reset_token(token1)['valid'] is False
+    assert validar_reset_token(token2)['valid'] is False

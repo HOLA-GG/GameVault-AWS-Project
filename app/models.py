@@ -947,13 +947,17 @@ def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str
 
 
 def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, Any]:
-    """Actualiza la contraseña del usuario."""
+    """Actualiza la contraseña del usuario e invalida tokens de recuperación previos."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
         user = session.get(User, user_id)
         if user is None:
             return {'success': False, 'error': 'Usuario no encontrado'}
+
+        # Invalidate all active reset tokens for this user after a password change (Security enhancement)
+        session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
+
         user.password_hash = password_hash
         user.updated_at = utcnow()
         session.commit()
