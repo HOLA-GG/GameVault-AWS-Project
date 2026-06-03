@@ -22,3 +22,8 @@
 **Vulnerability:** Exposure of password reset tokens in server request logs.
 **Learning:** Request paths are often logged by default, which can leak sensitive data like recovery tokens passed as URL parameters.
 **Prevention:** Implement path redaction in the global request logger by checking the `request.endpoint` and masking the path before logging.
+
+## 2025-06-05 - Invalidate Recovery Tokens on Password Change
+**Vulnerability:** Recovery tokens remained valid even after a user manually changed their password or successfully completed a previous recovery flow.
+**Learning:** If multiple recovery tokens are generated or if a user secures their account after a suspected breach, existing tokens could still be used to reset the password again if they haven't expired.
+**Prevention:** Perform a batch deletion of all reset tokens associated with a `user_id` immediately before committing a password update in the database.
