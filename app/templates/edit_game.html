@@ -77,6 +77,10 @@
             <div class="form-group">
                 <label for="nueva_imagen">Nueva portada</label>
                 <input type="file" id="nueva_imagen" name="nueva_imagen" accept="image/*">
+                <div id="editImagePreviewContainer" class="image-preview-container" style="display:none;">
+                    <img id="editImagePreview" src="" alt="Vista previa de la nueva portada" class="image-preview">
+                    <button type="button" id="editRemoveImageButton" class="btn btn-secondary btn-small" aria-label="Quitar nueva imagen seleccionada">Quitar</button>
+                </div>
             </div>
             <div class="form-group">
                 <label class="checkbox-card" for="es_favorito">
@@ -112,6 +116,32 @@
         const fileInput = document.getElementById('nueva_imagen');
         const imageUrlInput = document.getElementById('nueva_imagen_url');
         const button = document.getElementById('editSubmitButton');
+
+        const previewContainer = document.getElementById('editImagePreviewContainer');
+        const previewImage = document.getElementById('editImagePreview');
+        const removeButton = document.getElementById('editRemoveImageButton');
+
+        fileInput.addEventListener('change', function() {
+            const file = fileInput.files[0];
+            if (file) {
+                if (previewImage.src && previewImage.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(previewImage.src);
+                }
+                previewImage.src = URL.createObjectURL(file);
+                previewContainer.style.display = 'flex';
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        });
+
+        removeButton.addEventListener('click', function() {
+            if (previewImage.src && previewImage.src.startsWith('blob:')) {
+                URL.revokeObjectURL(previewImage.src);
+            }
+            fileInput.value = '';
+            previewContainer.style.display = 'none';
+            previewImage.src = '';
+        });
 
         form.addEventListener('submit', async function (event) {
             if (!window.gameVault.supportsDirectUploads) return;
