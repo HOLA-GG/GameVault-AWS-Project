@@ -794,8 +794,12 @@ def agregar_juego():
     errores = []
     if not titulo:
         errores.append('El título es requerido.')
+    elif len(titulo) > 255:
+        errores.append('El título es demasiado largo (máximo 255 caracteres).')
     if not descripcion:
         errores.append('La descripción es requerida.')
+    elif len(descripcion) > 5000:
+        errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
 
     if imagen_url:
         if not is_valid_presigned_image_url(imagen_url):
@@ -918,8 +922,12 @@ def editar_juego_ruta(game_id):
     errores = []
     if not titulo:
         errores.append('El título es requerido.')
+    elif len(titulo) > 255:
+        errores.append('El título es demasiado largo (máximo 255 caracteres).')
     if not descripcion:
         errores.append('La descripción es requerida.')
+    elif len(descripcion) > 5000:
+        errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
 
     if nueva_imagen_url and not is_valid_presigned_image_url(nueva_imagen_url):
         errores.append('La nueva portada generada no es válida.')
@@ -994,16 +1002,18 @@ def registro():
     errores = []
     if not nombre:
         errores.append('El nombre es requerido.')
+    elif len(nombre) > 120:
+        errores.append('El nombre es demasiado largo (máximo 120 caracteres).')
     if not email:
         errores.append('El email es requerido.')
     elif not validar_email(email):
-        errores.append('El formato del email no es válido.')
+        errores.append('El formato o la longitud del email no son válidos.')
     if not password:
         errores.append('La contraseña es requerida.')
     elif not validar_password(password):
-        errores.append('La contraseña debe tener al menos 8 caracteres.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
     if telefono and not validar_telefono(telefono):
-        errores.append('El teléfono debe contener entre 7 y 15 dígitos.')
+        errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     if obtener_usuario_por_email(email):
@@ -1150,7 +1160,7 @@ def profile():
         if not check_password_hash(user['password_hash'], current_password):
             errores.append('La contraseña actual no es correcta.')
         if not validar_password(password):
-            errores.append('La nueva contraseña debe tener al menos 8 caracteres.')
+            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres.')
         if password != confirm_password:
             errores.append('Las contraseñas no coinciden.')
 
@@ -1186,8 +1196,14 @@ def profile():
     errores = []
     if not nombre:
         errores.append('El nombre es requerido.')
+    elif len(nombre) > 120:
+        errores.append('El nombre es demasiado largo (máximo 120 caracteres).')
+    if len(apellido) > 120:
+        errores.append('El apellido es demasiado largo (máximo 120 caracteres).')
+    if len(prefijo_pais) > 10:
+        errores.append('El prefijo de país es demasiado largo.')
     if telefono and not validar_telefono(telefono):
-        errores.append('El teléfono debe contener entre 7 y 15 dígitos.')
+        errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
 
     if errores:
         for error in errores:
@@ -1381,7 +1397,7 @@ def reset_password_with_email(token):
     confirm_password = request.form.get('confirm_password', '').strip()
     errores = []
     if not validar_password(password):
-        errores.append('La contraseña debe tener al menos 8 caracteres.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     if user is None:
