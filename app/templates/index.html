@@ -137,7 +137,11 @@
             <div class="form-group">
                 <label for="imagen">Portada</label>
                 <input type="file" id="imagen" name="imagen" accept="image/*">
-                <small style="color:var(--text-secondary);">
+                <div id="imagePreviewContainer" class="image-preview-container" style="display:none;">
+                    <img id="imagePreview" src="" alt="Vista previa de la portada" class="image-preview">
+                    <button type="button" id="removeImageButton" class="btn btn-secondary btn-small" aria-label="Quitar imagen seleccionada">Quitar</button>
+                </div>
+                <small style="color:var(--text-secondary);display:block;margin-top:8px;">
                     Opcional por ahora. La integración de imágenes seguirá evolucionando sin afectar tu colección.
                 </small>
             </div>
@@ -310,6 +314,32 @@
         const fileInput = document.getElementById('imagen');
         const imageUrlInput = document.getElementById('imagen_url');
         const button = document.getElementById('gameSubmitButton');
+
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const previewImage = document.getElementById('imagePreview');
+        const removeButton = document.getElementById('removeImageButton');
+
+        fileInput.addEventListener('change', function() {
+            const file = fileInput.files[0];
+            if (file) {
+                if (previewImage.src && previewImage.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(previewImage.src);
+                }
+                previewImage.src = URL.createObjectURL(file);
+                previewContainer.style.display = 'flex';
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        });
+
+        removeButton.addEventListener('click', function() {
+            if (previewImage.src && previewImage.src.startsWith('blob:')) {
+                URL.revokeObjectURL(previewImage.src);
+            }
+            fileInput.value = '';
+            previewContainer.style.display = 'none';
+            previewImage.src = '';
+        });
 
         form.addEventListener('submit', async function (event) {
             if (!window.gameVault.supportsDirectUploads) return;
