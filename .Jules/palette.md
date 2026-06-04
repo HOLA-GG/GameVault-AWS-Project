@@ -17,3 +17,7 @@
 ## 2025-06-02 - Defensive Destructive Interactions
 **Learning:** Destructive actions like clearing system logs require a double-layer of UX protection: a confirmation dialog to prevent accidental clicks and an immediate loading state to prevent double-submissions. Using the native `confirm()` is highly accessible and familiar, while synchronized ARIA attributes (`aria-busy`, `aria-label`) provide necessary feedback for screen readers during the execution.
 **Action:** Always pair `confirm()` with a synchronized loading state (disabled button + text/ARIA updates) for all destructive operations in the admin panel.
+
+## 2025-06-03 - Centralized Non-Destructive Loading States
+**Learning:** Implementing app-wide loading feedback via a global `submit` listener on `document` is highly efficient but requires defensive programming. It must respect `defaultPrevented` (to avoid interfering with custom handlers) and check for child elements to avoid destroying nested icons (SVGs/span) when updating button text.
+**Action:** Use centralized event delegation for app-wide UX consistency. When updating button content, prefer ARIA attributes (`aria-busy`, `aria-label`) for accessibility and only modify `textContent` if the element has no complex inner HTML.

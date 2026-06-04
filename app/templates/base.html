@@ -270,6 +270,27 @@
             });
 
             injectCsrfTokens();
+
+            document.addEventListener('submit', function(event) {
+                const form = event.target;
+                if (event.defaultPrevented || !form || (form.checkValidity && !form.checkValidity())) return;
+                const button = form.querySelector('button[type="submit"]:not([disabled])');
+                if (!button) return;
+
+                const originalText = button.textContent.trim();
+                const loadingText = originalText.endsWith('...') ? originalText : "Enviando...";
+
+                button.setAttribute('aria-busy', 'true');
+                button.setAttribute('aria-label', loadingText);
+                if (button.children.length === 0) {
+                    button.textContent = loadingText;
+                }
+
+                setTimeout(() => {
+                    button.disabled = true;
+                }, 0);
+            });
+
             window.gameVault = {
                 csrfToken,
                 storageBackend: {{ STORAGE_BACKEND|tojson }},
