@@ -391,19 +391,22 @@ def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
 
 
 def validar_email(email):
-    """Valida el formato del email."""
+    """Valida el formato y longitud del email (max 255)."""
+    if not email or len(email) > 255:
+        return False
     patron = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(patron, email) is not None
 
 
 def validar_telefono(telefono):
-    """Valida que el teléfono contenga solo dígitos."""
-    return telefono.isdigit() and len(telefono) >= 7 and len(telefono) <= 15
+    """Valida que el teléfono contenga solo dígitos y tenga longitud válida (7-20)."""
+    return telefono.isdigit() and 7 <= len(telefono) <= 20
 
 
 def validar_password(password):
-    """Valida que la contraseña cumpla requisitos mínimos."""
-    return len(password) >= 8
+    """Valida que la contraseña tenga una longitud segura (8-128)."""
+    # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
+    return 8 <= len(password) <= 128
 
 
 def eliminar_imagen_s3(imagen_url):
