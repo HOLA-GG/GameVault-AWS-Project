@@ -360,7 +360,6 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
     min_iso = "0001-01-01T00:00:00+00:00"
 
     platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
-    unique_platforms, unique_statuses, unique_categories = set(), set(), set()
 
     recently_updated = recently_added = missing_images = favorites_count = 0
     high_priority_count = stale_games = ratings_sum = ratings_count = 0
@@ -368,15 +367,12 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
 
     for juego in juegos:
         plat = juego.get('plataforma')
-        if plat: unique_platforms.add(plat)
         platform_counts[plat or 'Sin plataforma'] += 1
 
         est = juego.get('estado')
-        if est: unique_statuses.add(est)
         status_counts[est or 'N/A'] += 1
 
         cat = juego.get('categoria') or 'Biblioteca'
-        unique_categories.add(cat)
         category_counts[cat] += 1
 
         if not juego.get('imagen_url'):
@@ -421,6 +417,7 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
     dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
     dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
 
+    # Derive unique values from Counters to avoid redundant set operations during the loop.
     return {
         'total_games': len(juegos),
         'platforms_count': len(platform_counts),
@@ -441,9 +438,9 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         'last_updated_game': last_updated_game,
         'next_focus': next_focus,
         'filter_options': {
-            'plataformas': sorted(list(unique_platforms)),
-            'estados': sorted(list(unique_statuses)),
-            'categorias': sorted(list(unique_categories)),
+            'plataformas': sorted([p for p in platform_counts.keys() if p != 'Sin plataforma']),
+            'estados': sorted([s for s in status_counts.keys() if s != 'N/A']),
+            'categorias': sorted(list(category_counts.keys())),
         }
     }
 
@@ -486,16 +483,16 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
                 'latest_action': log.get('action_name') or log.get('action') or 'Actividad',
             }
         bucket = grouped[user_id]
-        enriched = dict(log)
-        enriched['action_badge_class'] = get_action_badge_class(log.get('action', ''))
-        enriched['status_badge_class'] = (
+        # Mutate the log dict in-place instead of copying to reduce allocations during admin view loads.
+        log['action_badge_class'] = get_action_badge_class(log.get('action', ''))
+        log['status_badge_class'] = (
             'badge-log-success'
             if log.get('status') == 'SUCCESS'
             else 'badge-log-error'
             if log.get('status') in {'FAILED', 'ERROR'}
             else 'badge-log-neutral'
         )
-        bucket['items'].append(enriched)
+        bucket['items'].append(log)
 
     ordered_groups = list(grouped.values())
     for group in ordered_groups:
@@ -522,6 +519,10 @@ def filter_and_sort_games(juegos, filters):
     categoria = filters.get('categoria', '')
     favoritos = filters.get('favoritos', '')
     sort_by = filters.get('sort', 'updated_desc')
+
+    # Short-circuit: if no filters and default sort, return as is (DB already sorted it).
+    if not any([query, plataforma, estado, categoria, favoritos]) and sort_by == 'updated_desc':
+        return juegos
 
     filtered = []
     for juego in juegos:
@@ -560,6 +561,9 @@ def filter_and_sort_games(juegos, filters):
         filtered.sort(key=lambda item: item.get('created_at') or item.get('titulo', ''), reverse=reverse)
     elif sort_by == 'created_desc':
         filtered.sort(key=lambda item: item.get('created_at') or item.get('titulo', ''), reverse=True)
+    elif sort_by == 'updated_desc':
+        # Already ordered by DB (updated_at desc, created_at desc)
+        pass
     else:
         filtered.sort(key=sort_key, reverse=True)
 
