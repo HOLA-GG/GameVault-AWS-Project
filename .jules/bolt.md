@@ -25,3 +25,7 @@
 ## 2025-07-05 - In-memory Pagination of User List
 **Learning:** Fetching all records from a table (like `users`) to perform in-memory pagination with `paginate_items` creates a massive (N)$ bottleneck in memory and CPU as the table grows.
 **Action:** Always implement pagination at the database level using `LIMIT` and `OFFSET` (via SQLAlchemy `.limit()` and `.offset()`) paired with a separate `COUNT` query for metadata. Ensure the `page` input is sanitized with `max(1, page)` to prevent negative offset errors.
+
+## 2025-07-10 - Dictionary Copying and Redundant Sorting
+**Learning:** Creating shallow copies of dictionaries (`dict(item)`) in high-frequency loops and performing redundant sorts in Python on data already ordered by the database significantly impacts performance. Mutating transient dictionaries in-place and adding short-circuits for default views can yield immediate speed wins.
+**Action:** Mutate transient processing dictionaries in-place to reduce allocations. Trust and utilize database-level ordering to skip O(N log N) Python sorts whenever possible.
