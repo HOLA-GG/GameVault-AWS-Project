@@ -62,21 +62,21 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" required>
+                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" required maxlength="120">
             </div>
             <div class="form-group">
                 <label for="apellido">Apellidos</label>
-                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}">
+                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" maxlength="120">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="prefijo_pais">Prefijo país</label>
-                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57">
+                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10">
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567">
+                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567" maxlength="20">
             </div>
         </div>
         <div class="form-group">
@@ -110,16 +110,16 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="current_password">Contraseña actual</label>
-                <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+                <input type="password" id="current_password" name="current_password" required autocomplete="current-password" maxlength="128">
             </div>
             <div class="form-group">
                 <label for="password">Nueva contraseña</label>
-                <input type="password" id="password" name="password" required autocomplete="new-password">
+                <input type="password" id="password" name="password" required autocomplete="new-password" maxlength="128">
             </div>
         </div>
         <div class="form-group">
             <label for="confirm_password">Confirmar nueva contraseña</label>
-            <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password">
+            <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password" maxlength="128">
         </div>
         <button type="submit" class="btn-submit" id="passwordSubmitButton">Actualizar contraseña</button>
     </form>

@@ -82,7 +82,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="titulo">Título</label>
-                <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required>
+                <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required maxlength="255">
             </div>
             <div class="form-group">
                 <label for="plataforma">Plataforma</label>
@@ -154,7 +154,7 @@
         </div>
         <div class="form-group">
             <label for="descripcion">Descripción</label>
-            <textarea id="descripcion" name="descripcion" rows="4" placeholder="Qué edición tienes, estado del empaque, notas..." required></textarea>
+            <textarea id="descripcion" name="descripcion" rows="4" placeholder="Qué edición tienes, estado del empaque, notas..." required maxlength="5000"></textarea>
         </div>
         <button type="submit" class="btn-submit" id="gameSubmitButton">Guardar juego</button>
     </form>
