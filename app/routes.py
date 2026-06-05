@@ -36,6 +36,7 @@ from app.models import (
     actualizar_usuario_nombre,
     actualizar_usuario_perfil,
     combinar_rating_showcase,
+    contar_resumenes_colecciones,
     obtener_colecciones_publicas,
     obtener_resumenes_colecciones,
     registrar_rating_showcase,
@@ -588,8 +589,10 @@ def landing():
         subject_type='public',
         subject_id_key='user_id',
     )
+    # Creamos copias de las colecciones de ejemplo para que la mutación in-place de
+    # aplicar_ratings_showcase no afecte a la constante global entre peticiones.
     sample_collections = aplicar_ratings_showcase(
-        LANDING_SAMPLE_COLLECTIONS,
+        [dict(item) for item in LANDING_SAMPLE_COLLECTIONS],
         subject_type='sample',
         subject_id_key='id',
         default_rating_key='average_rating',
@@ -1466,15 +1469,32 @@ def admin_panel():
 @main_bp.route('/admin/collections')
 @require_admin
 def admin_collections():
-    """Vista administrativa de colecciones públicas y privadas."""
+    """Vista administrativa de colecciones públicas y privadas (Optimizado: paginación en DB)."""
     visibility = request.args.get('visibility', '').strip().lower()
     collection_filter = visibility if visibility in {'public', 'private'} else None
-    collections = obtener_resumenes_colecciones(collection_filter)
-    page = request.args.get('page', 1, type=int)
-    pagination = paginate_items(collections, page, current_app.config['ADMIN_USERS_PER_PAGE'])
+
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = current_app.config['ADMIN_USERS_PER_PAGE']
+    offset = (page - 1) * per_page
+
+    collections = obtener_resumenes_colecciones(collection_filter, limit=per_page, offset=offset)
+    total_collections = contar_resumenes_colecciones(collection_filter)
+
+    total_pages = max(1, math.ceil(total_collections / per_page)) if per_page else 1
+    current_page = max(1, min(page, total_pages))
+
+    pagination = {
+        'page': current_page,
+        'total_pages': total_pages,
+        'has_prev': current_page > 1,
+        'has_next': current_page < total_pages,
+        'prev_page': current_page - 1,
+        'next_page': current_page + 1,
+    }
+
     return render_template(
         'admin_collections.html',
-        collections=pagination['items'],
+        collections=collections,
         visibility=visibility,
         pagination=pagination,
         query_args_builder=build_query_args,
