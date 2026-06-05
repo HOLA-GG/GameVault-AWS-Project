@@ -218,6 +218,28 @@
             return payload.file_url;
         }
 
+        function setupCharacterCounters() {
+            document.querySelectorAll('textarea[maxlength]').forEach(textarea => {
+                const maxLength = textarea.getAttribute('maxlength');
+                const counter = document.createElement('small');
+                counter.style.display = 'block';
+                counter.style.textAlign = 'right';
+                counter.style.marginTop = '4px';
+                counter.style.color = 'var(--text-secondary)';
+                counter.setAttribute('aria-live', 'polite');
+
+                const updateCounter = () => {
+                    const currentLength = textarea.value.length;
+                    counter.textContent = `${currentLength} / ${maxLength} caracteres`;
+                    counter.style.color = currentLength >= maxLength ? 'var(--danger-color)' : 'var(--text-secondary)';
+                };
+
+                textarea.parentNode.insertBefore(counter, textarea.nextSibling);
+                updateCounter();
+                textarea.addEventListener('input', updateCounter);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const savedTheme = localStorage.getItem('gamevault-theme');
             const savedScale = parseFloat(localStorage.getItem('gamevault-font-scale') || '1');
@@ -270,6 +292,7 @@
             });
 
             injectCsrfTokens();
+            setupCharacterCounters();
 
             document.addEventListener('submit', function(event) {
                 const form = event.target;
