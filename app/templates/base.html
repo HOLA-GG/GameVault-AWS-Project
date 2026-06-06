@@ -82,13 +82,13 @@
 
     <div class="container">
         <header>
-            <h1>🎮 GameVault</h1>
+            <h1><span aria-hidden="true">🎮</span> GameVault</h1>
             <p>Tu colección privada de videojuegos en la nube</p>
         </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-messages">
+                <div class="flash-messages" role="status" aria-live="polite">
                     {% for category, message in messages %}
                         <div class="flash {{ category }}">{{ message }}</div>
                     {% endfor %}
@@ -170,6 +170,12 @@
             const shouldOpen = forceOpen === null ? panel.hidden : forceOpen;
             panel.hidden = !shouldOpen;
             toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+
+            if (shouldOpen) {
+                document.getElementById('accessibilityClose')?.focus();
+            } else {
+                toggle.focus();
+            }
         }
 
         function injectCsrfTokens() {
