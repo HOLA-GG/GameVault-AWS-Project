@@ -183,10 +183,6 @@ def create_app() -> Flask:
     mail.init_app(app)
     csrf.init_app(app)
 
-    # Ensure rate limiting is disabled during tests to avoid 429 errors
-    if app.config.get('APP_ENV') == 'testing':
-        app.config['RATELIMIT_ENABLED'] = False
-        limiter.enabled = False
     limiter.init_app(app)
 
     @app.before_request
