@@ -381,8 +381,9 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         if juego.get('es_favorito'):
             favorites_count += 1
 
-        prio_raw = (juego.get('prioridad') or '').lower()
-        if prio_raw == 'alta':
+        # Check for 'Alta' priority directly (normalized by normalize_game_metadata)
+        prio = juego.get('prioridad')
+        if prio == 'Alta':
             high_priority_count += 1
 
         calif = juego.get('calificacion')
@@ -404,7 +405,7 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         if last_updated_at_iso is None or iso_updated > last_updated_at_iso:
             last_updated_at_iso, last_updated_game = iso_updated, juego
 
-        if prio_raw == 'alta' and cat != 'Completado':
+        if prio == 'Alta' and cat != 'Completado':
             if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
                 next_focus, next_focus_at_iso = juego, iso_updated
 
@@ -439,9 +440,9 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         'last_updated_game': last_updated_game,
         'next_focus': next_focus,
         'filter_options': {
-            'plataformas': sorted([p for p in platform_counts.keys() if p != 'Sin plataforma']),
-            'estados': sorted([s for s in status_counts.keys() if s != 'N/A']),
-            'categorias': sorted(list(category_counts.keys())),
+            'plataformas': sorted(p for p in platform_counts if p != 'Sin plataforma'),
+            'estados': sorted(s for s in status_counts if s != 'N/A'),
+            'categorias': sorted(category_counts),
         }
     }
 
@@ -572,13 +573,12 @@ def filter_and_sort_games(juegos, filters):
 
 
 def enrich_game_image_url(game: dict | None) -> dict | None:
-    """Agrega una URL temporal utilizable en plantillas sin mutar el registro original."""
+    """Enriquece el juego con una URL temporal de imagen (Optimizado: mutación in-place)."""
     if game is None:
         return None
 
-    enriched = dict(game)
-    enriched['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
-    return enriched
+    game['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
+    return game
 
 
 @main_bp.route('/')
@@ -730,9 +730,9 @@ def dashboard():
     page = request.args.get('page', 1, type=int)
 
     filtered_games = filter_and_sort_games(juegos, filters)
+    dashboard_insights = build_dashboard_insights(juegos, activity_logs)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
     paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
-    dashboard_insights = build_dashboard_insights(juegos, activity_logs)
     filter_opts = dashboard_insights.get('filter_options', {})
 
     return render_template(
