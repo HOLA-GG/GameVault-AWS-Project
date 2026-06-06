@@ -7,6 +7,7 @@ def app():
     app.config.update({
         "TESTING": True,
         "WTF_CSRF_ENABLED": False,
+        "RATELIMIT_ENABLED": True,
     })
     yield app
 

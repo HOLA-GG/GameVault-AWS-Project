@@ -182,6 +182,7 @@ def create_app() -> Flask:
 
     mail.init_app(app)
     csrf.init_app(app)
+
     limiter.init_app(app)
 
     @app.before_request
