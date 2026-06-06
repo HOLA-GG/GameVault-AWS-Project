@@ -29,3 +29,11 @@
 ## 2025-07-10 - Dictionary Copying and Redundant Sorting
 **Learning:** Creating shallow copies of dictionaries (`dict(item)`) in high-frequency loops and performing redundant sorts in Python on data already ordered by the database significantly impacts performance. Mutating transient dictionaries in-place and adding short-circuits for default views can yield immediate speed wins.
 **Action:** Mutate transient processing dictionaries in-place to reduce allocations. Trust and utilize database-level ordering to skip O(N log N) Python sorts whenever possible.
+
+## 2025-07-25 - In-place Mutation vs Metric Calculation
+**Learning:** Mutating dictionaries in-place (e.g., adding signed URLs) saves memory allocations but can corrupt data for subsequent operations like summary metric calculations if not ordered correctly.
+**Action:** Always perform summary calculations and dashboard insights on the original data before applying transient in-place mutations for template enrichment.
+
+## 2025-07-25 - Case-sensitive Comparison with Constants
+**Learning:** Using `.lower()` on every iteration in a hot loop (like checking game priority) adds redundant CPU cycles and string allocations. Since input is validated against a set of constants (e.g., `GAME_PRIORITY_OPTIONS`), direct case-sensitive comparison is significantly faster and safe.
+**Action:** Prefer direct comparison against normalized constants in iteration loops to avoid unnecessary string processing overhead.
