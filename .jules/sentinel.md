@@ -27,3 +27,8 @@
 **Vulnerability:** Recovery tokens remained valid even after a user manually changed their password or successfully completed a previous recovery flow.
 **Learning:** If multiple recovery tokens are generated or if a user secures their account after a suspected breach, existing tokens could still be used to reset the password again if they haven't expired.
 **Prevention:** Perform a batch deletion of all reset tokens associated with a `user_id` immediately before committing a password update in the database.
+
+## 2025-06-06 - Harden Session Management on Registration and Password Change
+**Vulnerability:** Session fixation during user registration and lack of session invalidation after password change.
+**Learning:** Even if a user is "newly" authenticated via registration, failing to clear the pre-existing session allows an attacker to potentially fixate a session ID. Similarly, changing a password should always invalidate existing sessions to ensure account security across all devices.
+**Prevention:** Always call `session.clear()` before establishing a new authenticated session in registration/login routes. Perform a full `session.clear()` and force re-login after sensitive operations like password changes to ensure state consistency and security.

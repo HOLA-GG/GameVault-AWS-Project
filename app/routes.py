@@ -1037,6 +1037,7 @@ def registro():
         flash('No se pudo crear tu cuenta. Intenta de nuevo.', 'error')
         return redirect(url_for('main.registro'))
 
+    session.clear()
     session.permanent = True
     session['user_id'] = resultado['user_id']
     session['email'] = resultado['email']
@@ -1165,6 +1166,15 @@ def profile():
 
         errores = []
         if not check_password_hash(user['password_hash'], current_password):
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='CHANGE_PASSWORD',
+                resource='users',
+                details={'email': session.get('email'), 'reason': 'incorrect_current_password'},
+                ip_address=request.remote_addr or 'unknown',
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
             errores.append('La contraseña actual no es correcta.')
         if not validar_password(password):
             errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres.')
@@ -1190,8 +1200,9 @@ def profile():
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='SUCCESS',
         )
-        flash('Tu contraseña fue actualizada.', 'success')
-        return redirect(url_for('main.profile'))
+        session.clear()
+        flash('Tu contraseña fue actualizada. Por favor inicia sesión de nuevo.', 'success')
+        return redirect(url_for('main.login'))
 
     nombre = request.form.get('nombre', '').strip()
     apellido = request.form.get('apellido', '').strip()
