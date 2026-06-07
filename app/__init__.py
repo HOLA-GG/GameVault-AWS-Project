@@ -229,6 +229,7 @@ def create_app() -> Flask:
             "frame-ancestors 'self'",
             "form-action 'self'",
             "base-uri 'self'",
+            "object-src 'none'",
             "upgrade-insecure-requests"
         ]
         response.headers['Content-Security-Policy'] = "; ".join(csp_parts)

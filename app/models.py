@@ -906,12 +906,13 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
         row = {}
         for key in fieldnames[:-1]:
             val = str(log.get(key, '') or '')
-            if val.startswith(risky_chars):
+            # Strip leading whitespace before checking for risky characters to prevent formula bypasses (CSV Injection)
+            if val.lstrip().startswith(risky_chars):
                 val = "'" + val
             row[key] = val
 
         details_val = str(log.get('details', {}) or '{}')
-        if details_val.startswith(risky_chars):
+        if details_val.lstrip().startswith(risky_chars):
             details_val = "'" + details_val
         row['details'] = details_val
 
