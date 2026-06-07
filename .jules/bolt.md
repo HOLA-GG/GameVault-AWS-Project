@@ -37,3 +37,7 @@
 ## 2025-07-25 - Case-sensitive Comparison with Constants
 **Learning:** Using `.lower()` on every iteration in a hot loop (like checking game priority) adds redundant CPU cycles and string allocations. Since input is validated against a set of constants (e.g., `GAME_PRIORITY_OPTIONS`), direct case-sensitive comparison is significantly faster and safe.
 **Action:** Prefer direct comparison against normalized constants in iteration loops to avoid unnecessary string processing overhead.
+
+## 2026-06-07 - Redundant Data Fetching for Unused Metrics
+**Learning:** Fetching data (like activity logs) and processing it for metrics that aren't displayed in the UI creates wasted database round-trips and CPU cycles. In this case, `recent_activity` was being calculated on every dashboard and profile load despite not being used in any template.
+**Action:** Make metric calculation parameters optional and guard their processing logic. Regularly audit route data-fetching against template requirements to eliminate dead database queries.

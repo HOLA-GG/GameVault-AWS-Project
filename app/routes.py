@@ -353,7 +353,7 @@ def normalize_game_metadata(form) -> dict:
     }
 
 
-def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> dict:
+def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
     """Calcula métricas ligeras para el dashboard (optimizado: pass único y comparaciones ISO)."""
     now = datetime.now(timezone.utc)
     recent_cutoff_iso = (now - timedelta(days=7)).isoformat()
@@ -410,10 +410,11 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
                 next_focus, next_focus_at_iso = juego, iso_updated
 
     recent_activity = 0
-    for log in activity_logs:
-        ts_iso = log.get('timestamp')
-        if ts_iso and ts_iso >= recent_cutoff_iso:
-            recent_activity += 1
+    if activity_logs:
+        for log in activity_logs:
+            ts_iso = log.get('timestamp')
+            if ts_iso and ts_iso >= recent_cutoff_iso:
+                recent_activity += 1
 
     dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
     dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
@@ -718,7 +719,6 @@ def dashboard():
         return redirect(url_for('main.admin_panel'))
     user_id = session['user_id']
     juegos = obtener_juegos_por_usuario(user_id)
-    activity_logs = obtener_logs_por_usuario(user_id, limit=8)
     filters = {
         'q': request.args.get('q', ''),
         'plataforma': request.args.get('plataforma', ''),
@@ -730,7 +730,7 @@ def dashboard():
     page = request.args.get('page', 1, type=int)
 
     filtered_games = filter_and_sort_games(juegos, filters)
-    dashboard_insights = build_dashboard_insights(juegos, activity_logs)
+    dashboard_insights = build_dashboard_insights(juegos)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
     paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
     filter_opts = dashboard_insights.get('filter_options', {})
@@ -1147,7 +1147,7 @@ def profile():
         return redirect(url_for('main.dashboard'))
     juegos = obtener_juegos_por_usuario(session['user_id'])
     recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8)
-    profile_insights = build_dashboard_insights(juegos, recent_activity_logs)
+    profile_insights = build_dashboard_insights(juegos)
 
     if request.method == 'GET':
         return render_template(
