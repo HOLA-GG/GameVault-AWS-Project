@@ -52,6 +52,25 @@ def client(app):
 
 
 def login_session(client, *, role='user'):
+    from app.models import get_session_factory, User, generate_password_hash
+    session_factory = get_session_factory()
+    with session_factory() as session_db:
+        user = session_db.get(User, 'user-1')
+        if not user:
+            user = User(
+                user_id='user-1',
+                email='user@example.com',
+                nombre='Tester',
+                password_hash=generate_password_hash('password'),
+                status='active',
+                role=role
+            )
+            session_db.add(user)
+        else:
+            user.role = role
+            user.status = 'active'
+        session_db.commit()
+
     with client.session_transaction() as session:
         session['user_id'] = 'user-1'
         session['email'] = 'user@example.com'
@@ -549,3 +568,27 @@ def test_password_change_invalidates_all_tokens(app):
     # 5. Verificar que los tokens ya no son válidos
     assert validar_reset_token(token1)['valid'] is False
     assert validar_reset_token(token2)['valid'] is False
+
+@pytest.fixture(autouse=True)
+def setup_mock_user(monkeypatch):
+    """Garantiza que el usuario 'user-1' exista en la DB para las pruebas que lo necesiten."""
+    from app.models import get_session_factory, User, generate_password_hash
+
+    def mock_user_exists(*args, **kwargs):
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            if not session.get(User, 'user-1'):
+                user = User(
+                    user_id='user-1',
+                    email='user@example.com',
+                    nombre='Tester',
+                    password_hash=generate_password_hash('password'),
+                    status='active',
+                    role='user'
+                )
+                session.add(user)
+                session.commit()
+
+    # Podríamos llamar a mock_user_exists() aquí o mockear obtener_usuario_por_id
+    # Pero es más robusto asegurar que el registro exista.
+    mock_user_exists()

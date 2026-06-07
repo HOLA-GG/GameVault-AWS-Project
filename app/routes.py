@@ -16,6 +16,7 @@ from flask import (
     Response,
     current_app,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -136,25 +137,37 @@ LANDING_SAMPLE_COLLECTIONS = [
 
 
 def require_login(view):
-    """Protege rutas que requieren autenticación."""
+    """Protege rutas que requieren autenticación con verificación en base de datos."""
 
     @wraps(view)
     def wrapped(*args, **kwargs):
         if 'user_id' not in session:
             flash('Debes iniciar sesión para acceder a esta sección.', 'error')
             return redirect(url_for('main.login', next=request.full_path.rstrip('?')))
+
+        # Mejora de seguridad: verifica que el usuario exista y esté activo en tiempo real.
+        if not hasattr(g, 'current_user'):
+            user = obtener_usuario_por_id(session['user_id'])
+            if not user or user.get('status') != 'active':
+                session.clear()
+                flash('Tu sesión ha expirado o tu cuenta ya no está activa.', 'error')
+                return redirect(url_for('main.login'))
+            g.current_user = user
+
         return view(*args, **kwargs)
 
     return wrapped
 
 
 def require_admin(view):
-    """Protege rutas de administración."""
+    """Protege rutas de administración con verificación de rol en tiempo real."""
 
     @wraps(view)
     @require_login
     def wrapped(*args, **kwargs):
-        if session.get('role') != 'admin':
+        # g.current_user es poblado por el decorador require_login previo.
+        user = getattr(g, 'current_user', None)
+        if not user or user.get('role') != 'admin':
             flash('Acceso denegado. Solo administradores.', 'error')
             return redirect(url_for('main.dashboard'))
         return view(*args, **kwargs)

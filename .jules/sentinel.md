@@ -27,3 +27,8 @@
 **Vulnerability:** Recovery tokens remained valid even after a user manually changed their password or successfully completed a previous recovery flow.
 **Learning:** If multiple recovery tokens are generated or if a user secures their account after a suspected breach, existing tokens could still be used to reset the password again if they haven't expired.
 **Prevention:** Perform a batch deletion of all reset tokens associated with a `user_id` immediately before committing a password update in the database.
+
+## 2026-06-07 - Prevent Stale Session Permission Bypass
+**Vulnerability:** Sessions remained valid with old permissions or active status even after the user was deactivated or demoted in the database.
+**Learning:** Authentication decorators (`require_login`, `require_admin`) only verified session data (client-side cookie state mirrored in server memory) instead of checking the source of truth (the database) on every request.
+**Prevention:** Always verify account status (`active`) and role (`admin`, `user`) against the database in authentication middleware/decorators. Use request-scoped caching (like Flask's `g`) to avoid redundant database lookups for nested decorators within a single request.

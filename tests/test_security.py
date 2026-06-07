@@ -1,13 +1,32 @@
+import os
 import pytest
 from app import create_app
 
 @pytest.fixture
-def app():
+def app(monkeypatch):
+    os.environ['APP_ENV'] = 'testing'
+    # Usar DB en memoria para aislamiento total y velocidad
+    db_url = "sqlite+pysqlite:///:memory:"
+
+    # Asegurar que las variables de entorno estén seteadas antes de crear la app
+    monkeypatch.setenv('DATABASE_URL', db_url)
+    monkeypatch.setenv('APP_ENV', 'testing')
+
+    # Importar app después de setear el env para que models.py tome la URL correcta
+    import importlib
+    import sys
+    for module_name in list(sys.modules):
+        if module_name == 'app' or module_name.startswith('app.'):
+            sys.modules.pop(module_name)
+
+    from app import create_app
     app = create_app()
     app.config.update({
         "TESTING": True,
         "WTF_CSRF_ENABLED": False,
+        "SECRET_KEY": "test-key-123"
     })
+
     yield app
 
 @pytest.fixture
@@ -49,7 +68,7 @@ def test_open_redirect_bypass_attempts(client):
     # Test various bypass attempts
     bypasses = [
         '///malicious.com',
-        '\\malicious.com',
+        '\malicious.com',
         '//malicious.com',
         'https:malicious.com'
     ]
@@ -63,7 +82,7 @@ def test_open_redirect_bypass_attempts(client):
         assert not response.headers['Location'].startswith('http://malicious.com')
         assert not response.headers['Location'].startswith('https://malicious.com')
         assert not response.headers['Location'].startswith('//malicious.com')
-        assert not response.headers['Location'].startswith('\\malicious.com')
+        assert not response.headers['Location'].startswith('\malicious.com')
 
 def test_forgot_password_manual_token_enumeration(client):
     app = client.application
@@ -153,3 +172,81 @@ def test_rate_limiting_demo(client):
     response = client.post('/demo', data={'titulo': 'Test'}, follow_redirects=True)
     assert response.status_code == 429
     assert b'Demasiados intentos' in response.data
+
+def test_stale_session_inactive_user(client):
+    """Verifica que un usuario desactivado sea bloqueado a pesar de tener una sesión activa."""
+    from app.models import get_session_factory, User, generate_password_hash, select
+
+    # 1. Crear usuario en DB
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        user = User(
+            user_id='stale-id',
+            email='stale@example.com',
+            nombre='Stale',
+            password_hash=generate_password_hash('password'),
+            status='active',
+            role='user'
+        )
+        db_session.add(user)
+        db_session.commit()
+
+    # 2. Inyectar en sesión
+    with client.session_transaction() as sess:
+        sess['user_id'] = 'stale-id'
+
+    # Verificar que el acceso funciona
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+
+    # 3. Desactivar el usuario en DB
+    with session_factory() as db_session:
+        user = db_session.scalar(select(User).where(User.user_id == 'stale-id'))
+        user.status = 'inactive'
+        db_session.commit()
+
+    # 4. Intentar acceder
+    response = client.get('/dashboard', follow_redirects=True)
+
+    assert b'Tu sesi\xc3\xb3n ha expirado o tu cuenta ya no est\xc3\xa1 activa.' in response.data
+    with client.session_transaction() as sess:
+        assert 'user_id' not in sess
+
+def test_stale_session_role_change(client):
+    """Verifica que un cambio de rol se aplique inmediatamente."""
+    from app.models import get_session_factory, User, generate_password_hash, select
+
+    # 1. Crear usuario en DB
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        user = User(
+            user_id='role-id',
+            email='role@example.com',
+            nombre='Role',
+            password_hash=generate_password_hash('password'),
+            status='active',
+            role='user'
+        )
+        db_session.add(user)
+        db_session.commit()
+
+    # 2. Inyectar en sesión
+    with client.session_transaction() as sess:
+        sess['user_id'] = 'role-id'
+
+    # 3. Intentar acceder al panel admin (debe fallar)
+    response = client.get('/admin', follow_redirects=True)
+    # Al fallar el require_admin, redirige al dashboard por defecto
+    assert response.status_code == 200
+    assert b'Acceso denegado. Solo administradores.' in response.data
+
+    # 4. Promover a admin en DB
+    with session_factory() as db_session:
+        user = db_session.scalar(select(User).where(User.user_id == 'role-id'))
+        user.role = 'admin'
+        db_session.commit()
+
+    # 5. Intentar acceder al panel admin (debe funcionar)
+    response = client.get('/admin')
+    assert response.status_code == 200
+    assert b'Usuarios registrados' in response.data
