@@ -1605,6 +1605,7 @@ def admin_logs():
 
 @main_bp.route('/admin/logs/export')
 @require_admin
+@limiter.limit('5 per minute')
 def admin_logs_export():
     """Exporta logs a CSV."""
     filters = {

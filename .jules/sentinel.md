@@ -32,3 +32,8 @@
 **Vulnerability:** Session fixation during user registration and lack of session invalidation after password change.
 **Learning:** Even if a user is "newly" authenticated via registration, failing to clear the pre-existing session allows an attacker to potentially fixate a session ID. Similarly, changing a password should always invalidate existing sessions to ensure account security across all devices.
 **Prevention:** Always call `session.clear()` before establishing a new authenticated session in registration/login routes. Perform a full `session.clear()` and force re-login after sensitive operations like password changes to ensure state consistency and security.
+
+## 2025-06-10 - Refine CSV Injection Protection against Whitespace Bypasses
+**Vulnerability:** CSV Injection via leading whitespace in formula-triggering fields.
+**Learning:** Simple `startswith` checks for risky characters (=, +, -, @) can be bypassed by prepending a space (e.g., " =SUM(...)"). Spreadsheet software often trims leading whitespace and then executes the formula.
+**Prevention:** Always use `.lstrip()` before checking for risky characters when sanitizing data for CSV exports.
