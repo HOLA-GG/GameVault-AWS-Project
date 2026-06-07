@@ -21,3 +21,7 @@
 ## 2025-06-03 - Centralized Non-Destructive Loading States
 **Learning:** Implementing app-wide loading feedback via a global `submit` listener on `document` is highly efficient but requires defensive programming. It must respect `defaultPrevented` (to avoid interfering with custom handlers) and check for child elements to avoid destroying nested icons (SVGs/span) when updating button text.
 **Action:** Use centralized event delegation for app-wide UX consistency. When updating button content, prefer ARIA attributes (`aria-busy`, `aria-label`) for accessibility and only modify `textContent` if the element has no complex inner HTML.
+
+## 2025-06-04 - Global Password Visibility Toggle
+**Learning:** Automatically injecting password visibility toggles via JavaScript ensures a consistent security-friendly UX across all forms (Login, Registration, Profile, Recovery) without manual template repetition. Using inline SVGs and synchronized ARIA labels ensures accessibility and compatibility across themes without external dependencies.
+**Action:** Use a "detect-and-inject" pattern for universal UI enhancements like password toggles or character counters to maintain a DRY (Don't Repeat Yourself) architecture. Always ensure the injected elements are keyboard accessible (`button type="button"`) and provide clear visual and audible feedback for the state change.

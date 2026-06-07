@@ -2063,3 +2063,13 @@ code {
     border: 2px solid var(--primary-color);
     box-shadow: var(--shadow-md);
 }
+
+.form-group { position: relative; }
+.pw-toggle {
+    position: absolute; right: 12px; bottom: 12px;
+    background: none; border: none; color: var(--text-secondary);
+    cursor: pointer; padding: 4px; display: flex; z-index: 5;
+}
+.pw-toggle:hover { color: var(--primary-color); }
+.pw-toggle svg { width: 20px; height: 20px; }
+.form-group input[type="password"] { padding-right: 44px; }

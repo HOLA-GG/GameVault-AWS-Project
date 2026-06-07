@@ -299,6 +299,13 @@
 
             injectCsrfTokens();
             setupCharacterCounters();
+            document.querySelectorAll('input[type="password"]').forEach(i => {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'pw-toggle'; b.ariaLabel = 'Ver';
+                b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+                i.parentElement.appendChild(b);
+                b.onclick = () => { i.type = i.type === 'password' ? 'text' : 'password'; b.ariaLabel = i.type === 'password' ? 'Ver' : 'Ocultar'; };
+            });
 
             document.addEventListener('submit', function(event) {
                 const form = event.target;
