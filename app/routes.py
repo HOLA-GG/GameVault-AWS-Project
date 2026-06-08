@@ -16,6 +16,7 @@ from flask import (
     Response,
     current_app,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -137,25 +138,40 @@ LANDING_SAMPLE_COLLECTIONS = [
 
 
 def require_login(view):
-    """Protege rutas que requieren autenticación."""
+    """Protege rutas que requieren autenticación con validación en tiempo real."""
 
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if 'user_id' not in session:
+        user_id = session.get('user_id')
+        if not user_id:
             flash('Debes iniciar sesión para acceder a esta sección.', 'error')
             return redirect(url_for('main.login', next=request.full_path.rstrip('?')))
+
+        # Real-time database validation to prevent stale sessions (Security enhancement)
+        user = obtener_usuario_por_id(user_id)
+        if not user or user.get('status') != 'active':
+            session.clear()
+            flash('Tu sesión ha expirado o tu cuenta no está activa.', 'error')
+            return redirect(url_for('main.login'))
+
+        g.current_user = user
         return view(*args, **kwargs)
 
     return wrapped
 
 
 def require_admin(view):
-    """Protege rutas de administración."""
+    """Protege rutas de administración con validación en tiempo real."""
 
     @wraps(view)
     @require_login
     def wrapped(*args, **kwargs):
-        if session.get('role') != 'admin':
+        # Use g.current_user cached by require_login to avoid redundant DB queries
+        user = getattr(g, 'current_user', None)
+        if not user:
+            user = obtener_usuario_por_id(session.get('user_id'))
+
+        if not user or user.get('role') != 'admin':
             flash('Acceso denegado. Solo administradores.', 'error')
             return redirect(url_for('main.dashboard'))
         return view(*args, **kwargs)
@@ -1074,7 +1090,11 @@ def login():
         return redirect(url_for('main.login'))
 
     usuario = verificar_credenciales(email, password)
-    if usuario is None or not check_password_hash(usuario['password_hash'], password):
+    if (
+        usuario is None
+        or usuario.get('status') != 'active'
+        or not check_password_hash(usuario['password_hash'], password)
+    ):
         crear_log_audit(
             user_id=usuario['user_id'] if usuario else None,
             action='FAILED_LOGIN',
@@ -1418,8 +1438,8 @@ def reset_password_with_email(token):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
-    if user is None:
-        errores.append('Usuario no encontrado.')
+    if user is None or user.get('status') != 'active':
+        errores.append('No se pudo procesar la solicitud para esta cuenta.')
 
     if errores:
         for error in errores:
