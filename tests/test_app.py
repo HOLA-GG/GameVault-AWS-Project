@@ -52,9 +52,35 @@ def client(app):
 
 
 def login_session(client, *, role='user'):
+    from app.models import get_session_factory, User
+    from werkzeug.security import generate_password_hash
+    import uuid
+
+    user_id = 'user-1'
+    email = 'user@example.com'
+
+    # Ensure user exists in DB because decorators now validate in real-time
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        user = db_session.get(User, user_id)
+        if not user:
+            user = User(
+                user_id=user_id,
+                email=email,
+                nombre='Tester',
+                password_hash=generate_password_hash('password123'),
+                role=role,
+                status='active'
+            )
+            db_session.add(user)
+        else:
+            user.role = role
+            user.status = 'active'
+        db_session.commit()
+
     with client.session_transaction() as session:
-        session['user_id'] = 'user-1'
-        session['email'] = 'user@example.com'
+        session['user_id'] = user_id
+        session['email'] = email
         session['nombre'] = 'Tester'
         session['role'] = role
 
