@@ -1438,8 +1438,8 @@ def reset_password_with_email(token):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
-    if user is None:
-        errores.append('Usuario no encontrado.')
+    if user is None or user.get('status') != 'active':
+        errores.append('No se pudo procesar la solicitud para esta cuenta.')
 
     if errores:
         for error in errores:
