@@ -47,7 +47,7 @@
                 <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite tu contraseña" required autocomplete="new-password" maxlength="128">
             </div>
         </div>
-        <button type="submit" class="btn-submit" id="registerSubmitButton" style="width:100%;">Crear cuenta</button>
+        <button type="submit" class="btn-submit" id="registerSubmitButton" style="width:100%;" data-loading-text="Creando cuenta...">Crear cuenta</button>
     </form>
 
     <script>
@@ -70,16 +70,6 @@
                 confirmPassword.addEventListener('input', validatePassword);
             }
 
-            if (form && button) {
-                form.addEventListener('submit', function() {
-                    if (form.checkValidity()) {
-                        button.disabled = true;
-                        button.setAttribute('aria-busy', 'true');
-                        button.setAttribute('aria-label', 'Creando cuenta...');
-                        button.textContent = 'Creando cuenta...';
-                    }
-                });
-            }
         });
     </script>
 </section>
