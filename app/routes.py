@@ -1295,7 +1295,7 @@ def forgot_password():
     user = obtener_usuario_por_email(email)
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
 
-    if user:
+    if user and user.get('status') == 'active':
         result = crear_reset_token(user['user_id'], request.remote_addr or None)
         if result['success']:
             email_sent = enviar_email_reset_password(email, result['token'])
@@ -1342,7 +1342,7 @@ def forgot_password_manual_token():
 
     user = obtener_usuario_por_email(email)
     # Validar si el usuario existe y el teléfono coincide
-    if not user or str(user.get('telefono', '')).strip() != telefono:
+    if not user or str(user.get('telefono', '')).strip() != telefono or user.get('status') != 'active':
         # En producción no revelamos si los datos son incorrectos para evitar enumeración.
         if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
             flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
@@ -1426,6 +1426,10 @@ def reset_password_with_email(token):
         return redirect(url_for('main.forgot_password'))
 
     user = obtener_usuario_por_id(token_validation['user_id'])
+    if not user or user.get('status') != 'active':
+        flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
     email = request.args.get('email', '') or (user.get('email') if user else '')
 
     if request.method == 'GET':
@@ -1451,7 +1455,8 @@ def reset_password_with_email(token):
         flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
         return render_template('reset_password.html', token=token, email=email)
 
-    usar_token(token)
+    # Note: actualizar_password_usuario already handles token invalidation
+    session.clear()
     crear_log_audit(
         user_id=token_validation['user_id'],
         action='PASSWORD_RESET',
