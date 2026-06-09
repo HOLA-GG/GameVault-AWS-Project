@@ -812,8 +812,12 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
     now = utcnow()
 
     with session_factory() as session:
-        # 1. Total logs
-        total_logs = session.scalar(select(func.count(AuditLog.audit_id))) or 0
+        # 1. Status counts (Consolidated: we calculate total_logs from these counts to save one DB roundtrip)
+        status_results = session.execute(
+            select(AuditLog.status, func.count(AuditLog.audit_id)).group_by(AuditLog.status)
+        ).all()
+        status_counts = {row[0]: row[1] for row in status_results}
+        total_logs = sum(status_counts.values())
 
         if total_logs == 0:
             return {
@@ -834,13 +838,7 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         ).all()
         action_counts = {row[0]: row[1] for row in action_results}
 
-        # 3. Status counts
-        status_results = session.execute(
-            select(AuditLog.status, func.count(AuditLog.audit_id)).group_by(AuditLog.status)
-        ).all()
-        status_counts = {row[0]: row[1] for row in status_results}
-
-        # 4. Top users
+        # 3. Top users
         user_results = session.execute(
             select(AuditLog.user_id, func.count(AuditLog.audit_id))
             .group_by(AuditLog.user_id)
@@ -849,7 +847,7 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         ).all()
         top_users = [(row[0] or 'anonymous', row[1]) for row in user_results]
 
-        # 5. Daily activity (last 7 days)
+        # 4. Daily activity (last 7 days)
         cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=6)
 
         # Portable grouping by date (YYYY-MM-DD)
