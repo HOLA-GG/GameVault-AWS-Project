@@ -1,3 +1,7 @@
 ## 2026-06-08 - Unified Form Feedback & Password UX
 **Learning:** Centralizing form submission logic on a global `submit` listener reduces boilerplate but requires strict adherence to HTML5 validation (`checkValidity`) and defensive programming (disabling button via `setTimeout`) to prevent double-submissions and invalid state feedback. Additionally, a dynamic password visibility toggle with swapped icons (eye/eye-off) provides a superior and more accessible experience than a simple text-change toggle.
 **Action:** Use a "detect-and-inject" pattern for password toggles and character counters (expanded to `input` fields). In the global submit listener, always check for `defaultPrevented` and `form.checkValidity()` before updating UI state to ensure feedback only triggers on valid submissions.
+
+## 2026-06-09 - Interactive Flash Messages
+**Learning:** Flash messages (notifications) can become UI clutter if they persist indefinitely, especially "success" messages that only confirm an expected action. Adding a manual dismissal (close button) and auto-dismissal for success messages improves the experience. Smooth transitions (fade and slide-up) are essential for a non-jarring dismissal experience.
+**Action:** Implement a global `setupFlashMessages` function that handles both manual and auto-dismissal with CSS transitions. Ensure success messages auto-dismiss after a few seconds while keeping errors/warnings visible until manually closed.
