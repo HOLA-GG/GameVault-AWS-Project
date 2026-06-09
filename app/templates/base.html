@@ -247,6 +247,30 @@
             });
         }
 
+        function setupFlashMessages() {
+            document.querySelectorAll('.flash').forEach(flash => {
+                const closeBtn = document.createElement('button');
+                closeBtn.type = 'button';
+                closeBtn.className = 'flash-close';
+                closeBtn.setAttribute('aria-label', 'Cerrar mensaje');
+                closeBtn.innerHTML = '&times;';
+
+                const dismiss = () => {
+                    flash.classList.add('flash-dismissing');
+                    flash.addEventListener('transitionend', () => flash.remove(), { once: true });
+                    // Fallback if transition fails
+                    setTimeout(() => flash.remove(), 400);
+                };
+
+                closeBtn.onclick = dismiss;
+                flash.appendChild(closeBtn);
+
+                if (flash.classList.contains('success')) {
+                    setTimeout(dismiss, 5000);
+                }
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const savedTheme = localStorage.getItem('gamevault-theme');
             const savedScale = parseFloat(localStorage.getItem('gamevault-font-scale') || '1');
@@ -300,6 +324,7 @@
 
             injectCsrfTokens();
             setupCharacterCounters();
+            setupFlashMessages();
             document.querySelectorAll('input[type="password"]').forEach(i => {
                 const b = document.createElement('button');
                 b.type = 'button';
