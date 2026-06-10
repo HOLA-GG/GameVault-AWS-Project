@@ -162,7 +162,7 @@
             <article class="activity-feed-card">
                 <div class="activity-feed-card__header">
                     <strong>{{ log.action_name }}</strong>
-                    <span>{{ (log.timestamp or '')[:16]|replace('T', ' ') }}</span>
+                    <span data-timestamp="{{ log.timestamp }}">{{ (log.timestamp or '')[:16]|replace('T', ' ') }}</span>
                 </div>
                 <p>{{ log.resource|replace('_', ' ')|title }}</p>
                 {% if log.details and log.details.title %}

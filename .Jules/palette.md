@@ -5,3 +5,7 @@
 ## 2026-06-09 - Interactive Flash Messages
 **Learning:** Flash messages (notifications) can become UI clutter if they persist indefinitely, especially "success" messages that only confirm an expected action. Adding a manual dismissal (close button) and auto-dismissal for success messages improves the experience. Smooth transitions (fade and slide-up) are essential for a non-jarring dismissal experience.
 **Action:** Implement a global `setupFlashMessages` function that handles both manual and auto-dismissal with CSS transitions. Ensure success messages auto-dismiss after a few seconds while keeping errors/warnings visible until manually closed.
+
+## 2026-06-10 - Efficient Client-Side Relative Timestamps
+**Learning:** Native `Intl.RelativeTimeFormat` combined with a simple client-side update script provides a lightweight, highly accessible, and localized way to handle relative timestamps without external dependencies. By annotating ISO strings with a `data-timestamp` attribute, the UI can be progressively enhanced from static dates to dynamic, human-readable labels.
+**Action:** Use `data-timestamp` attributes on any datetime display and implement a global `setupRelativeTimes` helper that uses the `lang` attribute from `<html>` to ensure consistency with the app's localization.
