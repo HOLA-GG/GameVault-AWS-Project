@@ -126,3 +126,69 @@ def test_password_change_success_clears_session_and_redirects(client):
     with client.session_transaction() as sess:
         assert 'user_id' not in sess
         assert 'email' not in sess
+
+def test_stale_admin_session(client, app):
+    """Verifica que un admin degradado pierda acceso al panel en tiempo real."""
+    from app.models import get_session_factory, User
+    unique_email = f"stale_admin_{uuid.uuid4()}@example.com"
+    # 1. Register and login
+    client.post('/registro', data={
+        'nombre': 'Stale Admin',
+        'email': unique_email,
+        'password': 'password123',
+        'confirm_password': 'password123'
+    })
+
+    # 2. Upgrade to admin in DB
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        user = db_session.scalar(select(User).where(User.email == unique_email))
+        user.role = 'admin'
+        db_session.commit()
+
+    # Refresh session data (re-login or manual sync) - re-login is cleaner
+    client.post('/logout')
+    client.post('/login', data={'email': unique_email, 'password': 'password123'})
+
+    # Verify admin access
+    response = client.get('/admin')
+    assert response.status_code == 200
+
+    # 3. Demote in DB
+    with session_factory() as db_session:
+        user = db_session.scalar(select(User).where(User.email == unique_email))
+        user.role = 'user'
+        db_session.commit()
+
+    # 4. Access admin panel with SAME session
+    response = client.get('/admin')
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/dashboard')
+
+def test_deactivated_while_logged_in(client, app):
+    """Verifica que un usuario desactivado pierda acceso al dashboard en tiempo real."""
+    from app.models import get_session_factory, User
+    unique_email = f"deactivated_{uuid.uuid4()}@example.com"
+    # 1. Register and login
+    client.post('/registro', data={
+        'nombre': 'Active User',
+        'email': unique_email,
+        'password': 'password123',
+        'confirm_password': 'password123'
+    })
+
+    # Verify access
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+
+    # 2. Deactivate in DB
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        user = db_session.scalar(select(User).where(User.email == unique_email))
+        user.status = 'inactive'
+        db_session.commit()
+
+    # 3. Access dashboard
+    response = client.get('/dashboard')
+    assert response.status_code == 302
+    assert '/login' in response.headers.get('Location', '')

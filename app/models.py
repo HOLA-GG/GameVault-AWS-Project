@@ -103,9 +103,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default='user')
     status: Mapped[str] = mapped_column(String(20), default='active')
-    collection_visibility: Mapped[str] = mapped_column(String(20), default='private')
-    homepage_showcase_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    collection_visibility: Mapped[str] = mapped_column(String(20), default='private', index=True)
+    homepage_showcase_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     games: Mapped[List['Game']] = relationship(cascade='all, delete-orphan', back_populates='user')
@@ -127,8 +127,8 @@ class Game(Base):
     prioridad: Mapped[str] = mapped_column(String(20), default='Media')
     calificacion: Mapped[int | None] = mapped_column(Integer, nullable=True)
     es_favorito: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, index=True)
 
     user: Mapped[User] = relationship(back_populates='games')
 
@@ -253,6 +253,10 @@ def ensure_schema_compatibility() -> None:
                 connection.execute(
                     text(f'UPDATE users SET homepage_showcase_opt_in = {default_false} WHERE homepage_showcase_opt_in IS NULL')
                 )
+                # Asegurar índices para filtros y ordenamientos comunes
+                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_collection_visibility ON users (collection_visibility)'))
+                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_homepage_showcase_opt_in ON users (homepage_showcase_opt_in)'))
+                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)'))
 
     if not inspector.has_table('games'):
         return
@@ -278,6 +282,9 @@ def ensure_schema_compatibility() -> None:
         connection.execute(text("UPDATE games SET categoria = 'Biblioteca' WHERE categoria IS NULL OR categoria = ''"))
         connection.execute(text("UPDATE games SET prioridad = 'Media' WHERE prioridad IS NULL OR prioridad = ''"))
         connection.execute(text(f'UPDATE games SET es_favorito = {default_false} WHERE es_favorito IS NULL'))
+        # Asegurar índices para filtros y ordenamientos comunes
+        connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_created_at ON games (created_at)'))
+        connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_updated_at ON games (updated_at)'))
 
 
 def database_healthcheck() -> bool:
@@ -812,8 +819,12 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
     now = utcnow()
 
     with session_factory() as session:
-        # 1. Total logs
-        total_logs = session.scalar(select(func.count(AuditLog.audit_id))) or 0
+        # 1. Status counts (Consolidated: we calculate total_logs from these counts to save one DB roundtrip)
+        status_results = session.execute(
+            select(AuditLog.status, func.count(AuditLog.audit_id)).group_by(AuditLog.status)
+        ).all()
+        status_counts = {row[0]: row[1] for row in status_results}
+        total_logs = sum(status_counts.values())
 
         if total_logs == 0:
             return {
@@ -834,13 +845,7 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         ).all()
         action_counts = {row[0]: row[1] for row in action_results}
 
-        # 3. Status counts
-        status_results = session.execute(
-            select(AuditLog.status, func.count(AuditLog.audit_id)).group_by(AuditLog.status)
-        ).all()
-        status_counts = {row[0]: row[1] for row in status_results}
-
-        # 4. Top users
+        # 3. Top users
         user_results = session.execute(
             select(AuditLog.user_id, func.count(AuditLog.audit_id))
             .group_by(AuditLog.user_id)
@@ -849,7 +854,7 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         ).all()
         top_users = [(row[0] or 'anonymous', row[1]) for row in user_results]
 
-        # 5. Daily activity (last 7 days)
+        # 4. Daily activity (last 7 days)
         cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=6)
 
         # Portable grouping by date (YYYY-MM-DD)

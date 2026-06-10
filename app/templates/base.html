@@ -225,8 +225,9 @@
         }
 
         function setupCharacterCounters() {
-            document.querySelectorAll('textarea[maxlength]').forEach(textarea => {
-                const maxLength = textarea.getAttribute('maxlength');
+            document.querySelectorAll('textarea[maxlength], input[maxlength]').forEach(el => {
+                if (el.type === 'password' || el.type === 'checkbox' || el.type === 'radio') return;
+                const maxLength = el.getAttribute('maxlength');
                 const counter = document.createElement('small');
                 counter.style.display = 'block';
                 counter.style.textAlign = 'right';
@@ -235,14 +236,73 @@
                 counter.setAttribute('aria-live', 'polite');
 
                 const updateCounter = () => {
-                    const currentLength = textarea.value.length;
+                    const currentLength = el.value.length;
                     counter.textContent = `${currentLength} / ${maxLength} caracteres`;
                     counter.style.color = currentLength >= maxLength ? 'var(--danger-color)' : 'var(--text-secondary)';
                 };
 
-                textarea.parentNode.insertBefore(counter, textarea.nextSibling);
+                el.parentNode.insertBefore(counter, el.nextSibling);
                 updateCounter();
-                textarea.addEventListener('input', updateCounter);
+                el.addEventListener('input', updateCounter);
+            });
+        }
+
+        function setupRelativeTimes() {
+            const locale = document.documentElement.lang || 'es';
+            const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+            const units = {
+                year: 24 * 60 * 60 * 1000 * 365,
+                month: 24 * 60 * 60 * 1000 * 30,
+                day: 24 * 60 * 60 * 1000,
+                hour: 60 * 60 * 1000,
+                minute: 60 * 1000,
+                second: 1000
+            };
+
+            const getRelativeTime = (d1, d2 = new Date()) => {
+                const elapsed = d1 - d2;
+                for (const u in units) {
+                    if (Math.abs(elapsed) > units[u] || u === 'second') {
+                        return rtf.format(Math.round(elapsed / units[u]), u);
+                    }
+                }
+            };
+
+            document.querySelectorAll('[data-timestamp]').forEach(el => {
+                const ts = el.getAttribute('data-timestamp');
+                if (!ts) return;
+                try {
+                    const date = new Date(ts);
+                    if (isNaN(date.getTime())) return;
+                    el.textContent = getRelativeTime(date);
+                    if (!el.title) el.title = date.toLocaleString();
+                } catch (e) {
+                    console.error('Error parsing timestamp', e);
+                }
+            });
+        }
+
+        function setupFlashMessages() {
+            document.querySelectorAll('.flash').forEach(flash => {
+                const closeBtn = document.createElement('button');
+                closeBtn.type = 'button';
+                closeBtn.className = 'flash-close';
+                closeBtn.setAttribute('aria-label', 'Cerrar mensaje');
+                closeBtn.innerHTML = '&times;';
+
+                const dismiss = () => {
+                    flash.classList.add('flash-dismissing');
+                    flash.addEventListener('transitionend', () => flash.remove(), { once: true });
+                    // Fallback if transition fails
+                    setTimeout(() => flash.remove(), 400);
+                };
+
+                closeBtn.onclick = dismiss;
+                flash.appendChild(closeBtn);
+
+                if (flash.classList.contains('success')) {
+                    setTimeout(dismiss, 5000);
+                }
             });
         }
 
@@ -299,12 +359,23 @@
 
             injectCsrfTokens();
             setupCharacterCounters();
+            setupRelativeTimes();
+            setupFlashMessages();
             document.querySelectorAll('input[type="password"]').forEach(i => {
                 const b = document.createElement('button');
-                b.type = 'button'; b.className = 'pw-toggle'; b.ariaLabel = 'Ver';
-                b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+                b.type = 'button';
+                b.className = 'pw-toggle';
+                b.setAttribute('aria-label', 'Mostrar contraseña');
+                const eyeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+                const eyeOffIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+                b.innerHTML = eyeIcon;
                 i.parentElement.appendChild(b);
-                b.onclick = () => { i.type = i.type === 'password' ? 'text' : 'password'; b.ariaLabel = i.type === 'password' ? 'Ver' : 'Ocultar'; };
+                b.onclick = () => {
+                    const isPassword = i.type === 'password';
+                    i.type = isPassword ? 'text' : 'password';
+                    b.innerHTML = isPassword ? eyeOffIcon : eyeIcon;
+                    b.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+                };
             });
 
             document.addEventListener('submit', function(event) {
@@ -314,7 +385,8 @@
                 if (!button) return;
 
                 const originalText = button.textContent.trim();
-                const loadingText = originalText.endsWith('...') ? originalText : "Enviando...";
+                const customLoadingText = button.getAttribute('data-loading-text');
+                const loadingText = customLoadingText || (originalText.endsWith('...') ? originalText : "Enviando...");
 
                 button.setAttribute('aria-busy', 'true');
                 button.setAttribute('aria-label', loadingText);

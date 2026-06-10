@@ -37,3 +37,13 @@
 **Vulnerability:** CSV Injection via leading whitespace in formula-triggering fields.
 **Learning:** Simple `startswith` checks for risky characters (=, +, -, @) can be bypassed by prepending a space (e.g., " =SUM(...)"). Spreadsheet software often trims leading whitespace and then executes the formula.
 **Prevention:** Always use `.lstrip()` before checking for risky characters when sanitizing data for CSV exports.
+
+## 2026-06-08 - Prevent Privilege Escalation and Unauthorized Access via Stale Sessions
+**Vulnerability:** Trusting session-stored 'role' and 'user_id' without real-time server-side validation allowed demoted admins or deactivated users to maintain access until their session expired.
+**Learning:** Authentication decorators that only check 'session' data are vulnerable to state changes in the database that occur after the session is established.
+**Prevention:** Always perform real-time database validation of user status and roles within authentication decorators. Use request-scoped caching (like Flask's 'g' object) to minimize performance impact while ensuring security.
+
+## 2026-06-10 - Harden CSP by Restricting S3 Wildcards
+**Vulnerability:** Use of broad `*.amazonaws.com` wildcard in `img-src` and `connect-src` CSP directives.
+**Learning:** Permissive wildcards for cloud providers allow attackers to bypass CSP by hosting malicious scripts or exfiltration endpoints in their own accounts under the same provider.
+**Prevention:** Dynamically construct CSP directives using specific hostnames derived from application configuration (e.g., `{bucket}.s3.{region}.amazonaws.com`) to enforce the principle of least privilege.

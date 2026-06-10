@@ -118,7 +118,7 @@
                             </div>
                             <div class="log-account-card__bottom">
                                 <span class="badge badge-log-action {{ group['items'][0].action_badge_class }}">{{ group.latest_action }}</span>
-                                <small>{{ group.latest_timestamp[:19].replace('T', ' ') }}</small>
+                                <small data-timestamp="{{ group.latest_timestamp }}">{{ group.latest_timestamp[:19].replace('T', ' ') }}</small>
                             </div>
                         </a>
                     {% endfor %}
@@ -152,7 +152,7 @@
                             <tbody>
                                 {% for log in selected_group['items'] %}
                                     <tr>
-                                        <td>{{ log.timestamp[:19].replace('T', ' ') }}</td>
+                                        <td data-timestamp="{{ log.timestamp }}">{{ log.timestamp[:19].replace('T', ' ') }}</td>
                                         <td>
                                             <span class="badge badge-log-action {{ log.action_badge_class }}">{{ log.action_name or log.action }}</span>
                                         </td>
