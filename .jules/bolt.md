@@ -42,6 +42,9 @@
 **Learning:** Fetching data (like activity logs) and processing it for metrics that aren't displayed in the UI creates wasted database round-trips and CPU cycles. In this case, `recent_activity` was being calculated on every dashboard and profile load despite not being used in any template.
 **Action:** Make metric calculation parameters optional and guard their processing logic. Regularly audit route data-fetching against template requirements to eliminate dead database queries.
 
+## 2025-08-01 - Consolidating Global Counts with Status Grouping
+**Learning:** Calculating a total table count separately from a `GROUP BY` query on a categorical column (like `status`) creates a redundant database roundtrip. Since the sum of individual group counts (including `NULL` if handled or known to be non-null) equals the total count, the scalar query can be eliminated.
+**Action:** Always derive total counts from existing categorical grouping results in Python to reduce roundtrips in dashboard and statistics routes.
 ## 2026-06-12 - Consolidating Aggregation Queries
 **Learning:** Performing a standalone `COUNT` query followed by a `GROUP BY` query on the same table is often redundant if the grouped results cover all possible values. Summing the grouped counts in Python saves a database round-trip without compromising data accuracy.
 **Action:** Always check if a total count can be derived from existing grouped aggregations in the same transaction to reduce database latency.
