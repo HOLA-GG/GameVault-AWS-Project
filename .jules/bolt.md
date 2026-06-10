@@ -45,3 +45,7 @@
 ## 2026-06-12 - Consolidating Aggregation Queries
 **Learning:** Performing a standalone `COUNT` query followed by a `GROUP BY` query on the same table is often redundant if the grouped results cover all possible values. Summing the grouped counts in Python saves a database round-trip without compromising data accuracy.
 **Action:** Always check if a total count can be derived from existing grouped aggregations in the same transaction to reduce database latency.
+
+## 2026-06-15 - Missing Indexes on Frequently Queried Fields
+**Learning:** Tables like `users` and `games` that grow significantly over time cause query latency to increase linearly (O(N)) if fields used in `WHERE` or `ORDER BY` lack indexes.
+**Action:** Add `index=True` to core model fields (e.g., `visibility`, `created_at`, `updated_at`) and ensure `ensure_schema_compatibility` includes idempotent SQL (`CREATE INDEX IF NOT EXISTS`) to optimize existing production environments.
