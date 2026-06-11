@@ -9,3 +9,7 @@
 ## 2026-06-10 - Efficient Client-Side Relative Timestamps
 **Learning:** Native `Intl.RelativeTimeFormat` combined with a simple client-side update script provides a lightweight, highly accessible, and localized way to handle relative timestamps without external dependencies. By annotating ISO strings with a `data-timestamp` attribute, the UI can be progressively enhanced from static dates to dynamic, human-readable labels.
 **Action:** Use `data-timestamp` attributes on any datetime display and implement a global `setupRelativeTimes` helper that uses the `lang` attribute from `<html>` to ensure consistency with the app's localization.
+
+## 2026-06-11 - Interactive Collection Metrics
+**Learning:** Transforming static dashboard statistics into functional, filtered links significantly improves "explorability" and user engagement without adding visual complexity. Using `text-decoration: none` and `color: inherit` allows for seamless integration of `<a>` tags into existing card/tile components while maintaining the intended design.
+**Action:** Always consider if a metric or summary statistic can serve as a shortcut to its underlying data. Ensure interactive elements use `:focus-visible` to provide clear feedback for keyboard users.

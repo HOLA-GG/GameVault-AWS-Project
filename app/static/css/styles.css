@@ -862,6 +862,17 @@ header p {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.insight-tile:hover,
+.insight-tile:focus-visible {
+    transform: translateY(-3px);
+    border-color: var(--primary-color);
+    background: rgba(var(--primary-color-rgb), 0.05);
+    outline: none;
 }
 
 .insight-tile strong {
@@ -1103,12 +1114,16 @@ code {
     justify-content: flex-start;
     gap: 12px;
     transition: all var(--transition-normal), background 0.3s ease, border-color 0.3s ease;
+    text-decoration: none;
+    color: inherit;
 }
 
-.feature-card:hover {
+.feature-card:hover,
+.feature-card:focus-visible {
     transform: translateY(-5px);
     background: var(--background-darker);
     border-color: rgba(255, 255, 255, 0.16);
+    outline: none;
 }
 
 .feature-icon {

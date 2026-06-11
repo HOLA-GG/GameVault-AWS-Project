@@ -24,22 +24,22 @@
     <p>Completa o corrige tu información. Estos datos son opcionales salvo tu nombre.</p>
 
     <div class="insight-strip" style="margin-bottom:24px;">
-        <div class="insight-tile">
+        <a href="{{ url_for('main.dashboard') }}" class="insight-tile" aria-label="Ver todos los juegos registrados">
             <strong>{{ profile_insights.total_games }}</strong>
             <span>juegos registrados</span>
-        </div>
-        <div class="insight-tile">
+        </a>
+        <a href="{{ url_for('main.dashboard', favoritos='solo') }}" class="insight-tile" aria-label="Ver juegos favoritos">
             <strong>{{ profile_insights.favorites_count }}</strong>
             <span>favoritos</span>
-        </div>
-        <div class="insight-tile">
+        </a>
+        <a href="{{ url_for('main.dashboard', categoria='Backlog') }}" class="insight-tile" aria-label="Ver backlog">
             <strong>{{ profile_insights.backlog_count }}</strong>
             <span>en backlog</span>
-        </div>
-        <div class="insight-tile">
+        </a>
+        <a href="{{ url_for('main.dashboard', categoria='Wishlist') }}" class="insight-tile" aria-label="Ver wishlist">
             <strong>{{ profile_insights.wishlist_count }}</strong>
             <span>en wishlist</span>
-        </div>
+        </a>
     </div>
 
     <div class="features-grid" style="margin-bottom:24px;">
