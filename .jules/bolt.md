@@ -52,3 +52,11 @@
 ## 2026-06-15 - Missing Indexes on Frequently Queried Fields
 **Learning:** Tables like `users` and `games` that grow significantly over time cause query latency to increase linearly (O(N)) if fields used in `WHERE` or `ORDER BY` lack indexes.
 **Action:** Add `index=True` to core model fields (e.g., `visibility`, `created_at`, `updated_at`) and ensure `ensure_schema_compatibility` includes idempotent SQL (`CREATE INDEX IF NOT EXISTS`) to optimize existing production environments.
+
+## 2026-06-11 - Redundant Database Lookups in Decorated Routes
+**Learning:** Routes protected by decorators like `@require_login` often have the user object already fetched and cached in Flask's `g` object. Performing an explicit `obtener_usuario_por_id` within the route body creates a redundant O(1) database round-trip.
+**Action:** Always check `g.current_user` before performing a manual user lookup in authenticated routes.
+
+## 2026-06-11 - Redundant Branching in Insight Loops
+**Learning:** Performing multiple independent `if` checks on the same property (like game priority) within an O(N) loop adds unnecessary branching overhead.
+**Action:** Nest dependent logic (like "next focus" selection) inside the primary property check to minimize CPU cycles per iteration.
