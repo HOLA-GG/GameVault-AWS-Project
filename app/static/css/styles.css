@@ -612,11 +612,48 @@ header p {
 }
 
 .flash {
-    padding: 15px 20px;
+    padding: 15px 44px 15px 20px;
     border-radius: var(--border-radius-sm);
     margin-bottom: 10px;
     font-weight: 500;
     animation: slideIn 0.3s ease;
+    position: relative;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.flash-dismissing {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.flash-close {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flash-close:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.flash-close:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
 }
 
 .flash.success {
@@ -696,6 +733,11 @@ header p {
     font-weight: 500;
     font-size: 0.95rem;
     transition: color 0.3s ease;
+}
+
+.form-group:has(:required) label::after {
+    content: " *";
+    color: var(--danger-color);
 }
 
 .form-group input[type="text"],
@@ -2058,3 +2100,13 @@ code {
     border: 2px solid var(--primary-color);
     box-shadow: var(--shadow-md);
 }
+
+.form-group { position: relative; }
+.pw-toggle {
+    position: absolute; right: 12px; bottom: 12px;
+    background: none; border: none; color: var(--text-secondary);
+    cursor: pointer; padding: 4px; display: flex; z-index: 5;
+}
+.pw-toggle:hover { color: var(--primary-color); }
+.pw-toggle svg { width: 20px; height: 20px; }
+.form-group input[type="password"] { padding-right: 44px; }

@@ -62,21 +62,21 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" required>
+                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" required maxlength="120">
             </div>
             <div class="form-group">
                 <label for="apellido">Apellidos</label>
-                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}">
+                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" maxlength="120">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="prefijo_pais">Prefijo país</label>
-                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57">
+                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10">
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567">
+                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567" maxlength="20">
             </div>
         </div>
         <div class="form-group">
@@ -99,7 +99,7 @@
                 Solo se mostrará en portada si la colección es pública y tiene contenido real.
             </small>
         </div>
-        <button type="submit" class="btn-submit" id="profileSubmitButton">Guardar perfil</button>
+        <button type="submit" class="btn-submit" id="profileSubmitButton" data-loading-text="Guardando perfil...">Guardar perfil</button>
     </form>
 </section>
 
@@ -110,18 +110,18 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="current_password">Contraseña actual</label>
-                <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+                <input type="password" id="current_password" name="current_password" required autocomplete="current-password" maxlength="128">
             </div>
             <div class="form-group">
                 <label for="password">Nueva contraseña</label>
-                <input type="password" id="password" name="password" required autocomplete="new-password">
+                <input type="password" id="password" name="password" required autocomplete="new-password" maxlength="128">
             </div>
         </div>
         <div class="form-group">
             <label for="confirm_password">Confirmar nueva contraseña</label>
-            <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password">
+            <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password" maxlength="128">
         </div>
-        <button type="submit" class="btn-submit" id="passwordSubmitButton">Actualizar contraseña</button>
+        <button type="submit" class="btn-submit" id="passwordSubmitButton" data-loading-text="Actualizando contraseña...">Actualizar contraseña</button>
     </form>
 </section>
 
@@ -146,27 +146,6 @@
             confirmPassword.addEventListener('input', validatePassword);
         }
 
-        if (profileForm && profileSubmitButton) {
-            profileForm.addEventListener('submit', function() {
-                if (profileForm.checkValidity()) {
-                    profileSubmitButton.disabled = true;
-                    profileSubmitButton.setAttribute('aria-busy', 'true');
-                    profileSubmitButton.setAttribute('aria-label', 'Guardando perfil...');
-                    profileSubmitButton.textContent = 'Guardando perfil...';
-                }
-            });
-        }
-
-        if (passwordForm && passwordSubmitButton) {
-            passwordForm.addEventListener('submit', function() {
-                if (passwordForm.checkValidity()) {
-                    passwordSubmitButton.disabled = true;
-                    passwordSubmitButton.setAttribute('aria-busy', 'true');
-                    passwordSubmitButton.setAttribute('aria-label', 'Actualizando contraseña...');
-                    passwordSubmitButton.textContent = 'Actualizando contraseña...';
-                }
-            });
-        }
     });
 </script>
 
@@ -183,7 +162,7 @@
             <article class="activity-feed-card">
                 <div class="activity-feed-card__header">
                     <strong>{{ log.action_name }}</strong>
-                    <span>{{ (log.timestamp or '')[:16]|replace('T', ' ') }}</span>
+                    <span data-timestamp="{{ log.timestamp }}">{{ (log.timestamp or '')[:16]|replace('T', ' ') }}</span>
                 </div>
                 <p>{{ log.resource|replace('_', ' ')|title }}</p>
                 {% if log.details and log.details.title %}

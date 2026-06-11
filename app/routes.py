@@ -37,6 +37,7 @@ from app.models import (
     actualizar_usuario_nombre,
     actualizar_usuario_perfil,
     combinar_rating_showcase,
+    contar_resumenes_colecciones,
     obtener_colecciones_publicas,
     obtener_resumenes_colecciones,
     registrar_rating_showcase,
@@ -137,36 +138,39 @@ LANDING_SAMPLE_COLLECTIONS = [
 
 
 def require_login(view):
-    """Protege rutas que requieren autenticación con verificación en base de datos."""
+    """Protege rutas que requieren autenticación con validación en tiempo real."""
 
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if 'user_id' not in session:
+        user_id = session.get('user_id')
+        if not user_id:
             flash('Debes iniciar sesión para acceder a esta sección.', 'error')
             return redirect(url_for('main.login', next=request.full_path.rstrip('?')))
 
-        # Mejora de seguridad: verifica que el usuario exista y esté activo en tiempo real.
-        if not hasattr(g, 'current_user'):
-            user = obtener_usuario_por_id(session['user_id'])
-            if not user or user.get('status') != 'active':
-                session.clear()
-                flash('Tu sesión ha expirado o tu cuenta ya no está activa.', 'error')
-                return redirect(url_for('main.login'))
-            g.current_user = user
+        # Real-time database validation to prevent stale sessions (Security enhancement)
+        user = obtener_usuario_por_id(user_id)
+        if not user or user.get('status') != 'active':
+            session.clear()
+            flash('Tu sesión ha expirado o tu cuenta no está activa.', 'error')
+            return redirect(url_for('main.login'))
 
+        g.current_user = user
         return view(*args, **kwargs)
 
     return wrapped
 
 
 def require_admin(view):
-    """Protege rutas de administración con verificación de rol en tiempo real."""
+    """Protege rutas de administración con validación en tiempo real."""
 
     @wraps(view)
     @require_login
     def wrapped(*args, **kwargs):
-        # g.current_user es poblado por el decorador require_login previo.
+        # Use g.current_user cached by require_login to avoid redundant DB queries
         user = getattr(g, 'current_user', None)
+        if not user:
+            user = obtener_usuario_por_id(session.get('user_id'))
+
         if not user or user.get('role') != 'admin':
             flash('Acceso denegado. Solo administradores.', 'error')
             return redirect(url_for('main.dashboard'))
@@ -365,7 +369,7 @@ def normalize_game_metadata(form) -> dict:
     }
 
 
-def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> dict:
+def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
     """Calcula métricas ligeras para el dashboard (optimizado: pass único y comparaciones ISO)."""
     now = datetime.now(timezone.utc)
     recent_cutoff_iso = (now - timedelta(days=7)).isoformat()
@@ -393,8 +397,9 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         if juego.get('es_favorito'):
             favorites_count += 1
 
-        prio_raw = (juego.get('prioridad') or '').lower()
-        if prio_raw == 'alta':
+        # Check for 'Alta' priority directly (normalized by normalize_game_metadata)
+        prio = juego.get('prioridad')
+        if prio == 'Alta':
             high_priority_count += 1
 
         calif = juego.get('calificacion')
@@ -416,15 +421,16 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         if last_updated_at_iso is None or iso_updated > last_updated_at_iso:
             last_updated_at_iso, last_updated_game = iso_updated, juego
 
-        if prio_raw == 'alta' and cat != 'Completado':
+        if prio == 'Alta' and cat != 'Completado':
             if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
                 next_focus, next_focus_at_iso = juego, iso_updated
 
     recent_activity = 0
-    for log in activity_logs:
-        ts_iso = log.get('timestamp')
-        if ts_iso and ts_iso >= recent_cutoff_iso:
-            recent_activity += 1
+    if activity_logs:
+        for log in activity_logs:
+            ts_iso = log.get('timestamp')
+            if ts_iso and ts_iso >= recent_cutoff_iso:
+                recent_activity += 1
 
     dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
     dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
@@ -451,9 +457,9 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict]) -> d
         'last_updated_game': last_updated_game,
         'next_focus': next_focus,
         'filter_options': {
-            'plataformas': sorted([p for p in platform_counts.keys() if p != 'Sin plataforma']),
-            'estados': sorted([s for s in status_counts.keys() if s != 'N/A']),
-            'categorias': sorted(list(category_counts.keys())),
+            'plataformas': sorted(p for p in platform_counts if p != 'Sin plataforma'),
+            'estados': sorted(s for s in status_counts if s != 'N/A'),
+            'categorias': sorted(category_counts),
         }
     }
 
@@ -584,13 +590,12 @@ def filter_and_sort_games(juegos, filters):
 
 
 def enrich_game_image_url(game: dict | None) -> dict | None:
-    """Agrega una URL temporal utilizable en plantillas sin mutar el registro original."""
+    """Enriquece el juego con una URL temporal de imagen (Optimizado: mutación in-place)."""
     if game is None:
         return None
 
-    enriched = dict(game)
-    enriched['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
-    return enriched
+    game['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
+    return game
 
 
 @main_bp.route('/')
@@ -601,8 +606,10 @@ def landing():
         subject_type='public',
         subject_id_key='user_id',
     )
+    # Creamos copias de las colecciones de ejemplo para que la mutación in-place de
+    # aplicar_ratings_showcase no afecte a la constante global entre peticiones.
     sample_collections = aplicar_ratings_showcase(
-        LANDING_SAMPLE_COLLECTIONS,
+        [dict(item) for item in LANDING_SAMPLE_COLLECTIONS],
         subject_type='sample',
         subject_id_key='id',
         default_rating_key='average_rating',
@@ -728,7 +735,6 @@ def dashboard():
         return redirect(url_for('main.admin_panel'))
     user_id = session['user_id']
     juegos = obtener_juegos_por_usuario(user_id)
-    activity_logs = obtener_logs_por_usuario(user_id, limit=8)
     filters = {
         'q': request.args.get('q', ''),
         'plataforma': request.args.get('plataforma', ''),
@@ -740,9 +746,9 @@ def dashboard():
     page = request.args.get('page', 1, type=int)
 
     filtered_games = filter_and_sort_games(juegos, filters)
+    dashboard_insights = build_dashboard_insights(juegos)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
     paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
-    dashboard_insights = build_dashboard_insights(juegos, activity_logs)
     filter_opts = dashboard_insights.get('filter_options', {})
 
     return render_template(
@@ -1047,6 +1053,7 @@ def registro():
         flash('No se pudo crear tu cuenta. Intenta de nuevo.', 'error')
         return redirect(url_for('main.registro'))
 
+    session.clear()
     session.permanent = True
     session['user_id'] = resultado['user_id']
     session['email'] = resultado['email']
@@ -1083,7 +1090,11 @@ def login():
         return redirect(url_for('main.login'))
 
     usuario = verificar_credenciales(email, password)
-    if usuario is None or not check_password_hash(usuario['password_hash'], password):
+    if (
+        usuario is None
+        or usuario.get('status') != 'active'
+        or not check_password_hash(usuario['password_hash'], password)
+    ):
         crear_log_audit(
             user_id=usuario['user_id'] if usuario else None,
             action='FAILED_LOGIN',
@@ -1156,7 +1167,7 @@ def profile():
         return redirect(url_for('main.dashboard'))
     juegos = obtener_juegos_por_usuario(session['user_id'])
     recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8)
-    profile_insights = build_dashboard_insights(juegos, recent_activity_logs)
+    profile_insights = build_dashboard_insights(juegos)
 
     if request.method == 'GET':
         return render_template(
@@ -1175,6 +1186,15 @@ def profile():
 
         errores = []
         if not check_password_hash(user['password_hash'], current_password):
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='CHANGE_PASSWORD',
+                resource='users',
+                details={'email': session.get('email'), 'reason': 'incorrect_current_password'},
+                ip_address=request.remote_addr or 'unknown',
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
             errores.append('La contraseña actual no es correcta.')
         if not validar_password(password):
             errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres.')
@@ -1200,8 +1220,9 @@ def profile():
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='SUCCESS',
         )
-        flash('Tu contraseña fue actualizada.', 'success')
-        return redirect(url_for('main.profile'))
+        session.clear()
+        flash('Tu contraseña fue actualizada. Por favor inicia sesión de nuevo.', 'success')
+        return redirect(url_for('main.login'))
 
     nombre = request.form.get('nombre', '').strip()
     apellido = request.form.get('apellido', '').strip()
@@ -1274,7 +1295,7 @@ def forgot_password():
     user = obtener_usuario_por_email(email)
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
 
-    if user:
+    if user and user.get('status') == 'active':
         result = crear_reset_token(user['user_id'], request.remote_addr or None)
         if result['success']:
             email_sent = enviar_email_reset_password(email, result['token'])
@@ -1321,7 +1342,7 @@ def forgot_password_manual_token():
 
     user = obtener_usuario_por_email(email)
     # Validar si el usuario existe y el teléfono coincide
-    if not user or str(user.get('telefono', '')).strip() != telefono:
+    if not user or str(user.get('telefono', '')).strip() != telefono or user.get('status') != 'active':
         # En producción no revelamos si los datos son incorrectos para evitar enumeración.
         if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
             flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
@@ -1405,6 +1426,10 @@ def reset_password_with_email(token):
         return redirect(url_for('main.forgot_password'))
 
     user = obtener_usuario_por_id(token_validation['user_id'])
+    if not user or user.get('status') != 'active':
+        flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
     email = request.args.get('email', '') or (user.get('email') if user else '')
 
     if request.method == 'GET':
@@ -1417,8 +1442,8 @@ def reset_password_with_email(token):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
-    if user is None:
-        errores.append('Usuario no encontrado.')
+    if user is None or user.get('status') != 'active':
+        errores.append('No se pudo procesar la solicitud para esta cuenta.')
 
     if errores:
         for error in errores:
@@ -1430,7 +1455,8 @@ def reset_password_with_email(token):
         flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
         return render_template('reset_password.html', token=token, email=email)
 
-    usar_token(token)
+    # Note: actualizar_password_usuario already handles token invalidation
+    session.clear()
     crear_log_audit(
         user_id=token_validation['user_id'],
         action='PASSWORD_RESET',
@@ -1479,15 +1505,32 @@ def admin_panel():
 @main_bp.route('/admin/collections')
 @require_admin
 def admin_collections():
-    """Vista administrativa de colecciones públicas y privadas."""
+    """Vista administrativa de colecciones públicas y privadas (Optimizado: paginación en DB)."""
     visibility = request.args.get('visibility', '').strip().lower()
     collection_filter = visibility if visibility in {'public', 'private'} else None
-    collections = obtener_resumenes_colecciones(collection_filter)
-    page = request.args.get('page', 1, type=int)
-    pagination = paginate_items(collections, page, current_app.config['ADMIN_USERS_PER_PAGE'])
+
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = current_app.config['ADMIN_USERS_PER_PAGE']
+    offset = (page - 1) * per_page
+
+    collections = obtener_resumenes_colecciones(collection_filter, limit=per_page, offset=offset)
+    total_collections = contar_resumenes_colecciones(collection_filter)
+
+    total_pages = max(1, math.ceil(total_collections / per_page)) if per_page else 1
+    current_page = max(1, min(page, total_pages))
+
+    pagination = {
+        'page': current_page,
+        'total_pages': total_pages,
+        'has_prev': current_page > 1,
+        'has_next': current_page < total_pages,
+        'prev_page': current_page - 1,
+        'next_page': current_page + 1,
+    }
+
     return render_template(
         'admin_collections.html',
-        collections=pagination['items'],
+        collections=collections,
         visibility=visibility,
         pagination=pagination,
         query_args_builder=build_query_args,
@@ -1587,6 +1630,7 @@ def admin_logs():
 
 @main_bp.route('/admin/logs/export')
 @require_admin
+@limiter.limit('5 per minute')
 def admin_logs_export():
     """Exporta logs a CSV."""
     filters = {

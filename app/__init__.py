@@ -182,6 +182,7 @@ def create_app() -> Flask:
 
     mail.init_app(app)
     csrf.init_app(app)
+
     limiter.init_app(app)
 
     @app.before_request
@@ -218,16 +219,29 @@ def create_app() -> Flask:
         # Minimize attack surface by disabling unused browser features
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
 
+        # Harden CSP by restricting S3 access to the specific bucket host (Security enhancement)
+        img_sources = ["'self'", "data:"]
+        connect_sources = ["'self'"]
+        storage_backend = app.config.get('STORAGE_BACKEND')
+        if storage_backend and storage_backend not in {'none', 'local'}:
+            bucket = app.config.get('S3_BUCKET_NAME')
+            region = app.config.get('S3_REGION')
+            if bucket and region:
+                s3_host = f"{bucket}.s3.{region}.amazonaws.com"
+                img_sources.append(s3_host)
+                connect_sources.append(s3_host)
+
         # Content-Security-Policy: defense-in-depth against XSS and injection
         csp_parts = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: *.amazonaws.com",
-            "connect-src 'self' *.amazonaws.com",
+            f"img-src {' '.join(img_sources)}",
+            f"connect-src {' '.join(connect_sources)}",
             "frame-ancestors 'self'",
             "form-action 'self'",
             "base-uri 'self'",
+            "object-src 'none'",
             "upgrade-insecure-requests"
         ]
         response.headers['Content-Security-Policy'] = "; ".join(csp_parts)

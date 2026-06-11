@@ -103,9 +103,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default='user')
     status: Mapped[str] = mapped_column(String(20), default='active')
-    collection_visibility: Mapped[str] = mapped_column(String(20), default='private')
-    homepage_showcase_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    collection_visibility: Mapped[str] = mapped_column(String(20), default='private', index=True)
+    homepage_showcase_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     games: Mapped[List['Game']] = relationship(cascade='all, delete-orphan', back_populates='user')
@@ -127,8 +127,8 @@ class Game(Base):
     prioridad: Mapped[str] = mapped_column(String(20), default='Media')
     calificacion: Mapped[int | None] = mapped_column(Integer, nullable=True)
     es_favorito: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, index=True)
 
     user: Mapped[User] = relationship(back_populates='games')
 
@@ -253,6 +253,10 @@ def ensure_schema_compatibility() -> None:
                 connection.execute(
                     text(f'UPDATE users SET homepage_showcase_opt_in = {default_false} WHERE homepage_showcase_opt_in IS NULL')
                 )
+                # Asegurar índices para filtros y ordenamientos comunes
+                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_collection_visibility ON users (collection_visibility)'))
+                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_homepage_showcase_opt_in ON users (homepage_showcase_opt_in)'))
+                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)'))
 
     if not inspector.has_table('games'):
         return
@@ -278,6 +282,9 @@ def ensure_schema_compatibility() -> None:
         connection.execute(text("UPDATE games SET categoria = 'Biblioteca' WHERE categoria IS NULL OR categoria = ''"))
         connection.execute(text("UPDATE games SET prioridad = 'Media' WHERE prioridad IS NULL OR prioridad = ''"))
         connection.execute(text(f'UPDATE games SET es_favorito = {default_false} WHERE es_favorito IS NULL'))
+        # Asegurar índices para filtros y ordenamientos comunes
+        connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_created_at ON games (created_at)'))
+        connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_updated_at ON games (updated_at)'))
 
 
 def database_healthcheck() -> bool:
@@ -812,8 +819,12 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
     now = utcnow()
 
     with session_factory() as session:
-        # 1. Total logs
-        total_logs = session.scalar(select(func.count(AuditLog.audit_id))) or 0
+        # 1. Status counts (Consolidated: we calculate total_logs from these counts to save one DB roundtrip)
+        status_results = session.execute(
+            select(AuditLog.status, func.count(AuditLog.audit_id)).group_by(AuditLog.status)
+        ).all()
+        status_counts = {row[0]: row[1] for row in status_results}
+        total_logs = sum(status_counts.values())
 
         if total_logs == 0:
             return {
@@ -834,13 +845,7 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         ).all()
         action_counts = {row[0]: row[1] for row in action_results}
 
-        # 3. Status counts
-        status_results = session.execute(
-            select(AuditLog.status, func.count(AuditLog.audit_id)).group_by(AuditLog.status)
-        ).all()
-        status_counts = {row[0]: row[1] for row in status_results}
-
-        # 4. Top users
+        # 3. Top users
         user_results = session.execute(
             select(AuditLog.user_id, func.count(AuditLog.audit_id))
             .group_by(AuditLog.user_id)
@@ -849,7 +854,7 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         ).all()
         top_users = [(row[0] or 'anonymous', row[1]) for row in user_results]
 
-        # 5. Daily activity (last 7 days)
+        # 4. Daily activity (last 7 days)
         cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=6)
 
         # Portable grouping by date (YYYY-MM-DD)
@@ -906,12 +911,13 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
         row = {}
         for key in fieldnames[:-1]:
             val = str(log.get(key, '') or '')
-            if val.startswith(risky_chars):
+            # Strip leading whitespace before checking for risky characters to prevent formula bypasses (CSV Injection)
+            if val.lstrip().startswith(risky_chars):
                 val = "'" + val
             row[key] = val
 
         details_val = str(log.get('details', {}) or '{}')
-        if details_val.startswith(risky_chars):
+        if details_val.lstrip().startswith(risky_chars):
             details_val = "'" + details_val
         row['details'] = details_val
 
@@ -984,6 +990,7 @@ def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, A
 def obtener_resumenes_colecciones(
     visibility: str | None = None,
     limit: int | None = None,
+    offset: int | None = None,
     homepage_only: bool = False,
 ) -> List[Dict[str, Any]]:
     """Obtiene resúmenes de colecciones de usuarios (optimizado con agregación en SQL)."""
@@ -1032,6 +1039,8 @@ def obtener_resumenes_colecciones(
 
         if limit:
             query = query.limit(limit)
+        if offset:
+            query = query.offset(offset)
 
         results = session.execute(query).all()
         if not results:
@@ -1053,24 +1062,46 @@ def obtener_resumenes_colecciones(
             if row[0] not in dominant_platforms:
                 dominant_platforms[row[0]] = row[1] or 'Sin plataforma'
 
-        summaries = []
-        for r in results:
-            summaries.append(
-                {
-                    'user_id': r.user_id,
-                    'owner_name': r.nombre or 'Coleccionista',
-                    'owner_email': r.email,
-                    'collection_visibility': r.collection_visibility,
-                    'homepage_showcase_opt_in': bool(r.homepage_showcase_opt_in),
-                    'total_games': int(r.total_games),
-                    'favorites_count': int(r.favorites_count),
-                    'average_rating': round(float(r.average_rating), 1) if r.average_rating is not None else None,
-                    'dominant_platform': dominant_platforms.get(r.user_id, 'Sin juegos'),
-                    'last_updated_at': _as_iso(r.last_updated_at) or '',
-                }
+        return [
+            {
+                'user_id': r.user_id,
+                'owner_name': r.nombre or 'Coleccionista',
+                'owner_email': r.email,
+                'collection_visibility': r.collection_visibility,
+                'homepage_showcase_opt_in': bool(r.homepage_showcase_opt_in),
+                'total_games': int(r.total_games),
+                'favorites_count': int(r.favorites_count),
+                'average_rating': round(float(r.average_rating), 1) if r.average_rating is not None else None,
+                'dominant_platform': dominant_platforms.get(r.user_id, 'Sin juegos'),
+                'last_updated_at': _as_iso(r.last_updated_at) or '',
+            }
+            for r in results
+        ]
+
+
+def contar_resumenes_colecciones(
+    visibility: str | None = None,
+    homepage_only: bool = False,
+) -> int:
+    """Cuenta el total de colecciones que coinciden con los filtros (optimizado)."""
+    ensure_tables()
+    session_factory = get_session_factory()
+
+    with session_factory() as session:
+        query = select(func.count(User.user_id))
+
+        if homepage_only:
+            # Para el home, solo contamos si tienen juegos (usando subquery correlacionada eficiente)
+            has_games = select(1).where(Game.user_id == User.user_id).limit(1).exists()
+            query = query.where(
+                User.homepage_showcase_opt_in.is_(True),
+                has_games,
             )
 
-        return summaries
+        if visibility:
+            query = query.where(User.collection_visibility == visibility)
+
+        return session.scalar(query) or 0
 
 
 def obtener_colecciones_publicas(limit: int = 6) -> List[Dict[str, Any]]:
@@ -1168,28 +1199,25 @@ def aplicar_ratings_showcase(
     default_rating_key: str | None = None,
     default_votes_key: str | None = None,
 ) -> List[Dict[str, Any]]:
-    """Enriquece colecciones con valoración pública en batch para evitar N+1 queries."""
+    """Enriquece colecciones con valoración pública en batch para evitar N+1 queries (Optimizado: in-place)."""
     if not items:
         return []
 
     subject_ids = [str(item[subject_id_key]) for item in items]
     ratings_map = obtener_ratings_multiple(subject_type, subject_ids)
 
-    enriched: List[Dict[str, Any]] = []
     for item in items:
-        entry = dict(item)
-        subject_id = str(entry[subject_id_key])
+        subject_id = str(item[subject_id_key])
         actual_rating = ratings_map.get(subject_id, {'average': None, 'votes_count': 0})
 
         rating_summary = combinar_rating_showcase(
             actual_rating,
-            base_average=entry.get(default_rating_key) if default_rating_key else None,
-            base_votes_count=entry.get(default_votes_key, 0) if default_votes_key else 0,
+            base_average=item.get(default_rating_key) if default_rating_key else None,
+            base_votes_count=item.get(default_votes_key, 0) if default_votes_key else 0,
         )
-        entry['showcase_rating_average'] = rating_summary['average']
-        entry['showcase_votes_count'] = rating_summary['votes_count']
-        enriched.append(entry)
-    return enriched
+        item['showcase_rating_average'] = rating_summary['average']
+        item['showcase_votes_count'] = rating_summary['votes_count']
+    return items
 
 
 def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, ip_address: str) -> Dict[str, Any]:

@@ -1,33 +1,44 @@
-import os
 import pytest
-from app import create_app
+import sys
+import os
+import importlib
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 @pytest.fixture
 def app(monkeypatch):
-    os.environ['APP_ENV'] = 'testing'
-    # Usar DB en memoria para aislamiento total y velocidad
-    db_url = "sqlite+pysqlite:///:memory:"
+    db_file = 'gamevault_test_security.db'
+    if os.path.exists(db_file):
+        os.remove(db_file)
 
-    # Asegurar que las variables de entorno estén seteadas antes de crear la app
-    monkeypatch.setenv('DATABASE_URL', db_url)
     monkeypatch.setenv('APP_ENV', 'testing')
+    monkeypatch.setenv('DATABASE_URL', f'sqlite+pysqlite:///{db_file}')
+    monkeypatch.setenv('RATELIMIT_ENABLED', '1')
 
-    # Importar app después de setear el env para que models.py tome la URL correcta
-    import importlib
-    import sys
-    for module_name in list(sys.modules):
-        if module_name == 'app' or module_name.startswith('app.'):
-            sys.modules.pop(module_name)
+    # Force reload of app and models to ensure the new DATABASE_URL is used
+    modules_to_reload = ['app', 'app.models', 'app.routes', 'app.extensions']
+    for mod in modules_to_reload:
+        if mod in sys.modules:
+            del sys.modules[mod]
 
-    from app import create_app
-    app = create_app()
-    app.config.update({
+    import app as app_module
+    flask_app = app_module.create_app()
+    flask_app.config.update({
         "TESTING": True,
         "WTF_CSRF_ENABLED": False,
-        "SECRET_KEY": "test-key-123"
+        "RATELIMIT_ENABLED": True,
     })
 
-    yield app
+    yield flask_app
+
+    if os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+        except:
+            pass
 
 @pytest.fixture
 def client(app):
@@ -68,7 +79,7 @@ def test_open_redirect_bypass_attempts(client):
     # Test various bypass attempts
     bypasses = [
         '///malicious.com',
-        '\malicious.com',
+        '\\malicious.com',
         '//malicious.com',
         'https:malicious.com'
     ]
@@ -82,7 +93,7 @@ def test_open_redirect_bypass_attempts(client):
         assert not response.headers['Location'].startswith('http://malicious.com')
         assert not response.headers['Location'].startswith('https://malicious.com')
         assert not response.headers['Location'].startswith('//malicious.com')
-        assert not response.headers['Location'].startswith('\malicious.com')
+        assert not response.headers['Location'].startswith('\\malicious.com')
 
 def test_forgot_password_manual_token_enumeration(client):
     app = client.application
@@ -208,7 +219,7 @@ def test_stale_session_inactive_user(client):
     # 4. Intentar acceder
     response = client.get('/dashboard', follow_redirects=True)
 
-    assert b'Tu sesi\xc3\xb3n ha expirado o tu cuenta ya no est\xc3\xa1 activa.' in response.data
+    assert b'Tu sesi\xc3\xb3n ha expirado o tu cuenta no est\xc3\xa1 activa.' in response.data
     with client.session_transaction() as sess:
         assert 'user_id' not in sess
 

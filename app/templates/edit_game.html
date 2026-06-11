@@ -25,7 +25,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="titulo">Título</label>
-                <input type="text" id="titulo" name="titulo" value="{{ juego.titulo }}" required>
+                <input type="text" id="titulo" name="titulo" value="{{ juego.titulo }}" required maxlength="255">
             </div>
             <div class="form-group">
                 <label for="plataforma">Plataforma</label>
@@ -91,7 +91,7 @@
         </div>
         <div class="form-group">
             <label for="descripcion">Descripción</label>
-            <textarea id="descripcion" name="descripcion" rows="4" required>{{ juego.descripcion }}</textarea>
+            <textarea id="descripcion" name="descripcion" rows="4" required maxlength="5000">{{ juego.descripcion }}</textarea>
         </div>
         <div class="form-group">
             <label>Portada actual</label>

@@ -28,7 +28,22 @@
 **Learning:** If multiple recovery tokens are generated or if a user secures their account after a suspected breach, existing tokens could still be used to reset the password again if they haven't expired.
 **Prevention:** Perform a batch deletion of all reset tokens associated with a `user_id` immediately before committing a password update in the database.
 
-## 2026-06-07 - Prevent Stale Session Permission Bypass
-**Vulnerability:** Sessions remained valid with old permissions or active status even after the user was deactivated or demoted in the database.
-**Learning:** Authentication decorators (`require_login`, `require_admin`) only verified session data (client-side cookie state mirrored in server memory) instead of checking the source of truth (the database) on every request.
-**Prevention:** Always verify account status (`active`) and role (`admin`, `user`) against the database in authentication middleware/decorators. Use request-scoped caching (like Flask's `g`) to avoid redundant database lookups for nested decorators within a single request.
+## 2025-06-06 - Harden Session Management on Registration and Password Change
+**Vulnerability:** Session fixation during user registration and lack of session invalidation after password change.
+**Learning:** Even if a user is "newly" authenticated via registration, failing to clear the pre-existing session allows an attacker to potentially fixate a session ID. Similarly, changing a password should always invalidate existing sessions to ensure account security across all devices.
+**Prevention:** Always call `session.clear()` before establishing a new authenticated session in registration/login routes. Perform a full `session.clear()` and force re-login after sensitive operations like password changes to ensure state consistency and security.
+
+## 2025-06-10 - Refine CSV Injection Protection against Whitespace Bypasses
+**Vulnerability:** CSV Injection via leading whitespace in formula-triggering fields.
+**Learning:** Simple `startswith` checks for risky characters (=, +, -, @) can be bypassed by prepending a space (e.g., " =SUM(...)"). Spreadsheet software often trims leading whitespace and then executes the formula.
+**Prevention:** Always use `.lstrip()` before checking for risky characters when sanitizing data for CSV exports.
+
+## 2026-06-08 - Prevent Privilege Escalation and Unauthorized Access via Stale Sessions
+**Vulnerability:** Trusting session-stored 'role' and 'user_id' without real-time server-side validation allowed demoted admins or deactivated users to maintain access until their session expired.
+**Learning:** Authentication decorators that only check 'session' data are vulnerable to state changes in the database that occur after the session is established.
+**Prevention:** Always perform real-time database validation of user status and roles within authentication decorators. Use request-scoped caching (like Flask's 'g' object) to minimize performance impact while ensuring security.
+
+## 2026-06-10 - Harden CSP by Restricting S3 Wildcards
+**Vulnerability:** Use of broad `*.amazonaws.com` wildcard in `img-src` and `connect-src` CSP directives.
+**Learning:** Permissive wildcards for cloud providers allow attackers to bypass CSP by hosting malicious scripts or exfiltration endpoints in their own accounts under the same provider.
+**Prevention:** Dynamically construct CSP directives using specific hostnames derived from application configuration (e.g., `{bucket}.s3.{region}.amazonaws.com`) to enforce the principle of least privilege.

@@ -29,3 +29,23 @@
 ## 2025-07-10 - Dictionary Copying and Redundant Sorting
 **Learning:** Creating shallow copies of dictionaries (`dict(item)`) in high-frequency loops and performing redundant sorts in Python on data already ordered by the database significantly impacts performance. Mutating transient dictionaries in-place and adding short-circuits for default views can yield immediate speed wins.
 **Action:** Mutate transient processing dictionaries in-place to reduce allocations. Trust and utilize database-level ordering to skip O(N log N) Python sorts whenever possible.
+
+## 2025-07-25 - In-place Mutation vs Metric Calculation
+**Learning:** Mutating dictionaries in-place (e.g., adding signed URLs) saves memory allocations but can corrupt data for subsequent operations like summary metric calculations if not ordered correctly.
+**Action:** Always perform summary calculations and dashboard insights on the original data before applying transient in-place mutations for template enrichment.
+
+## 2025-07-25 - Case-sensitive Comparison with Constants
+**Learning:** Using `.lower()` on every iteration in a hot loop (like checking game priority) adds redundant CPU cycles and string allocations. Since input is validated against a set of constants (e.g., `GAME_PRIORITY_OPTIONS`), direct case-sensitive comparison is significantly faster and safe.
+**Action:** Prefer direct comparison against normalized constants in iteration loops to avoid unnecessary string processing overhead.
+
+## 2026-06-07 - Redundant Data Fetching for Unused Metrics
+**Learning:** Fetching data (like activity logs) and processing it for metrics that aren't displayed in the UI creates wasted database round-trips and CPU cycles. In this case, `recent_activity` was being calculated on every dashboard and profile load despite not being used in any template.
+**Action:** Make metric calculation parameters optional and guard their processing logic. Regularly audit route data-fetching against template requirements to eliminate dead database queries.
+
+## 2026-06-12 - Consolidating Aggregation Queries
+**Learning:** Performing a standalone `COUNT` query followed by a `GROUP BY` query on the same table is often redundant if the grouped results cover all possible values. Summing the grouped counts in Python saves a database round-trip without compromising data accuracy.
+**Action:** Always check if a total count can be derived from existing grouped aggregations in the same transaction to reduce database latency.
+
+## 2026-06-15 - Missing Indexes on Frequently Queried Fields
+**Learning:** Tables like `users` and `games` that grow significantly over time cause query latency to increase linearly (O(N)) if fields used in `WHERE` or `ORDER BY` lack indexes.
+**Action:** Add `index=True` to core model fields (e.g., `visibility`, `created_at`, `updated_at`) and ensure `ensure_schema_compatibility` includes idempotent SQL (`CREATE INDEX IF NOT EXISTS`) to optimize existing production environments.

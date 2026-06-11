@@ -52,28 +52,35 @@ def client(app):
 
 
 def login_session(client, *, role='user'):
-    from app.models import get_session_factory, User, generate_password_hash
+    from app.models import get_session_factory, User
+    from werkzeug.security import generate_password_hash
+    import uuid
+
+    user_id = 'user-1'
+    email = 'user@example.com'
+
+    # Ensure user exists in DB because decorators now validate in real-time
     session_factory = get_session_factory()
-    with session_factory() as session_db:
-        user = session_db.get(User, 'user-1')
+    with session_factory() as db_session:
+        user = db_session.get(User, user_id)
         if not user:
             user = User(
-                user_id='user-1',
-                email='user@example.com',
+                user_id=user_id,
+                email=email,
                 nombre='Tester',
-                password_hash=generate_password_hash('password'),
-                status='active',
-                role=role
+                password_hash=generate_password_hash('password123'),
+                role=role,
+                status='active'
             )
-            session_db.add(user)
+            db_session.add(user)
         else:
             user.role = role
             user.status = 'active'
-        session_db.commit()
+        db_session.commit()
 
     with client.session_transaction() as session:
-        session['user_id'] = 'user-1'
-        session['email'] = 'user@example.com'
+        session['user_id'] = user_id
+        session['email'] = email
         session['nombre'] = 'Tester'
         session['role'] = role
 
@@ -168,6 +175,9 @@ def test_dashboard_renders_games(monkeypatch, client):
                 'descripcion': 'Aventura',
                 'plataforma': 'Switch',
                 'estado': 'Completado',
+                'categoria': 'Biblioteca',
+                'prioridad': 'Alta',
+                'es_favorito': True,
                 'imagen_url': 'https://example.com/zelda.jpg',
                 'created_at': '2026-03-01T00:00:00+00:00',
                 'updated_at': '2026-03-02T00:00:00+00:00',
@@ -254,7 +264,7 @@ def test_registration_persists_phone_fields(monkeypatch, client):
 def test_forgot_password_never_exposes_token(monkeypatch, client):
     import app.routes as routes
 
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1'})
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1', 'status': 'active'})
     monkeypatch.setattr(
         routes,
         'crear_reset_token',
@@ -282,7 +292,7 @@ def test_forgot_password_can_show_debug_token_locally(monkeypatch, client):
     import app.routes as routes
 
     client.application.config['SHOW_RESET_DEBUG_TOKEN'] = True
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1'})
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1', 'status': 'active'})
     monkeypatch.setattr(
         routes,
         'crear_reset_token',
@@ -308,7 +318,7 @@ def test_forgot_password_shows_recovery_token_when_email_delivery_fails_in_non_p
 
     client.application.config['SHOW_RESET_DEBUG_TOKEN'] = False
     client.application.config['APP_ENV'] = 'testing'
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1'})
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1', 'status': 'active'})
     monkeypatch.setattr(
         routes,
         'crear_reset_token',
@@ -347,7 +357,7 @@ def test_forgot_password_manual_token_shows_token_when_email_phone_match(monkeyp
     monkeypatch.setattr(
         routes,
         'obtener_usuario_por_email',
-        lambda _email: {'user_id': 'user-1', 'telefono': '5551234567'},
+        lambda _email: {'user_id': 'user-1', 'telefono': '5551234567', 'status': 'active'},
     )
     monkeypatch.setattr(
         routes,
@@ -568,27 +578,3 @@ def test_password_change_invalidates_all_tokens(app):
     # 5. Verificar que los tokens ya no son válidos
     assert validar_reset_token(token1)['valid'] is False
     assert validar_reset_token(token2)['valid'] is False
-
-@pytest.fixture(autouse=True)
-def setup_mock_user(monkeypatch):
-    """Garantiza que el usuario 'user-1' exista en la DB para las pruebas que lo necesiten."""
-    from app.models import get_session_factory, User, generate_password_hash
-
-    def mock_user_exists(*args, **kwargs):
-        session_factory = get_session_factory()
-        with session_factory() as session:
-            if not session.get(User, 'user-1'):
-                user = User(
-                    user_id='user-1',
-                    email='user@example.com',
-                    nombre='Tester',
-                    password_hash=generate_password_hash('password'),
-                    status='active',
-                    role='user'
-                )
-                session.add(user)
-                session.commit()
-
-    # Podríamos llamar a mock_user_exists() aquí o mockear obtener_usuario_por_id
-    # Pero es más robusto asegurar que el registro exista.
-    mock_user_exists()
