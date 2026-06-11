@@ -28,16 +28,16 @@
             <h4>{{ dashboard_insights.total_games }} juegos</h4>
             <p>Tu biblioteca actual ya cubre {{ dashboard_insights.platforms_count }} plataformas.</p>
         </div>
-        <div class="feature-card">
+        <a href="{{ url_for('main.dashboard', favoritos='solo') }}" class="feature-card" aria-label="Ver juegos favoritos">
             <span class="feature-icon" aria-hidden="true">⭐</span>
             <h4>{{ dashboard_insights.favorites_count }} favoritos</h4>
             <p>{{ dashboard_insights.high_priority_count }} juegos están marcados con prioridad alta.</p>
-        </div>
-        <div class="feature-card">
+        </a>
+        <a href="{{ url_for('main.dashboard', categoria=dashboard_insights.dominant_category.label) }}" class="feature-card" aria-label="Ver juegos de la categoría {{ dashboard_insights.dominant_category.label }}">
             <span class="feature-icon" aria-hidden="true">🗂️</span>
             <h4>{{ dashboard_insights.dominant_category.label }}</h4>
             <p>Es la categoría dominante con {{ dashboard_insights.dominant_category.count }} juegos.</p>
-        </div>
+        </a>
         <div class="feature-card">
             <span class="feature-icon" aria-hidden="true">🖼️</span>
             <h4>{{ dashboard_insights.missing_images }} sin portada</h4>
@@ -45,18 +45,18 @@
         </div>
     </div>
     <div class="insight-strip">
-        <div class="insight-tile">
+        <a href="{{ url_for('main.dashboard', categoria='Wishlist') }}" class="insight-tile" aria-label="Ver wishlist">
             <strong>{{ dashboard_insights.wishlist_count }}</strong>
             <span>en wishlist</span>
-        </div>
-        <div class="insight-tile">
+        </a>
+        <a href="{{ url_for('main.dashboard', categoria='Backlog') }}" class="insight-tile" aria-label="Ver backlog">
             <strong>{{ dashboard_insights.backlog_count }}</strong>
             <span>en backlog</span>
-        </div>
-        <div class="insight-tile">
+        </a>
+        <a href="{{ url_for('main.dashboard', categoria='Jugando') }}" class="insight-tile" aria-label="Ver juegos que estoy jugando ahora">
             <strong>{{ dashboard_insights.currently_playing_count }}</strong>
             <span>jugando ahora</span>
-        </div>
+        </a>
         <div class="insight-tile">
             <strong>{% if dashboard_insights.average_rating %}{{ dashboard_insights.average_rating }}/10{% else %}Sin nota{% endif %}</strong>
             <span>rating medio</span>
