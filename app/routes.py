@@ -9,7 +9,7 @@ import uuid
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from flask import (
     Blueprint,
@@ -203,7 +203,21 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
     if storage_backend == 'none':
         return False
     if storage_backend == 'local':
-        return image_url.startswith(current_app.config['LOCAL_UPLOAD_URL_PATH'] + '/')
+        # Normalize to prevent bypasses via backslashes, encoding, or multiple slashes
+        target = unquote(image_url).replace('\\', '/')
+        if target.startswith('//'):
+            return False
+
+        prefix = current_app.config['LOCAL_UPLOAD_URL_PATH'].rstrip('/') + '/'
+        parsed = urlparse(target)
+        if parsed.scheme or parsed.netloc:
+            return False
+
+        # os.path.normpath collapses redundancies like '..' and '.' (Security hardening)
+        normalized_path = os.path.normpath(parsed.path).replace('\\', '/')
+        # Ensure strict directory prefix matching
+        norm_with_slash = normalized_path if normalized_path.endswith('/') else normalized_path + '/'
+        return norm_with_slash.startswith(prefix)
 
     parsed = urlparse(image_url)
     bucket_name = current_app.config['S3_BUCKET_NAME']
