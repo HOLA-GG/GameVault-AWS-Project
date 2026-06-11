@@ -411,18 +411,21 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         if juego.get('es_favorito'):
             favorites_count += 1
 
-        # Check for 'Alta' priority directly (normalized by normalize_game_metadata)
+        # Check for 'Alta' priority directly and nest next_focus logic to reduce branching
         prio = juego.get('prioridad')
+        iso_created = juego.get('created_at') or min_iso
+        iso_updated = juego.get('updated_at') or iso_created
+
         if prio == 'Alta':
             high_priority_count += 1
+            if cat != 'Completado':
+                if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
+                    next_focus, next_focus_at_iso = juego, iso_updated
 
         calif = juego.get('calificacion')
         if isinstance(calif, int):
             ratings_sum += calif
             ratings_count += 1
-
-        iso_created = juego.get('created_at') or min_iso
-        iso_updated = juego.get('updated_at') or iso_created
 
         if iso_created >= recent_cutoff_iso:
             recently_added += 1
@@ -434,10 +437,6 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
 
         if last_updated_at_iso is None or iso_updated > last_updated_at_iso:
             last_updated_at_iso, last_updated_game = iso_updated, juego
-
-        if prio == 'Alta' and cat != 'Completado':
-            if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
-                next_focus, next_focus_at_iso = juego, iso_updated
 
     recent_activity = 0
     if activity_logs:
@@ -1175,10 +1174,8 @@ def profile():
     """Permite editar perfil y contraseña."""
     if session.get('role') == 'admin':
         return redirect(url_for('main.admin_panel'))
-    user = obtener_usuario_por_id(session['user_id'])
-    if user is None:
-        flash('No se pudo cargar tu perfil.', 'error')
-        return redirect(url_for('main.dashboard'))
+    # Use g.current_user cached by @require_login to avoid redundant DB query
+    user = g.current_user
     juegos = obtener_juegos_por_usuario(session['user_id'])
     recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8)
     profile_insights = build_dashboard_insights(juegos)
