@@ -189,6 +189,7 @@ AUDIT_ACTIONS = {
     'UPDATE_PROFILE': 'Actualizar perfil',
     'CHANGE_PASSWORD': 'Cambio de contraseña',
     'FAILED_LOGIN': 'Login fallido',
+    'RATE_SHOWCASE': 'Valoración de vitrina',
 }
 
 

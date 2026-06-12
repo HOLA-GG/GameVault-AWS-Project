@@ -192,3 +192,66 @@ def test_deactivated_while_logged_in(client, app):
     response = client.get('/dashboard')
     assert response.status_code == 302
     assert '/login' in response.headers.get('Location', '')
+
+def test_rate_showcase_hardening_and_audit(client, app):
+    """Verifica el endurecimiento y auditoría del endpoint de valoración."""
+    from app.models import get_session_factory, AuditLog, select
+
+    # 1. Test invalid input (too long subject_id)
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 'sample',
+            'subject_id': 'a' * 121,
+            'rating': 5
+        }
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'Datos de valoración inválidos.' in data.get('error', '')
+
+    # Verify audit log for failure
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == 'RATE_SHOWCASE', AuditLog.status == 'FAILED')
+        )
+        assert log is not None
+        assert log.details.get('reason') == 'invalid_input'
+        # Check truncation
+        assert len(log.details.get('subject_id')) <= 200
+
+    # 2. Test valid input and audit
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 'sample',
+            'subject_id': 'demo-nintendo-reliquias',
+            'rating': 5
+        }
+    )
+    assert response.status_code == 200
+
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == 'RATE_SHOWCASE', AuditLog.status == 'SUCCESS')
+        )
+        assert log is not None
+        assert log.details.get('subject_id') == 'demo-nintendo-reliquias'
+
+def test_rate_showcase_type_safety(client):
+    """Verifica que el endpoint maneje correctamente tipos de datos inesperados sin explotar."""
+    # Enviar un entero donde se espera un string (subject_type)
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 123,
+            'subject_id': 'valid-id',
+            'rating': 5
+        }
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'Datos de valoración inválidos.' in data.get('error', '')
