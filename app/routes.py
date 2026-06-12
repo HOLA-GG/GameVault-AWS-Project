@@ -640,15 +640,45 @@ def landing():
 def rate_showcase():
     """Permite valorar colecciones públicas o demo, una vez por IP y colección."""
     payload = request.get_json(silent=True) or {}
-    subject_type = (payload.get('subject_type') or '').strip().lower()
-    subject_id = str(payload.get('subject_id') or '').strip()
+    raw_subject_type = payload.get('subject_type')
+    raw_subject_id = payload.get('subject_id')
+
+    # Convert to safe strings for internal processing
+    subject_type = str(raw_subject_type or '').strip().lower()
+    subject_id = str(raw_subject_id or '').strip()
+
     try:
         rating = int(payload.get('rating'))
     except (TypeError, ValueError):
         rating = 0
 
-    if subject_type not in {'sample', 'public'} or not subject_id:
-        return jsonify({'error': 'Colección inválida.'}), 400
+    # Defensive input validation matching DB constraints (Security enhancement)
+    # We check that the payload values were originally expected types to avoid bypasses or logic errors
+    if (
+        not isinstance(raw_subject_type, str)
+        or not isinstance(raw_subject_id, (str, int))
+        or subject_type not in {'sample', 'public'}
+        or not subject_id
+        or len(subject_type) > 20
+        or len(subject_id) > 120
+        or rating not in {1, 2, 3, 4, 5}
+    ):
+        crear_log_audit(
+            user_id=None,
+            action='RATE_SHOWCASE',
+            resource='showcase_ratings',
+            details={
+                # Truncate raw values to prevent log-injection/DoS via oversized details (Security hardening)
+                'subject_type': str(raw_subject_type)[:40],
+                'subject_id': str(raw_subject_id)[:200],
+                'rating': rating,
+                'reason': 'invalid_input',
+            },
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        return jsonify({'error': 'Datos de valoración inválidos.'}), 400
 
     if subject_type == 'sample':
         valid_ids = {item['id'] for item in LANDING_SAMPLE_COLLECTIONS}
@@ -660,6 +690,17 @@ def rate_showcase():
             return jsonify({'error': 'Colección pública no disponible para portada.'}), 404
 
     result = registrar_rating_showcase(subject_type, subject_id, rating, get_request_ip())
+
+    crear_log_audit(
+        user_id=None,
+        action='RATE_SHOWCASE',
+        resource='showcase_ratings',
+        details={'subject_type': subject_type, 'subject_id': subject_id, 'rating': rating},
+        ip_address=get_request_ip(),
+        user_agent=request.headers.get('User-Agent', 'unknown'),
+        status='SUCCESS' if result.get('success') else 'FAILED',
+    )
+
     if subject_type == 'sample' and ('average' in result or 'votes_count' in result):
         sample_entry = next((item for item in LANDING_SAMPLE_COLLECTIONS if item['id'] == subject_id), None)
         if sample_entry is not None:
