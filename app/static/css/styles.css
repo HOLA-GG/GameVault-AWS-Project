@@ -1092,6 +1092,20 @@ code {
     color: var(--primary-color);
 }
 
+.info-link {
+    color: var(--primary-color);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color var(--transition-fast), filter var(--transition-fast);
+}
+
+.info-link:hover,
+.info-link:focus-visible {
+    color: var(--primary-dark);
+    filter: brightness(1.2);
+}
+
 /* ================================
    FEATURES GRID
    ================================ */

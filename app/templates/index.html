@@ -65,11 +65,17 @@
     {% if dashboard_insights.next_focus %}
         <div class="info-box" style="margin-top:18px;">
             <strong>Siguiente foco:</strong>
-            {{ dashboard_insights.next_focus.titulo }} · {{ dashboard_insights.next_focus.categoria }} · prioridad {{ dashboard_insights.next_focus.prioridad|lower }}.
+            <a href="{{ url_for('main.editar_juego_ruta', game_id=dashboard_insights.next_focus.game_id) }}" aria-label="Editar {{ dashboard_insights.next_focus.titulo }}" class="info-link">
+                {{ dashboard_insights.next_focus.titulo }}
+            </a>
+            · {{ dashboard_insights.next_focus.categoria }} · prioridad {{ dashboard_insights.next_focus.prioridad|lower }}.
         </div>
     {% elif dashboard_insights.last_updated_game %}
         <p style="margin-top:18px;color:var(--text-secondary);">
-            Último movimiento: <strong>{{ dashboard_insights.last_updated_game.titulo }}</strong>
+            Último movimiento:
+            <a href="{{ url_for('main.editar_juego_ruta', game_id=dashboard_insights.last_updated_game.game_id) }}" aria-label="Editar {{ dashboard_insights.last_updated_game.titulo }}" class="info-link">
+                {{ dashboard_insights.last_updated_game.titulo }}
+            </a>
             en {{ dashboard_insights.last_updated_game.plataforma or 'Sin plataforma' }}.
         </p>
     {% endif %}
