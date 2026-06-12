@@ -394,7 +394,10 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
 
     recently_updated = recently_added = missing_images = favorites_count = 0
     high_priority_count = stale_games = ratings_sum = ratings_count = 0
-    last_updated_game = last_updated_at_iso = next_focus = next_focus_at_iso = None
+    next_focus = next_focus_at_iso = None
+
+    # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
+    last_updated_game = juegos[0] if juegos else None
 
     for juego in juegos:
         plat = juego.get('plataforma')
@@ -435,15 +438,14 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         if iso_updated < stale_cutoff_iso:
             stale_games += 1
 
-        if last_updated_at_iso is None or iso_updated > last_updated_at_iso:
-            last_updated_at_iso, last_updated_game = iso_updated, juego
-
     recent_activity = 0
     if activity_logs:
         for log in activity_logs:
             ts_iso = log.get('timestamp')
             if ts_iso and ts_iso >= recent_cutoff_iso:
                 recent_activity += 1
+            else:
+                break  # O(1) short-circuit as logs are already sorted by timestamp desc.
 
     dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
     dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
