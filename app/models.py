@@ -814,10 +814,11 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100) -> List
 
 
 def obtener_estadisticas_logs() -> Dict[str, Any]:
-    """Calcula estadísticas simples de auditoría usando agregaciones en base de datos."""
+    """Calcula estadísticas simples de auditoría usando agregaciones en base de datos.
+    Optimización Bolt: Se eliminaron las consultas de action_counts y daily_activity
+    ya que no se utilizan en las plantillas actuales, ahorrando 2 roundtrips a la DB."""
     ensure_tables()
     session_factory = get_session_factory()
-    now = utcnow()
 
     with session_factory() as session:
         # 1. Status counts (Consolidated: we calculate total_logs from these counts to save one DB roundtrip)
@@ -830,23 +831,12 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         if total_logs == 0:
             return {
                 'total_logs': 0,
-                'action_counts': {},
                 'status_counts': {},
-                'daily_activity': [
-                    {'date': (now - timedelta(days=i)).strftime('%Y-%m-%d'), 'count': 0}
-                    for i in range(6, -1, -1)
-                ],
                 'top_users': [],
                 'success_rate': 100.0,
             }
 
-        # 2. Action counts
-        action_results = session.execute(
-            select(AuditLog.action, func.count(AuditLog.audit_id)).group_by(AuditLog.action)
-        ).all()
-        action_counts = {row[0]: row[1] for row in action_results}
-
-        # 3. Top users
+        # 2. Top users
         user_results = session.execute(
             select(AuditLog.user_id, func.count(AuditLog.audit_id))
             .group_by(AuditLog.user_id)
@@ -855,31 +845,12 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         ).all()
         top_users = [(row[0] or 'anonymous', row[1]) for row in user_results]
 
-        # 4. Daily activity (last 7 days)
-        cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=6)
-
-        # Portable grouping by date (YYYY-MM-DD)
-        daily_results = session.execute(
-            select(func.date(AuditLog.timestamp), func.count(AuditLog.audit_id))
-            .where(AuditLog.timestamp >= cutoff)
-            .group_by(func.date(AuditLog.timestamp))
-        ).all()
-
-        daily_map = {str(row[0]): row[1] for row in daily_results}
-
-        last_7_days = []
-        for i in range(7):
-            date_str = (now - timedelta(days=6 - i)).strftime('%Y-%m-%d')
-            last_7_days.append({'date': date_str, 'count': daily_map.get(date_str, 0)})
-
         success_count = status_counts.get('SUCCESS', 0)
         success_rate = round((success_count / total_logs * 100), 2)
 
         return {
             'total_logs': total_logs,
-            'action_counts': action_counts,
             'status_counts': status_counts,
-            'daily_activity': last_7_days,
             'top_users': top_users,
             'success_rate': success_rate,
         }
