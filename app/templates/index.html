@@ -171,7 +171,7 @@
     <form action="{{ url_for('main.dashboard') }}" method="GET">
         <div class="form-row">
             <div class="form-group">
-                <label for="q">Búsqueda</label>
+                <label for="q">Búsqueda <small style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona /)</small></label>
                 <input type="text" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma...">
             </div>
             <div class="form-group">
@@ -253,11 +253,11 @@
                             </div>
                         {% endif %}
                         <div class="game-badges">
-                            <span class="badge plataforma">{{ juego.plataforma or 'PC' }}</span>
-                            <span class="badge estado">{{ juego.estado or 'N/A' }}</span>
-                            <span class="badge categoria">{{ juego.categoria or 'Biblioteca' }}</span>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=juego.plataforma)) }}" class="badge plataforma" aria-label="Filtrar por plataforma {{ juego.plataforma or 'PC' }}">{{ juego.plataforma or 'PC' }}</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(estado=juego.estado)) }}" class="badge estado" aria-label="Filtrar por estado {{ juego.estado or 'N/A' }}">{{ juego.estado or 'N/A' }}</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=juego.categoria)) }}" class="badge categoria" aria-label="Filtrar por categoría {{ juego.categoria or 'Biblioteca' }}">{{ juego.categoria or 'Biblioteca' }}</a>
                             {% if juego.es_favorito %}
-                                <span class="badge favorito">Favorito</span>
+                                <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo')) }}" class="badge favorito" aria-label="Ver solo favoritos">Favorito</a>
                             {% endif %}
                         </div>
                     </div>
@@ -267,7 +267,7 @@
                         <div class="game-meta">
                             <span class="meta-item">Prioridad: {{ juego.prioridad or 'Media' }}</span>
                             <span class="meta-item">{% if juego.calificacion %}Tu nota: {{ juego.calificacion }}/10{% else %}Sin nota{% endif %}</span>
-                            <span class="meta-item">Actualizado: {{ (juego.updated_at or juego.created_at or '')[:10] or 'sin fecha' }}</span>
+                            <span class="meta-item">Actualizado: <span data-timestamp="{{ juego.updated_at or juego.created_at or '' }}">{{ (juego.updated_at or juego.created_at or '')[:10] or 'sin fecha' }}</span></span>
                         </div>
                         <div class="game-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
                             <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="btn btn-secondary btn-small" aria-label="Editar {{ juego.titulo }}">Editar</a>
