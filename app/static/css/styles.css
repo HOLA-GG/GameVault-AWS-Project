@@ -1697,6 +1697,24 @@ code {
     border: 1px solid rgba(46, 204, 113, 0.3);
 }
 
+.badge[href] {
+    text-decoration: none;
+    transition: transform var(--transition-fast), filter var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.badge[href]:hover,
+.badge[href]:focus-visible {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+    box-shadow: var(--shadow-sm);
+    outline: none;
+}
+
+.badge[href]:active {
+    transform: translateY(0);
+    filter: brightness(0.9);
+}
+
 .badge.plataforma {
     background: rgba(59, 130, 246, 0.18);
     color: #93c5fd;

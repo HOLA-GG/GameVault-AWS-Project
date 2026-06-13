@@ -1,0 +1,33 @@
+============================================================
+GAMEVAULT LOCAL
+============================================================
+Entorno: testing
+Host: 127.0.0.1:5000
+Debug: True
+Base de datos: sqlite
+Storage: none
+============================================================
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 631-326-424
+2026-06-13 09:45:47,750 level=INFO logger=app request_id=ea047d0a-99f2-4807-857b-9d04420f42e4 message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:47] "GET /registro HTTP/1.1" 200 -
+2026-06-13 09:45:47,774 level=INFO logger=app request_id=06e66462-14e1-4854-b6d4-fb95b8711d30 message=GET /static/css/styles.css status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:47] "GET /static/css/styles.css HTTP/1.1" 200 -
+2026-06-13 09:45:49,065 level=INFO logger=app request_id=a548af1d-9b20-4ba1-832e-39150d1e3fd9 message=POST /registro status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:49] "[32mPOST /registro HTTP/1.1[0m" 302 -
+2026-06-13 09:45:49,126 level=INFO logger=app request_id=daafd9a5-49cd-4317-9a76-1c0bf4b4ec7e message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:49] "GET /dashboard HTTP/1.1" 200 -
+2026-06-13 09:45:49,138 level=INFO logger=app request_id=c1d23669-c944-49e5-add1-dc2ab2688972 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:49] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-13 09:45:51,253 level=INFO logger=app request_id=b856e44f-3615-41ac-baef-5bc1084e39f7 message=POST /agregar status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:51] "[32mPOST /agregar HTTP/1.1[0m" 302 -
+2026-06-13 09:45:51,263 level=INFO logger=app request_id=c9180d35-2f51-42c9-a420-6edef96cb530 message=GET /dashboard status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:51] "GET /dashboard HTTP/1.1" 200 -
+2026-06-13 09:45:51,277 level=INFO logger=app request_id=92124051-f2c3-4d11-b33c-4a050c9b9f30 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [13/Jun/2026 09:45:51] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
