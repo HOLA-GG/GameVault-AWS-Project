@@ -1146,10 +1146,17 @@ def login():
         return redirect(url_for('main.login'))
 
     usuario = verificar_credenciales(email, password)
+
+    # Use a dummy hash for missing users to mitigate timing attacks (Security enhancement)
+    # This prevents attackers from discovering valid emails by measuring response times.
+    dummy_hash = 'scrypt:32768:8:1$I5M8muL7dw4n9QXZ$e6f7a505f876cee29b89fd0fb1fd13f8be1ac953c9b6dea87709cb9cd105c8525ad2854e1400b5de5e36b405c189a247bf212008e6259277e98a71392edcd920'
+    db_hash = usuario['password_hash'] if usuario else dummy_hash
+    password_correct = check_password_hash(db_hash, password)
+
     if (
         usuario is None
         or usuario.get('status') != 'active'
-        or not check_password_hash(usuario['password_hash'], password)
+        or not password_correct
     ):
         crear_log_audit(
             user_id=usuario['user_id'] if usuario else None,
