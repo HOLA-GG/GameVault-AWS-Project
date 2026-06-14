@@ -1,7 +1,7 @@
 ============================================================
 GAMEVAULT LOCAL
 ============================================================
-Entorno: testing
+Entorno: development
 Host: 127.0.0.1:5000
 Debug: True
 Base de datos: sqlite
@@ -15,19 +15,34 @@ Storage: none
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 631-326-424
-2026-06-13 09:45:47,750 level=INFO logger=app request_id=ea047d0a-99f2-4807-857b-9d04420f42e4 message=GET /registro status=200 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:47] "GET /registro HTTP/1.1" 200 -
-2026-06-13 09:45:47,774 level=INFO logger=app request_id=06e66462-14e1-4854-b6d4-fb95b8711d30 message=GET /static/css/styles.css status=200 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:47] "GET /static/css/styles.css HTTP/1.1" 200 -
-2026-06-13 09:45:49,065 level=INFO logger=app request_id=a548af1d-9b20-4ba1-832e-39150d1e3fd9 message=POST /registro status=302 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:49] "[32mPOST /registro HTTP/1.1[0m" 302 -
-2026-06-13 09:45:49,126 level=INFO logger=app request_id=daafd9a5-49cd-4317-9a76-1c0bf4b4ec7e message=GET /dashboard status=200 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:49] "GET /dashboard HTTP/1.1" 200 -
-2026-06-13 09:45:49,138 level=INFO logger=app request_id=c1d23669-c944-49e5-add1-dc2ab2688972 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:49] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
-2026-06-13 09:45:51,253 level=INFO logger=app request_id=b856e44f-3615-41ac-baef-5bc1084e39f7 message=POST /agregar status=302 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:51] "[32mPOST /agregar HTTP/1.1[0m" 302 -
-2026-06-13 09:45:51,263 level=INFO logger=app request_id=c9180d35-2f51-42c9-a420-6edef96cb530 message=GET /dashboard status=200 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:51] "GET /dashboard HTTP/1.1" 200 -
-2026-06-13 09:45:51,277 level=INFO logger=app request_id=92124051-f2c3-4d11-b33c-4a050c9b9f30 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
-127.0.0.1 - - [13/Jun/2026 09:45:51] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-14 09:55:43,981 level=INFO logger=app request_id=71648de9-95d5-4f77-9ce7-2a42c50f8f21 message=GET /healthz status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:55:43] "GET /healthz HTTP/1.1" 200 -
+2026-06-14 09:56:25,162 level=INFO logger=app request_id=445f9850-f564-44cd-92af-853c54562aa3 message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:25] "GET /registro HTTP/1.1" 200 -
+2026-06-14 09:56:25,330 level=INFO logger=app request_id=c9c17ab0-39f4-4b58-b2ab-aec85128c595 message=GET /static/css/styles.css status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:25] "GET /static/css/styles.css HTTP/1.1" 200 -
+2026-06-14 09:56:26,730 level=INFO logger=app request_id=5fbaa0ee-6f55-4eca-a1ea-78615d5673fd message=POST /registro status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:26] "[32mPOST /registro HTTP/1.1[0m" 302 -
+2026-06-14 09:56:26,737 level=INFO logger=app request_id=82945e81-08b6-4474-b0f4-586e74b3d0f9 message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:26] "GET /registro HTTP/1.1" 200 -
+2026-06-14 09:56:26,761 level=INFO logger=app request_id=7ff32718-c247-4b6a-b101-8f01a7857c2a message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:26] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2026-06-14 09:56:56,540 level=INFO logger=app request_id=717b04f0-6044-4b22-9487-9292d698b283 message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:56] "GET /registro HTTP/1.1" 200 -
+2026-06-14 09:56:56,550 level=INFO logger=app request_id=47d86a51-a734-49e8-8fa4-15fbae578d36 message=GET /static/css/styles.css status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:56] "GET /static/css/styles.css HTTP/1.1" 200 -
+2026-06-14 09:56:57,105 level=INFO logger=app request_id=d8a84cb5-052b-497a-9a92-2f8fe409dee5 message=POST /registro status=302 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:57] "[32mPOST /registro HTTP/1.1[0m" 302 -
+2026-06-14 09:56:57,111 level=INFO logger=app request_id=93d6ffe6-7db1-4614-9b93-18b7eb8eb5d3 message=GET /registro status=200 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:57] "GET /registro HTTP/1.1" 200 -
+2026-06-14 09:56:57,125 level=INFO logger=app request_id=53d5a074-5cc9-4608-83e6-4c9012b37962 message=GET /static/css/styles.css status=304 remote_addr=127.0.0.1
+127.0.0.1 - - [14/Jun/2026 09:56:57] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+============================================================
+GAMEVAULT LOCAL
+============================================================
+Entorno: development
+Host: 127.0.0.1:5000
+Debug: True
+Base de datos: sqlite
+Storage: none
+============================================================
