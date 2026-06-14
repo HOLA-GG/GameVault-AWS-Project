@@ -57,6 +57,7 @@ from app.models import (
     obtener_juego_por_id,
     obtener_juegos_por_usuario,
     obtener_logs_por_usuario,
+    obtener_metricas_coleccion,
     obtener_todos_logs,
     obtener_todos_usuarios,
     obtener_usuario_por_email,
@@ -99,6 +100,100 @@ _ACTION_BADGE_MAP = {
     for class_name, actions in ACTION_BADGE_GROUPS.items()
     for action in actions
 }
+
+
+def build_dashboard_insights(juegos: list[dict], user_id: str) -> dict:
+    """Calcula métricas ligeras para el dashboard (optimizado: pass único y fetch mínimo de logs)."""
+    now = datetime.now(timezone.utc)
+    recent_cutoff_iso = (now - timedelta(days=7)).isoformat()
+    stale_cutoff_iso = (now - timedelta(days=30)).isoformat()
+    min_iso = "0001-01-01T00:00:00+00:00"
+
+    platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
+    recently_updated = recently_added = missing_images = favorites_count = 0
+    high_priority_count = stale_games = ratings_sum = ratings_count = 0
+    next_focus = next_focus_at_iso = None
+
+    # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
+    last_updated_game = juegos[0] if juegos else None
+
+    for juego in juegos:
+        plat = juego.get('plataforma') or 'Sin plataforma'
+        platform_counts[plat] += 1
+        est = juego.get('estado') or 'N/A'
+        status_counts[est] += 1
+        cat = juego.get('categoria') or 'Biblioteca'
+        category_counts[cat] += 1
+
+        if not juego.get('imagen_url'):
+            missing_images += 1
+        if juego.get('es_favorito'):
+            favorites_count += 1
+
+        prio = juego.get('prioridad')
+        iso_created = juego.get('created_at') or min_iso
+        iso_updated = juego.get('updated_at') or iso_created
+
+        if prio == 'Alta':
+            high_priority_count += 1
+            if cat != 'Completado':
+                if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
+                    next_focus, next_focus_at_iso = juego, iso_updated
+
+        calif = juego.get('calificacion')
+        if isinstance(calif, int):
+            ratings_sum += calif
+            ratings_count += 1
+
+        if iso_created >= recent_cutoff_iso:
+            recently_added += 1
+        if iso_updated >= recent_cutoff_iso:
+            recently_updated += 1
+        if iso_updated < stale_cutoff_iso:
+            stale_games += 1
+
+    # Fetch ONLY the count of recent logs to avoid loading full objects if not needed
+    recent_activity = 0
+    try:
+        from app.models import AuditLog, func, get_session_factory, select
+        with get_session_factory()() as session:
+            recent_activity = session.scalar(
+                select(func.count(AuditLog.audit_id))
+                .where(AuditLog.user_id == user_id, AuditLog.timestamp >= (now - timedelta(days=7)))
+            ) or 0
+    except Exception:
+        pass
+
+    dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
+    dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
+    dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
+
+    return {
+        'total_games': len(juegos),
+        'platforms_count': len(platform_counts),
+        'recently_added': recently_added,
+        'recently_updated': recently_updated,
+        'recent_activity': recent_activity,
+        'missing_images': missing_images,
+        'favorites_count': favorites_count,
+        'high_priority_count': high_priority_count,
+        'stale_games': stale_games,
+        'wishlist_count': category_counts.get('Wishlist', 0),
+        'backlog_count': category_counts.get('Backlog', 0),
+        'currently_playing_count': category_counts.get('Jugando', 0),
+        'average_rating': round(ratings_sum / ratings_count, 1) if ratings_count > 0 else None,
+        'dominant_platform': {'label': dominant_platform[0], 'count': dominant_platform[1]},
+        'dominant_status': {'label': dominant_status[0], 'count': dominant_status[1]},
+        'dominant_category': {'label': dominant_category[0], 'count': dominant_category[1]},
+        'last_updated_game': last_updated_game,
+        'next_focus': next_focus,
+        'filter_options': {
+            'plataformas': sorted(p for p in platform_counts if p != 'Sin plataforma'),
+            'estados': sorted(s for s in status_counts if s != 'N/A'),
+            'categorias': sorted(category_counts),
+        }
+    }
+
 
 LANDING_SAMPLE_COLLECTIONS = [
     {
@@ -383,100 +478,6 @@ def normalize_game_metadata(form) -> dict:
     }
 
 
-def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
-    """Calcula métricas ligeras para el dashboard (optimizado: pass único y comparaciones ISO)."""
-    now = datetime.now(timezone.utc)
-    recent_cutoff_iso = (now - timedelta(days=7)).isoformat()
-    stale_cutoff_iso = (now - timedelta(days=30)).isoformat()
-    min_iso = "0001-01-01T00:00:00+00:00"
-
-    platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
-
-    recently_updated = recently_added = missing_images = favorites_count = 0
-    high_priority_count = stale_games = ratings_sum = ratings_count = 0
-    next_focus = next_focus_at_iso = None
-
-    # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
-    last_updated_game = juegos[0] if juegos else None
-
-    for juego in juegos:
-        plat = juego.get('plataforma')
-        platform_counts[plat or 'Sin plataforma'] += 1
-
-        est = juego.get('estado')
-        status_counts[est or 'N/A'] += 1
-
-        cat = juego.get('categoria') or 'Biblioteca'
-        category_counts[cat] += 1
-
-        if not juego.get('imagen_url'):
-            missing_images += 1
-        if juego.get('es_favorito'):
-            favorites_count += 1
-
-        # Check for 'Alta' priority directly and nest next_focus logic to reduce branching
-        prio = juego.get('prioridad')
-        iso_created = juego.get('created_at') or min_iso
-        iso_updated = juego.get('updated_at') or iso_created
-
-        if prio == 'Alta':
-            high_priority_count += 1
-            if cat != 'Completado':
-                if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
-                    next_focus, next_focus_at_iso = juego, iso_updated
-
-        calif = juego.get('calificacion')
-        if isinstance(calif, int):
-            ratings_sum += calif
-            ratings_count += 1
-
-        if iso_created >= recent_cutoff_iso:
-            recently_added += 1
-
-        if iso_updated >= recent_cutoff_iso:
-            recently_updated += 1
-        if iso_updated < stale_cutoff_iso:
-            stale_games += 1
-
-    recent_activity = 0
-    if activity_logs:
-        for log in activity_logs:
-            ts_iso = log.get('timestamp')
-            if ts_iso and ts_iso >= recent_cutoff_iso:
-                recent_activity += 1
-            else:
-                break  # O(1) short-circuit as logs are already sorted by timestamp desc.
-
-    dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
-    dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
-    dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
-
-    # Derive unique values from Counters to avoid redundant set operations during the loop.
-    return {
-        'total_games': len(juegos),
-        'platforms_count': len(platform_counts),
-        'recently_added': recently_added,
-        'recently_updated': recently_updated,
-        'recent_activity': recent_activity,
-        'missing_images': missing_images,
-        'favorites_count': favorites_count,
-        'high_priority_count': high_priority_count,
-        'stale_games': stale_games,
-        'wishlist_count': category_counts.get('Wishlist', 0),
-        'backlog_count': category_counts.get('Backlog', 0),
-        'currently_playing_count': category_counts.get('Jugando', 0),
-        'average_rating': round(ratings_sum / ratings_count, 1) if ratings_count > 0 else None,
-        'dominant_platform': {'label': dominant_platform[0], 'count': dominant_platform[1]},
-        'dominant_status': {'label': dominant_status[0], 'count': dominant_status[1]},
-        'dominant_category': {'label': dominant_category[0], 'count': dominant_category[1]},
-        'last_updated_game': last_updated_game,
-        'next_focus': next_focus,
-        'filter_options': {
-            'plataformas': sorted(p for p in platform_counts if p != 'Sin plataforma'),
-            'estados': sorted(s for s in status_counts if s != 'N/A'),
-            'categorias': sorted(category_counts),
-        }
-    }
 
 
 def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
@@ -790,7 +791,7 @@ def dashboard():
     if session.get('role') == 'admin':
         return redirect(url_for('main.admin_panel'))
     user_id = session['user_id']
-    juegos = obtener_juegos_por_usuario(user_id)
+
     filters = {
         'q': request.args.get('q', ''),
         'plataforma': request.args.get('plataforma', ''),
@@ -801,8 +802,12 @@ def dashboard():
     }
     page = request.args.get('page', 1, type=int)
 
+    # Bolt optimization: Calculate metrics in-memory from the already fetched list
+    # for the dashboard to avoid 9+ redundant SQL queries.
+    juegos = obtener_juegos_por_usuario(user_id)
+    dashboard_insights = build_dashboard_insights(juegos, user_id)
+
     filtered_games = filter_and_sort_games(juegos, filters)
-    dashboard_insights = build_dashboard_insights(juegos)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
     paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
     filter_opts = dashboard_insights.get('filter_options', {})
@@ -1226,9 +1231,11 @@ def profile():
         return redirect(url_for('main.admin_panel'))
     # Use g.current_user cached by @require_login to avoid redundant DB query
     user = g.current_user
-    juegos = obtener_juegos_por_usuario(session['user_id'])
-    recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8)
-    profile_insights = build_dashboard_insights(juegos)
+    user_id = session['user_id']
+
+    # Bolt optimization: Calculate profile insights using SQL aggregations instead of loading all games.
+    profile_insights = obtener_metricas_coleccion(user_id)
+    recent_activity_logs = obtener_logs_por_usuario(user_id, limit=8)
 
     if request.method == 'GET':
         return render_template(

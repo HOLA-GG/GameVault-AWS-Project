@@ -60,3 +60,7 @@
 ## 2026-06-11 - Redundant Branching in Insight Loops
 **Learning:** Performing multiple independent `if` checks on the same property (like game priority) within an O(N) loop adds unnecessary branching overhead.
 **Action:** Nest dependent logic (like "next focus" selection) inside the primary property check to minimize CPU cycles per iteration.
+
+## 2026-06-14 - Selective SQL Aggregation vs In-Memory Loops
+**Learning:** Offloading metrics to SQL aggregations is a massive win when you don't need the underlying raw data (e.g., the Profile page). However, in views where the full collection is already fetched for in-memory filtering/sorting (e.g., the Dashboard), adding redundant SQL aggregation queries actually increases database round-trips and latency.
+**Action:** Use SQL aggregations for "stats-only" views. Use a single-pass in-memory loop for views that already fetch the full dataset to maintain O(1) database round-trip complexity for metrics.
