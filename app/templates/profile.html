@@ -157,16 +157,42 @@
             <p>Desde aquí ves cambios de cuenta y movimientos de tu colección sin ensuciar el dashboard principal.</p>
         </div>
     </div>
+    {% set action_emojis = {
+        'CREATE_GAME': '🎮',
+        'UPDATE_GAME': '📝',
+        'DELETE_GAME': '🗑️',
+        'LOGIN': '🔑',
+        'LOGOUT': '🚪',
+        'REGISTER': '✨',
+        'UPDATE_PROFILE': '👤',
+        'CHANGE_PASSWORD': '🔐',
+        'PASSWORD_RESET_REQUEST': '📧',
+        'PASSWORD_RESET': '🔄',
+        'FAILED_LOGIN': '⚠️',
+        'ADMIN_ACTION': '🛡️',
+        'RATE_SHOWCASE': '⭐'
+    } %}
     <div class="activity-feed-grid">
         {% for log in recent_activity_logs %}
             <article class="activity-feed-card">
                 <div class="activity-feed-card__header">
-                    <strong>{{ log.action_name }}</strong>
+                    <strong>
+                        <span aria-hidden="true">{{ action_emojis.get(log.action, '🔔') }}</span>
+                        {{ log.action_name }}
+                    </strong>
                     <span data-timestamp="{{ log.timestamp }}">{{ (log.timestamp or '')[:16]|replace('T', ' ') }}</span>
                 </div>
                 <p>{{ log.resource|replace('_', ' ')|title }}</p>
                 {% if log.details and log.details.title %}
-                    <small>{{ log.details.title }}</small>
+                    {% if log.details.game_id and log.action != 'DELETE_GAME' %}
+                        <small>
+                            <a href="{{ url_for('main.editar_juego_ruta', game_id=log.details.game_id) }}" class="info-link" aria-label="Editar {{ log.details.title }}">
+                                {{ log.details.title }}
+                            </a>
+                        </small>
+                    {% else %}
+                        <small>{{ log.details.title }}</small>
+                    {% endif %}
                 {% elif log.details and log.details.email %}
                     <small>{{ log.details.email }}</small>
                 {% endif %}
