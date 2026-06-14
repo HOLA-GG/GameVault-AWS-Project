@@ -47,3 +47,8 @@
 **Vulnerability:** Use of broad `*.amazonaws.com` wildcard in `img-src` and `connect-src` CSP directives.
 **Learning:** Permissive wildcards for cloud providers allow attackers to bypass CSP by hosting malicious scripts or exfiltration endpoints in their own accounts under the same provider.
 **Prevention:** Dynamically construct CSP directives using specific hostnames derived from application configuration (e.g., `{bucket}.s3.{region}.amazonaws.com`) to enforce the principle of least privilege.
+
+## 2026-06-13 - Enhance Password Complexity and Failed Event Auditing
+**Vulnerability:** Weak password requirements (length only) and insufficient logging of failed security-sensitive events (registration, password reset, admin actions).
+**Learning:** Only checking password length allows weak passwords like "12345678" or "password". Also, failing to log unsuccessful security events hinders incident response and makes it harder to detect brute-force or enumeration attempts.
+**Prevention:** Implement basic complexity requirements (letters + numbers) for passwords. Ensure all security-sensitive routes (register, forgot password, admin actions) log both SUCCESS and FAILED outcomes with relevant (redacted) details.

@@ -1090,7 +1090,9 @@ def registro():
     if not password:
         errores.append('La contraseña es requerida.')
     elif not validar_password(password):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
+    if prefijo_pais and len(prefijo_pais) > 10:
+        errores.append('El prefijo de país es demasiado largo (máximo 10 caracteres).')
     if telefono and not validar_telefono(telefono):
         errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
     if password != confirm_password:
@@ -1101,6 +1103,15 @@ def registro():
     if errores:
         for error in errores:
             flash(error, 'error')
+        crear_log_audit(
+            user_id=None,
+            action='REGISTER',
+            resource='users',
+            details={'email': email, 'errors': errores},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.registro'))
 
     password_hash = generate_password_hash(password)
@@ -1162,7 +1173,7 @@ def login():
             user_id=usuario['user_id'] if usuario else None,
             action='FAILED_LOGIN',
             resource='auth',
-            details={'email': email},
+            details={'email': email, 'reason': 'invalid_credentials_or_inactive'},
             ip_address=request.remote_addr or 'unknown',
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
@@ -1258,7 +1269,7 @@ def profile():
             )
             errores.append('La contraseña actual no es correcta.')
         if not validar_password(password):
-            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres.')
+            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
         if password != confirm_password:
             errores.append('Las contraseñas no coinciden.')
 
@@ -1356,6 +1367,18 @@ def forgot_password():
     user = obtener_usuario_por_email(email)
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
 
+    if not user or user.get('status') != 'active':
+        crear_log_audit(
+            user_id=user['user_id'] if user else None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email, 'reason': 'user_not_found_or_inactive'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        return redirect(url_for('main.forgot_password'))
+
     if user and user.get('status') == 'active':
         result = crear_reset_token(user['user_id'], request.remote_addr or None)
         if result['success']:
@@ -1404,6 +1427,15 @@ def forgot_password_manual_token():
     user = obtener_usuario_por_email(email)
     # Validar si el usuario existe y el teléfono coincide
     if not user or str(user.get('telefono', '')).strip() != telefono or user.get('status') != 'active':
+        crear_log_audit(
+            user_id=user['user_id'] if user else None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email, 'reason': 'manual_token_validation_failed'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         # En producción no revelamos si los datos son incorrectos para evitar enumeración.
         if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
             flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
@@ -1500,7 +1532,7 @@ def reset_password_with_email(token):
     confirm_password = request.form.get('confirm_password', '').strip()
     errores = []
     if not validar_password(password):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     if user is None or user.get('status') != 'active':
@@ -1610,6 +1642,15 @@ def admin_eliminar_usuario(user_id):
     resultado = eliminar_usuario(user_id)
     if not resultado['success']:
         flash(f'No se pudo eliminar el usuario: {resultado["error"]}', 'error')
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'delete_user', 'error': resultado.get('error')},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.admin_panel'))
 
     crear_log_audit(
@@ -1638,6 +1679,15 @@ def admin_editar_usuario(user_id):
     resultado = actualizar_usuario_nombre(user_id, nuevo_nombre)
     if not resultado['success']:
         flash(f'No se pudo actualizar el usuario: {resultado["error"]}', 'error')
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': resultado.get('error')},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.admin_panel'))
 
     crear_log_audit(

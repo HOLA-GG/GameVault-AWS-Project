@@ -412,9 +412,12 @@ def validar_telefono(telefono):
 
 
 def validar_password(password):
-    """Valida que la contraseña tenga una longitud segura (8-128)."""
+    """Valida que la contraseña tenga una longitud segura (8-128) y complejidad básica."""
     # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
-    return 8 <= len(password) <= 128
+    if not (8 <= len(password) <= 128):
+        return False
+    # Requerir al menos una letra y un número (Seguridad mejorada)
+    return any(c.isalpha() for c in password) and any(c.isdigit() for c in password)
 
 
 def eliminar_imagen_s3(imagen_url):
