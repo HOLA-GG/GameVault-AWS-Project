@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import math
 import os
 import uuid
@@ -152,6 +153,14 @@ def require_login(view):
         if not user or user.get('status') != 'active':
             session.clear()
             flash('Tu sesión ha expirado o tu cuenta no está activa.', 'error')
+            return redirect(url_for('main.login'))
+
+        # Global session invalidation on password change (Security enhancement)
+        # We store a SHA256 of the password hash in the session to detect changes.
+        current_pw_hash_gen = hashlib.sha256(user['password_hash'].encode('utf-8')).hexdigest()
+        if session.get('_pw_hash') != current_pw_hash_gen:
+            session.clear()
+            flash('Tu sesión ha sido invalidada por un cambio de seguridad. Inicia sesión de nuevo.', 'error')
             return redirect(url_for('main.login'))
 
         g.current_user = user
@@ -1126,6 +1135,8 @@ def registro():
     session['email'] = resultado['email']
     session['nombre'] = resultado['nombre']
     session['role'] = resultado.get('role', 'user')
+    # Store a SHA256 of the password hash to detect changes and invalidate other sessions
+    session['_pw_hash'] = hashlib.sha256(password_hash.encode('utf-8')).hexdigest()
 
     crear_log_audit(
         user_id=resultado['user_id'],
@@ -1187,6 +1198,8 @@ def login():
     session['email'] = usuario['email']
     session['nombre'] = usuario['nombre']
     session['role'] = usuario.get('role', 'user')
+    # Store a SHA256 of the password hash to detect changes and invalidate other sessions
+    session['_pw_hash'] = hashlib.sha256(usuario['password_hash'].encode('utf-8')).hexdigest()
 
     crear_log_audit(
         user_id=usuario['user_id'],
@@ -1674,6 +1687,10 @@ def admin_editar_usuario(user_id):
     nuevo_nombre = request.form.get('nombre', '').strip()
     if not nuevo_nombre:
         flash('El nombre no puede estar vacío.', 'error')
+        return redirect(url_for('main.admin_panel'))
+
+    if len(nuevo_nombre) > 120:
+        flash('El nombre es demasiado largo (máximo 120 caracteres).', 'error')
         return redirect(url_for('main.admin_panel'))
 
     resultado = actualizar_usuario_nombre(user_id, nuevo_nombre)

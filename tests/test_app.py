@@ -55,9 +55,11 @@ def login_session(client, *, role='user'):
     from app.models import get_session_factory, User
     from werkzeug.security import generate_password_hash
     import uuid
+    import hashlib
 
     user_id = 'user-1'
     email = 'user@example.com'
+    pw_hash = generate_password_hash('password123')
 
     # Ensure user exists in DB because decorators now validate in real-time
     session_factory = get_session_factory()
@@ -68,7 +70,7 @@ def login_session(client, *, role='user'):
                 user_id=user_id,
                 email=email,
                 nombre='Tester',
-                password_hash=generate_password_hash('password123'),
+                password_hash=pw_hash,
                 role=role,
                 status='active'
             )
@@ -76,6 +78,7 @@ def login_session(client, *, role='user'):
         else:
             user.role = role
             user.status = 'active'
+            pw_hash = user.password_hash
         db_session.commit()
 
     with client.session_transaction() as session:
@@ -83,6 +86,7 @@ def login_session(client, *, role='user'):
         session['email'] = email
         session['nombre'] = 'Tester'
         session['role'] = role
+        session['_pw_hash'] = hashlib.sha256(pw_hash.encode('utf-8')).hexdigest()
 
 
 def test_healthz_returns_ok(client):

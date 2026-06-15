@@ -52,3 +52,8 @@
 **Vulnerability:** Weak password requirements (length only) and insufficient logging of failed security-sensitive events (registration, password reset, admin actions).
 **Learning:** Only checking password length allows weak passwords like "12345678" or "password". Also, failing to log unsuccessful security events hinders incident response and makes it harder to detect brute-force or enumeration attempts.
 **Prevention:** Implement basic complexity requirements (letters + numbers) for passwords. Ensure all security-sensitive routes (register, forgot password, admin actions) log both SUCCESS and FAILED outcomes with relevant (redacted) details.
+
+## 2026-06-15 - Global Session Invalidation on Password Change
+**Vulnerability:** Active sessions on other devices remained valid after a password change or reset.
+**Learning:** Simply clearing the current session after a password update only affects the local device. Stale sessions on other devices could still be used to access the account until they naturally expired.
+**Prevention:** Store a non-reversible hash (e.g., SHA256) of the current password hash in the session upon login. Verify this hash against the database on every request within authentication decorators. If the password hash in the database changes, all existing sessions will fail the verification and be invalidated globally.
