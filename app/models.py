@@ -305,7 +305,7 @@ def ensure_tables() -> None:
     init_database()
 
 
-def _as_iso(value: datetime | None) -> str | None:
+def as_iso(value: datetime | None) -> str | None:
     if value is None:
         return None
     if value.tzinfo is None:
@@ -328,12 +328,13 @@ def user_to_dict(user: User | None) -> Optional[Dict[str, Any]]:
         'status': user.status,
         'collection_visibility': user.collection_visibility,
         'homepage_showcase_opt_in': user.homepage_showcase_opt_in,
-        'created_at': _as_iso(user.created_at),
-        'updated_at': _as_iso(user.updated_at),
+        'created_at': as_iso(user.created_at),
+        'updated_at': as_iso(user.updated_at),
     }
 
 
-def game_to_dict(game: Game | None) -> Optional[Dict[str, Any]]:
+def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[str, Any]]:
+    """Convierte un juego en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if game is None:
         return None
     return {
@@ -348,8 +349,8 @@ def game_to_dict(game: Game | None) -> Optional[Dict[str, Any]]:
         'prioridad': game.prioridad,
         'calificacion': game.calificacion,
         'es_favorito': game.es_favorito,
-        'created_at': _as_iso(game.created_at),
-        'updated_at': _as_iso(game.updated_at),
+        'created_at': as_iso(game.created_at) if format_dates else game.created_at,
+        'updated_at': as_iso(game.updated_at) if format_dates else game.updated_at,
     }
 
 
@@ -360,11 +361,11 @@ def reset_token_to_dict(item: PasswordResetToken | None) -> Optional[Dict[str, A
         'token_id': item.token_id,
         'user_id': item.user_id,
         'reset_token': item.reset_token,
-        'created_at': _as_iso(item.created_at),
-        'expires_at': _as_iso(item.expires_at),
+        'created_at': as_iso(item.created_at),
+        'expires_at': as_iso(item.expires_at),
         'expires_at_unix': int(item.expires_at.timestamp()),
         'used': item.used,
-        'used_at': _as_iso(item.used_at),
+        'used_at': as_iso(item.used_at),
         'ip_address': item.ip_address,
     }
 
@@ -378,7 +379,7 @@ def audit_log_to_dict(item: AuditLog | None) -> Optional[Dict[str, Any]]:
         'action': item.action,
         'action_name': item.action_name,
         'resource': item.resource,
-        'timestamp': _as_iso(item.timestamp),
+        'timestamp': as_iso(item.timestamp),
         'ip_address': item.ip_address,
         'user_agent': item.user_agent,
         'details': item.details or {},
@@ -479,14 +480,16 @@ def crear_juego(
 
 
 def obtener_juegos_por_usuario(user_id):
-    """Obtiene todos los juegos de un usuario."""
+    """Obtiene todos los juegos de un usuario (Optimización Bolt: raw datetimes)."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
         items = session.scalars(
             select(Game).where(Game.user_id == user_id).order_by(Game.updated_at.desc(), Game.created_at.desc())
         ).all()
-        return [game_to_dict(item) for item in items]
+        # Deferimos el formateo de fechas a ISO para evitar miles de formateos innecesarios
+        # en colecciones grandes durante el filtrado e insights.
+        return [game_to_dict(item, format_dates=False) for item in items]
 
 
 def obtener_juego_por_id(user_id, game_id):
@@ -1048,7 +1051,7 @@ def obtener_resumenes_colecciones(
                 'favorites_count': int(r.favorites_count),
                 'average_rating': round(float(r.average_rating), 1) if r.average_rating is not None else None,
                 'dominant_platform': dominant_platforms.get(r.user_id, 'Sin juegos'),
-                'last_updated_at': _as_iso(r.last_updated_at) or '',
+                'last_updated_at': as_iso(r.last_updated_at) or '',
             }
             for r in results
         ]

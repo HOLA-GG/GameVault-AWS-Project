@@ -33,6 +33,7 @@ from app.extensions import csrf, limiter, mail
 from app.models import (
     AUDIT_ACTIONS,
     aplicar_ratings_showcase,
+    as_iso,
     actualizar_juego,
     actualizar_password_usuario,
     actualizar_usuario_nombre,
@@ -368,6 +369,21 @@ def parse_iso_datetime(value: str | None) -> datetime | None:
     return parsed
 
 
+# Bolt Optimization: constants and helpers for efficient date handling across routes.
+MIN_DATE = datetime(1, 1, 1, tzinfo=timezone.utc)
+
+
+def ensure_dt(val: str | datetime | None) -> datetime:
+    """Asegura que el valor sea un datetime comparable (UTC aware)."""
+    if val is None:
+        return MIN_DATE
+    if isinstance(val, str):
+        return parse_iso_datetime(val) or MIN_DATE
+    if val.tzinfo is None:
+        return val.replace(tzinfo=timezone.utc)
+    return val
+
+
 def normalize_game_metadata(form) -> dict:
     """Normaliza campos opcionales para enriquecer la colección."""
     categoria = form.get('categoria', 'Biblioteca').strip() or 'Biblioteca'
@@ -393,17 +409,18 @@ def normalize_game_metadata(form) -> dict:
 
 
 def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
-    """Calcula métricas ligeras para el dashboard (optimizado: pass único y comparaciones ISO)."""
+    """Calcula métricas ligeras para el dashboard (Optimización Bolt: datetime comparisons)."""
     now = datetime.now(timezone.utc)
-    recent_cutoff_iso = (now - timedelta(days=7)).isoformat()
-    stale_cutoff_iso = (now - timedelta(days=30)).isoformat()
-    min_iso = "0001-01-01T00:00:00+00:00"
+    recent_cutoff = now - timedelta(days=7)
+    stale_cutoff = now - timedelta(days=30)
+    # Datetime comparisons are much faster than ISO string generation and comparison.
+    recent_cutoff_iso = recent_cutoff.isoformat()
 
     platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
 
     recently_updated = recently_added = missing_images = favorites_count = 0
     high_priority_count = stale_games = ratings_sum = ratings_count = 0
-    next_focus = next_focus_at_iso = None
+    next_focus = next_focus_at = None
 
     # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
     last_updated_game = juegos[0] if juegos else None
@@ -425,32 +442,36 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
 
         # Check for 'Alta' priority directly and nest next_focus logic to reduce branching
         prio = juego.get('prioridad')
-        iso_created = juego.get('created_at') or min_iso
-        iso_updated = juego.get('updated_at') or iso_created
+        dt_created = ensure_dt(juego.get('created_at'))
+        dt_updated = ensure_dt(juego.get('updated_at'))
+        if dt_updated == MIN_DATE:
+            dt_updated = dt_created
 
         if prio == 'Alta':
             high_priority_count += 1
             if cat != 'Completado':
-                if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
-                    next_focus, next_focus_at_iso = juego, iso_updated
+                if dt_updated != MIN_DATE:
+                    if next_focus_at is None or dt_updated < next_focus_at:
+                        next_focus, next_focus_at = juego, dt_updated
 
         calif = juego.get('calificacion')
         if isinstance(calif, int):
             ratings_sum += calif
             ratings_count += 1
 
-        if iso_created >= recent_cutoff_iso:
+        if dt_created != MIN_DATE and dt_created >= recent_cutoff:
             recently_added += 1
 
-        if iso_updated >= recent_cutoff_iso:
+        if dt_updated != MIN_DATE and dt_updated >= recent_cutoff:
             recently_updated += 1
-        if iso_updated < stale_cutoff_iso:
+        if dt_updated != MIN_DATE and dt_updated < stale_cutoff:
             stale_games += 1
 
     recent_activity = 0
     if activity_logs:
         for log in activity_logs:
             ts_iso = log.get('timestamp')
+            # Activity logs still use ISO strings for now as they are fewer.
             if ts_iso and ts_iso >= recent_cutoff_iso:
                 recent_activity += 1
             else:
@@ -591,7 +612,10 @@ def filter_and_sort_games(juegos, filters):
         filtered.append(juego)
 
     def sort_key(item):
-        return item.get('updated_at') or item.get('created_at') or item.get('titulo', '')
+        updated = ensure_dt(item.get('updated_at'))
+        if updated != MIN_DATE:
+            return updated
+        return ensure_dt(item.get('created_at'))
 
     reverse = True
     if sort_by == 'title_asc':
@@ -601,9 +625,9 @@ def filter_and_sort_games(juegos, filters):
         filtered.sort(key=lambda item: item.get('titulo', '').lower(), reverse=True)
     elif sort_by == 'created_asc':
         reverse = False
-        filtered.sort(key=lambda item: item.get('created_at') or item.get('titulo', ''), reverse=reverse)
+        filtered.sort(key=lambda item: ensure_dt(item.get('created_at')), reverse=reverse)
     elif sort_by == 'created_desc':
-        filtered.sort(key=lambda item: item.get('created_at') or item.get('titulo', ''), reverse=True)
+        filtered.sort(key=lambda item: ensure_dt(item.get('created_at')), reverse=True)
     elif sort_by == 'updated_desc':
         # Already ordered by DB (updated_at desc, created_at desc)
         pass
@@ -613,12 +637,19 @@ def filter_and_sort_games(juegos, filters):
     return filtered
 
 
-def enrich_game_image_url(game: dict | None) -> dict | None:
-    """Enriquece el juego con una URL temporal de imagen (Optimizado: mutación in-place)."""
+def enrich_game_metadata(game: dict | None) -> dict | None:
+    """Enriquece el juego con URL de imagen y serializa fechas (Optimización Bolt: in-place)."""
     if game is None:
         return None
 
     game['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
+
+    # Bolt Optimization: Convert raw datetimes to ISO strings only when needed for templates.
+    for field in ('updated_at', 'created_at'):
+        val = game.get(field)
+        if isinstance(val, datetime):
+            game[field] = as_iso(val)
+
     return game
 
 
@@ -813,7 +844,12 @@ def dashboard():
     filtered_games = filter_and_sort_games(juegos, filters)
     dashboard_insights = build_dashboard_insights(juegos)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
-    paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
+
+    # Bolt Optimization: Enriquecer solo los juegos de la página actual y los destacados del dashboard.
+    paginated_games = [enrich_game_metadata(juego) for juego in pagination['items']]
+    enrich_game_metadata(dashboard_insights.get('last_updated_game'))
+    enrich_game_metadata(dashboard_insights.get('next_focus'))
+
     filter_opts = dashboard_insights.get('filter_options', {})
 
     return render_template(
@@ -991,7 +1027,7 @@ def editar_juego_ruta(game_id):
     if request.method == 'GET':
         return render_template(
             'edit_game.html',
-            juego=enrich_game_image_url(juego),
+            juego=enrich_game_metadata(juego),
             GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
             GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
             GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
@@ -1253,6 +1289,10 @@ def profile():
     juegos = obtener_juegos_por_usuario(session['user_id'])
     recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8)
     profile_insights = build_dashboard_insights(juegos)
+
+    # Bolt Optimization: Serializar metadatos de los destacados del perfil.
+    enrich_game_metadata(profile_insights.get('last_updated_game'))
+    enrich_game_metadata(profile_insights.get('next_focus'))
 
     if request.method == 'GET':
         return render_template(
