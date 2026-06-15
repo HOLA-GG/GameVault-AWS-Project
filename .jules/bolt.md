@@ -60,3 +60,7 @@
 ## 2026-06-11 - Redundant Branching in Insight Loops
 **Learning:** Performing multiple independent `if` checks on the same property (like game priority) within an O(N) loop adds unnecessary branching overhead.
 **Action:** Nest dependent logic (like "next focus" selection) inside the primary property check to minimize CPU cycles per iteration.
+
+## 2026-06-15 - Deferring ISO Serialization in Large Collections
+**Learning:** Pre-formatting `datetime` objects to ISO strings in the data layer (`obtener_juegos_por_usuario`) for every item in a collection introduces significant overhead in memory allocation and string processing. This is especially wasteful if the data is subsequently filtered or paginated. Native `datetime` comparisons are also faster than ISO string comparisons.
+**Action:** Defer date serialization to the last possible moment (template enrichment layer). Ensure consistent use of UTC-aware datetimes when comparing against `now()` to avoid `TypeError` in heterogeneous environments (e.g., SQLite vs Postgres).
