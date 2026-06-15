@@ -8,7 +8,7 @@
         <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
         <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Usuarios</a>
         <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary">Colecciones</a>
-        <a href="{{ url_for('main.admin_logs') }}" class="btn btn-primary">Logs</a>
+        <a href="{{ url_for('main.admin_logs') }}" class="btn btn-primary" aria-current="page">Logs</a>
     </div>
     <div class="nav-links">
         <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
