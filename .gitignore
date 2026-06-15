@@ -6,3 +6,4 @@ __pycache__/
 *.db-journal
 app/static/uploads/
 .env
+*.log

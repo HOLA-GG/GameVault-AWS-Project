@@ -6,7 +6,7 @@
 <div class="nav-bar">
     <div class="nav-links">
         <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
-        <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Mi colección</a>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary" aria-current="page">Mi colección</a>
         <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Perfil</a>
         {% if session.get('role') == 'admin' %}
             <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary">Panel admin</a>
