@@ -64,3 +64,10 @@
 ## 2026-06-15 - Deferring ISO Serialization in Large Collections
 **Learning:** Pre-formatting `datetime` objects to ISO strings in the data layer (`obtener_juegos_por_usuario`) for every item in a collection introduces significant overhead in memory allocation and string processing. This is especially wasteful if the data is subsequently filtered or paginated. Native `datetime` comparisons are also faster than ISO string comparisons.
 **Action:** Defer date serialization to the last possible moment (template enrichment layer). Ensure consistent use of UTC-aware datetimes when comparing against `now()` to avoid `TypeError` in heterogeneous environments (e.g., SQLite vs Postgres).
+
+## 2026-06-16 - Breaking Contracts for Performance
+**Learning:** Attempting to optimize  by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
+**Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
+## 2025-08-05 - Breaking Contracts for Performance
+**Learning:** Attempting to optimize `build_dashboard_insights` by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
+**Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
