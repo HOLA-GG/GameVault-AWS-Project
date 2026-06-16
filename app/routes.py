@@ -422,11 +422,10 @@ def normalize_game_metadata(form) -> dict:
 
 
 def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
-    """Calcula métricas ligeras para el dashboard (Optimización Bolt: datetime comparisons)."""
+    """Calcula métricas ligeras para el dashboard (Optimización Bolt: maintain contract & simplify)."""
     now = datetime.now(timezone.utc)
     recent_cutoff = now - timedelta(days=7)
     stale_cutoff = now - timedelta(days=30)
-    # Datetime comparisons are much faster than ISO string generation and comparison.
     recent_cutoff_iso = recent_cutoff.isoformat()
 
     platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
@@ -439,12 +438,8 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
     last_updated_game = juegos[0] if juegos else None
 
     for juego in juegos:
-        plat = juego.get('plataforma')
-        platform_counts[plat or 'Sin plataforma'] += 1
-
-        est = juego.get('estado')
-        status_counts[est or 'N/A'] += 1
-
+        platform_counts[juego.get('plataforma') or 'Sin plataforma'] += 1
+        status_counts[juego.get('estado') or 'N/A'] += 1
         cat = juego.get('categoria') or 'Biblioteca'
         category_counts[cat] += 1
 
@@ -453,48 +448,51 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         if juego.get('es_favorito'):
             favorites_count += 1
 
-        # Check for 'Alta' priority directly and nest next_focus logic to reduce branching
-        prio = juego.get('prioridad')
-        dt_created = ensure_dt(juego.get('created_at'))
-        dt_updated = ensure_dt(juego.get('updated_at'))
-        if dt_updated == MIN_DATE:
-            dt_updated = dt_created
-
-        if prio == 'Alta':
-            high_priority_count += 1
-            if cat != 'Completado':
-                if dt_updated != MIN_DATE:
-                    if next_focus_at is None or dt_updated < next_focus_at:
-                        next_focus, next_focus_at = juego, dt_updated
-
         calif = juego.get('calificacion')
         if isinstance(calif, int):
             ratings_sum += calif
             ratings_count += 1
 
-        if dt_created != MIN_DATE and dt_created >= recent_cutoff:
-            recently_added += 1
+        # Date-based metrics optimized: check updated first, then created only if needed.
+        dt_updated = ensure_dt(juego.get('updated_at'))
+        has_updated = dt_updated != MIN_DATE
 
-        if dt_updated != MIN_DATE and dt_updated >= recent_cutoff:
-            recently_updated += 1
-        if dt_updated != MIN_DATE and dt_updated < stale_cutoff:
-            stale_games += 1
+        dt_created = ensure_dt(juego.get('created_at'))
+        has_created = dt_created != MIN_DATE
+
+        # Use updated date if available, otherwise fallback to created date.
+        effective_dt = dt_updated if has_updated else dt_created
+
+        if effective_dt != MIN_DATE:
+            if effective_dt < stale_cutoff:
+                stale_games += 1
+            if effective_dt >= recent_cutoff:
+                recently_updated += 1
+
+            if juego.get('prioridad') == 'Alta':
+                high_priority_count += 1
+                if cat != 'Completado':
+                    if next_focus_at is None or effective_dt < next_focus_at:
+                        next_focus, next_focus_at = juego, effective_dt
+        elif juego.get('prioridad') == 'Alta':
+            high_priority_count += 1
+
+        if has_created and dt_created >= recent_cutoff:
+            recently_added += 1
 
     recent_activity = 0
     if activity_logs:
         for log in activity_logs:
             ts_iso = log.get('timestamp')
-            # Activity logs still use ISO strings for now as they are fewer.
             if ts_iso and ts_iso >= recent_cutoff_iso:
                 recent_activity += 1
             else:
-                break  # O(1) short-circuit as logs are already sorted by timestamp desc.
+                break
 
     dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
     dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
     dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
 
-    # Derive unique values from Counters to avoid redundant set operations during the loop.
     return {
         'total_games': len(juegos),
         'platforms_count': len(platform_counts),
