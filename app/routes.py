@@ -386,21 +386,34 @@ def ensure_dt(val: str | datetime | None) -> datetime:
 
 def normalize_game_metadata(form) -> dict:
     """Normaliza campos opcionales para enriquecer la colección."""
-    categoria = form.get('categoria', 'Biblioteca').strip() or 'Biblioteca'
-    prioridad = form.get('prioridad', 'Media').strip() or 'Media'
+    plataforma = (form.get('plataforma') or 'PC').strip()
+    estado = (form.get('estado') or 'N/A').strip()
+    categoria = (form.get('categoria') or 'Biblioteca').strip()
+    prioridad = (form.get('prioridad') or 'Media').strip()
     calificacion_raw = form.get('calificacion', '').strip()
+
     calificacion = None
     if calificacion_raw:
         try:
             calificacion = int(calificacion_raw)
         except ValueError:
             calificacion = None
+
     es_favorito = form.get('es_favorito') == 'on'
+
+    # Strict validation against allowed options (Security hardening)
+    if plataforma not in GAME_PLATFORM_OPTIONS:
+        plataforma = 'PC'
+    if estado not in GAME_CONDITION_OPTIONS:
+        estado = 'N/A'
     if categoria not in GAME_CATEGORY_OPTIONS:
         categoria = 'Biblioteca'
     if prioridad not in GAME_PRIORITY_OPTIONS:
         prioridad = 'Media'
+
     return {
+        'plataforma': plataforma,
+        'estado': estado,
         'categoria': categoria,
         'prioridad': prioridad,
         'calificacion': calificacion if calificacion in GAME_RATING_OPTIONS else None,
@@ -909,8 +922,8 @@ def agregar_juego():
     """Crea un juego nuevo para el usuario autenticado."""
     titulo = request.form.get('titulo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
-    plataforma = request.form.get('plataforma', 'PC').strip()
-    estado = request.form.get('estado', 'N/A').strip()
+    plataforma_raw = request.form.get('plataforma', 'PC').strip()
+    estado_raw = request.form.get('estado', 'N/A').strip()
     metadata = normalize_game_metadata(request.form)
     imagen = request.files.get('imagen')
     imagen_url = request.form.get('imagen_url', '').strip()
@@ -924,6 +937,12 @@ def agregar_juego():
         errores.append('La descripción es requerida.')
     elif len(descripcion) > 5000:
         errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
+
+    # Basic length checks for metadata (Security hardening)
+    if len(plataforma_raw) > 80:
+        errores.append('El nombre de la plataforma es demasiado largo.')
+    if len(estado_raw) > 80:
+        errores.append('El estado es demasiado largo.')
 
     if imagen_url:
         if not is_valid_presigned_image_url(imagen_url):
@@ -954,8 +973,8 @@ def agregar_juego():
         titulo,
         descripcion,
         imagen_url,
-        plataforma,
-        estado,
+        metadata['plataforma'],
+        metadata['estado'],
         metadata['categoria'],
         metadata['prioridad'],
         metadata['calificacion'],
@@ -1037,8 +1056,8 @@ def editar_juego_ruta(game_id):
 
     titulo = request.form.get('titulo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
-    plataforma = request.form.get('plataforma', 'PC').strip()
-    estado = request.form.get('estado', 'N/A').strip()
+    plataforma_raw = request.form.get('plataforma', 'PC').strip()
+    estado_raw = request.form.get('estado', 'N/A').strip()
     metadata = normalize_game_metadata(request.form)
     nueva_imagen = request.files.get('nueva_imagen')
     nueva_imagen_url = request.form.get('nueva_imagen_url', '').strip()
@@ -1052,6 +1071,12 @@ def editar_juego_ruta(game_id):
         errores.append('La descripción es requerida.')
     elif len(descripcion) > 5000:
         errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
+
+    # Basic length checks for metadata (Security hardening)
+    if len(plataforma_raw) > 80:
+        errores.append('El nombre de la plataforma es demasiado largo.')
+    if len(estado_raw) > 80:
+        errores.append('El estado es demasiado largo.')
 
     if nueva_imagen_url and not is_valid_presigned_image_url(nueva_imagen_url):
         errores.append('La nueva portada generada no es válida.')
@@ -1073,8 +1098,8 @@ def editar_juego_ruta(game_id):
         {
             'titulo': titulo,
             'descripcion': descripcion,
-            'plataforma': plataforma,
-            'estado': estado,
+            'plataforma': metadata['plataforma'],
+            'estado': metadata['estado'],
             'categoria': metadata['categoria'],
             'prioridad': metadata['prioridad'],
             'calificacion': metadata['calificacion'],
