@@ -1,14 +1,19 @@
 services:
   - type: web
-    name: gamevault
+    name: GameVault
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    region: virginia
+    buildCommand: pip install -r requirements.txt && pip install gunicorn
     startCommand: gunicorn wsgi:application --bind 0.0.0.0:$PORT
     healthCheckPath: /healthz
     envVars:
       - key: APP_ENV
         value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
       - key: STORAGE_BACKEND
         value: none
       - key: PREFERRED_URL_SCHEME
