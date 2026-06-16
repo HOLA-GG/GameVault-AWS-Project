@@ -13,3 +13,7 @@
 ## 2026-06-13 - [Visual Cues and Actionability in Logs]
 **Learning:** Activity feeds and logs are often dry and hard to scan. Adding representative visual cues (like emojis) for different actions helps users quickly identify types of activity. Furthermore, making entity references (like game titles) actionable within these logs allows users to "teleport" to the relevant task (e.g., editing the game) without manual navigation.
 **Action:** Use icons or emojis to categorize activity types in logs and always wrap entity names in actionable links to their respective detail or edit views.
+
+## 2026-06-16 - [Search Input Native and Interactive Power-up]
+**Learning:** For high-frequency interaction elements like search bars, combining native browser capabilities (`type="search"`) with interactive JS helpers (focus + `.select()`) significantly reduces task friction. Power users benefit from immediately replacing stale queries, while all users gain semantic clarity and a standard 'clear' button provided by the OS/Browser.
+**Action:** Always prefer `type="search"` for search fields and evaluate if keyboard shortcuts to focus these fields should also automatically select existing content to facilitate rapid re-searching.
