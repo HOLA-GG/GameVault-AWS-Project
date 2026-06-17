@@ -17,3 +17,7 @@
 ## 2026-06-16 - [Search Input Native and Interactive Power-up]
 **Learning:** For high-frequency interaction elements like search bars, combining native browser capabilities (`type="search"`) with interactive JS helpers (focus + `.select()`) significantly reduces task friction. Power users benefit from immediately replacing stale queries, while all users gain semantic clarity and a standard 'clear' button provided by the OS/Browser.
 **Action:** Always prefer `type="search"` for search fields and evaluate if keyboard shortcuts to focus these fields should also automatically select existing content to facilitate rapid re-searching.
+
+## 2025-05-15 - [Enhanced Interactive Card Feedback]
+**Learning:** When wrapping inputs (like checkboxes) inside larger "card" containers, the visual connection between the user's action and the feedback can be weakened. Using modern CSS like `:has(input:checked)` and `:focus-within` allows the entire container to act as a responsive interactive element, significantly improving clarity and keyboard accessibility.
+**Action:** For all card-wrapped inputs, always implement container-level styles for checked and focused states to provide a cohesive and accessible experience.
