@@ -375,12 +375,14 @@ MIN_DATE = datetime(1, 1, 1, tzinfo=timezone.utc)
 
 def ensure_dt(val: str | datetime | None) -> datetime:
     """Asegura que el valor sea un datetime comparable (UTC aware)."""
+    if isinstance(val, datetime):
+        if val.tzinfo is None:
+            return val.replace(tzinfo=timezone.utc)
+        return val
     if val is None:
         return MIN_DATE
     if isinstance(val, str):
         return parse_iso_datetime(val) or MIN_DATE
-    if val.tzinfo is None:
-        return val.replace(tzinfo=timezone.utc)
     return val
 
 
@@ -466,7 +468,7 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         if effective_dt != MIN_DATE:
             if effective_dt < stale_cutoff:
                 stale_games += 1
-            if effective_dt >= recent_cutoff:
+            elif effective_dt >= recent_cutoff:
                 recently_updated += 1
 
             if juego.get('prioridad') == 'Alta':
@@ -596,7 +598,7 @@ def filter_and_sort_games(juegos, filters):
     sort_by = filters.get('sort', 'updated_desc')
 
     # Short-circuit: if no filters and default sort, return as is (DB already sorted it).
-    if not any([query, plataforma, estado, categoria, favoritos]) and sort_by == 'updated_desc':
+    if not any((query, plataforma, estado, categoria, favoritos)) and sort_by == 'updated_desc':
         return juegos
 
     filtered = []
@@ -622,28 +624,26 @@ def filter_and_sort_games(juegos, filters):
 
         filtered.append(juego)
 
-    def sort_key(item):
-        updated = ensure_dt(item.get('updated_at'))
-        if updated != MIN_DATE:
-            return updated
-        return ensure_dt(item.get('created_at'))
-
-    reverse = True
-    if sort_by == 'title_asc':
-        reverse = False
-        filtered.sort(key=lambda item: item.get('titulo', '').lower())
-    elif sort_by == 'title_desc':
-        filtered.sort(key=lambda item: item.get('titulo', '').lower(), reverse=True)
-    elif sort_by == 'created_asc':
-        reverse = False
-        filtered.sort(key=lambda item: ensure_dt(item.get('created_at')), reverse=reverse)
-    elif sort_by == 'created_desc':
-        filtered.sort(key=lambda item: ensure_dt(item.get('created_at')), reverse=True)
-    elif sort_by == 'updated_desc':
+    if sort_by == 'updated_desc':
         # Already ordered by DB (updated_at desc, created_at desc)
-        pass
+        return filtered
+
+    # Bolt Optimization: Use idiomatic sort(key=...) which is optimized at C level in Python 3.
+    if sort_by == 'title_asc':
+        filtered.sort(key=lambda j: j.get('titulo', '').lower() if j.get('titulo') else '')
+    elif sort_by == 'title_desc':
+        filtered.sort(key=lambda j: j.get('titulo', '').lower() if j.get('titulo') else '', reverse=True)
+    elif sort_by == 'created_asc':
+        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')))
+    elif sort_by == 'created_desc':
+        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')), reverse=True)
     else:
-        filtered.sort(key=sort_key, reverse=True)
+        # Custom sort key for effective update date (updated_at if exists, otherwise created_at)
+        def sort_key_effective(j):
+            upd = ensure_dt(j.get('updated_at'))
+            return upd if upd != MIN_DATE else ensure_dt(j.get('created_at'))
+
+        filtered.sort(key=sort_key_effective, reverse=True)
 
     return filtered
 
