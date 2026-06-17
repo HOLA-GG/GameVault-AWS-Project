@@ -240,8 +240,8 @@ def is_safe_url(target: str) -> bool:
     """Valida que una URL sea segura para redirección (misma host o relativa)."""
     if not target:
         return False
-    # Normalizar backslashes a forward slashes (algunos navegadores los tratan igual)
-    target = target.replace('\\', '/')
+    # Strip whitespace and normalize backslashes to forward slashes (Security hardening)
+    target = target.strip().replace('\\', '/')
     ref_url = urlparse(request.host_url)
     # urljoin resuelve contra el host actual, manejando correctamente URLs relativas y múltiples slashes
     test_url = urlparse(urljoin(request.host_url, target))
@@ -1226,6 +1226,10 @@ def login():
         flash('Email y contraseña son requeridos.', 'error')
         return redirect(url_for('main.login'))
 
+    if len(email) > 255 or len(password) > 128:
+        flash('Email o contraseña demasiado largos.', 'error')
+        return redirect(url_for('main.login'))
+
     usuario = verificar_credenciales(email, password)
 
     # Use a dummy hash for missing users to mitigate timing attacks (Security enhancement)
@@ -1440,6 +1444,10 @@ def forgot_password():
         flash('El email es requerido.', 'error')
         return redirect(url_for('main.forgot_password'))
 
+    if len(email) > 255:
+        flash('Email demasiado largo.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
     user = obtener_usuario_por_email(email)
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
 
@@ -1498,6 +1506,10 @@ def forgot_password_manual_token():
     telefono = request.form.get('telefono', '').strip()
     if not email or not telefono:
         flash('Para la opción 2 debes indicar correo y teléfono.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
+    if len(email) > 255 or len(telefono) > 20:
+        flash('Email o teléfono demasiado largos.', 'error')
         return redirect(url_for('main.forgot_password'))
 
     user = obtener_usuario_por_email(email)

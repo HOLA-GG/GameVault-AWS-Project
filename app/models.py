@@ -771,8 +771,9 @@ def crear_log_audit(
         action_name=AUDIT_ACTIONS.get(action, action),
         resource=resource,
         timestamp=utcnow(),
-        ip_address=ip_address or 'unknown',
-        user_agent=user_agent or 'unknown',
+        # Ensure fields fit database constraints (Security hardening)
+        ip_address=(ip_address or 'unknown')[:64],
+        user_agent=(user_agent or 'unknown')[:500],
         details=details or {},
         status=status,
     )
