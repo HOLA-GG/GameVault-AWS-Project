@@ -440,26 +440,35 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
     last_updated_game = juegos[0] if juegos else None
 
     for juego in juegos:
-        platform_counts[juego.get('plataforma') or 'Sin plataforma'] += 1
-        status_counts[juego.get('estado') or 'N/A'] += 1
+        # Bolt Optimization: Unpack dictionary once per iteration to avoid redundant O(1) lookups.
+        plataforma = juego.get('plataforma') or 'Sin plataforma'
+        estado = juego.get('estado') or 'N/A'
         cat = juego.get('categoria') or 'Biblioteca'
+        img_url = juego.get('imagen_url')
+        es_favorito = juego.get('es_favorito')
+        calif = juego.get('calificacion')
+        prioridad = juego.get('prioridad')
+        updated_at = juego.get('updated_at')
+        created_at = juego.get('created_at')
+
+        platform_counts[plataforma] += 1
+        status_counts[estado] += 1
         category_counts[cat] += 1
 
-        if not juego.get('imagen_url'):
+        if not img_url:
             missing_images += 1
-        if juego.get('es_favorito'):
+        if es_favorito:
             favorites_count += 1
 
-        calif = juego.get('calificacion')
         if isinstance(calif, int):
             ratings_sum += calif
             ratings_count += 1
 
         # Date-based metrics optimized: check updated first, then created only if needed.
-        dt_updated = ensure_dt(juego.get('updated_at'))
+        dt_updated = ensure_dt(updated_at)
         has_updated = dt_updated != MIN_DATE
 
-        dt_created = ensure_dt(juego.get('created_at'))
+        dt_created = ensure_dt(created_at)
         has_created = dt_created != MIN_DATE
 
         # Use updated date if available, otherwise fallback to created date.
@@ -471,12 +480,12 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             elif effective_dt >= recent_cutoff:
                 recently_updated += 1
 
-            if juego.get('prioridad') == 'Alta':
+            if prioridad == 'Alta':
                 high_priority_count += 1
                 if cat != 'Completado':
                     if next_focus_at is None or effective_dt < next_focus_at:
                         next_focus, next_focus_at = juego, effective_dt
-        elif juego.get('prioridad') == 'Alta':
+        elif prioridad == 'Alta':
             high_priority_count += 1
 
         if has_created and dt_created >= recent_cutoff:
@@ -603,24 +612,33 @@ def filter_and_sort_games(juegos, filters):
 
     filtered = []
     for juego in juegos:
+        # Bolt Optimization: Unpack fields into local variables to minimize repeated .get() and .lower() calls.
+        j_plataforma = juego.get('plataforma') or ''
+        j_estado = juego.get('estado') or ''
+        j_categoria = juego.get('categoria') or ''
+        j_es_favorito = juego.get('es_favorito')
+
         # Chequeos baratos primero para fallar rápido antes de construir el haystack
-        if plataforma and juego.get('plataforma') != plataforma:
+        if plataforma and j_plataforma != plataforma:
             continue
-        if estado and juego.get('estado') != estado:
+        if estado and j_estado != estado:
             continue
-        if categoria and juego.get('categoria') != categoria:
+        if categoria and j_categoria != categoria:
             continue
-        if favoritos == 'solo' and not juego.get('es_favorito'):
+        if favoritos == 'solo' and not j_es_favorito:
             continue
 
         # La búsqueda por texto es la operación más costosa, optimizada con short-circuit
-        if query and not (
-            query in (juego.get('titulo') or '').lower() or
-            query in (juego.get('plataforma') or '').lower() or
-            query in (juego.get('estado') or '').lower() or
-            query in (juego.get('descripcion') or '').lower()
-        ):
-            continue
+        if query:
+            j_titulo = juego.get('titulo') or ''
+            j_desc = juego.get('descripcion') or ''
+            if not (
+                query in j_titulo.lower() or
+                query in j_plataforma.lower() or
+                query in j_estado.lower() or
+                query in j_desc.lower()
+            ):
+                continue
 
         filtered.append(juego)
 
@@ -630,9 +648,9 @@ def filter_and_sort_games(juegos, filters):
 
     # Bolt Optimization: Use idiomatic sort(key=...) which is optimized at C level in Python 3.
     if sort_by == 'title_asc':
-        filtered.sort(key=lambda j: j.get('titulo', '').lower() if j.get('titulo') else '')
+        filtered.sort(key=lambda j: (j.get('titulo') or '').lower())
     elif sort_by == 'title_desc':
-        filtered.sort(key=lambda j: j.get('titulo', '').lower() if j.get('titulo') else '', reverse=True)
+        filtered.sort(key=lambda j: (j.get('titulo') or '').lower(), reverse=True)
     elif sort_by == 'created_asc':
         filtered.sort(key=lambda j: ensure_dt(j.get('created_at')))
     elif sort_by == 'created_desc':
@@ -656,10 +674,14 @@ def enrich_game_metadata(game: dict | None) -> dict | None:
     game['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
 
     # Bolt Optimization: Convert raw datetimes to ISO strings only when needed for templates.
-    for field in ('updated_at', 'created_at'):
-        val = game.get(field)
-        if isinstance(val, datetime):
-            game[field] = as_iso(val)
+    # Unroll loop to avoid iterator overhead in this hot path.
+    upd = game.get('updated_at')
+    if isinstance(upd, datetime):
+        game['updated_at'] = as_iso(upd)
+
+    cre = game.get('created_at')
+    if isinstance(cre, datetime):
+        game['created_at'] = as_iso(cre)
 
     return game
 
