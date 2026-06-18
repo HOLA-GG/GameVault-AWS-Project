@@ -408,6 +408,47 @@ header p {
     color: var(--text-primary);
 }
 
+[data-theme="light"] .section,
+[data-theme="light"] .game-card,
+[data-theme="light"] .feature-card,
+[data-theme="light"] .insight-tile,
+[data-theme="light"] .collection-showcase-card,
+[data-theme="light"] .log-account-browser,
+[data-theme="light"] .log-activity-panel,
+[data-theme="light"] .table-container,
+[data-theme="light"] .step-card {
+    border-color: var(--border-color);
+}
+
+[data-theme="light"] .feature-card,
+[data-theme="light"] .collection-showcase-card {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.01));
+}
+
+[data-theme="light"] .badge.plataforma {
+    background: rgba(59, 130, 246, 0.1);
+    color: #1e40af;
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="light"] .badge.estado {
+    background: rgba(16, 185, 129, 0.1);
+    color: #065f46;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+[data-theme="light"] .badge.categoria {
+    background: rgba(167, 139, 250, 0.1);
+    color: #6b21a8;
+    border-color: rgba(167, 139, 250, 0.2);
+}
+
+[data-theme="light"] .badge.favorito {
+    background: rgba(245, 158, 11, 0.1);
+    color: #92400e;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
 /* Animación Rainbow */
 @keyframes gamer-rainbow {
     0% { border-color: #ff0000; color: #ff0000; }

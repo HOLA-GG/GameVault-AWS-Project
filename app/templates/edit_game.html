@@ -96,7 +96,7 @@
         <div class="form-group">
             <label>Portada actual</label>
             {% if juego.imagen_url %}
-                <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" style="max-width:240px;border-radius:12px;">
+                <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" style="max-width:240px;border-radius:12px;" loading="lazy">
             {% else %}
                 <div style="max-width:240px;border-radius:12px;padding:28px;background:rgba(255,255,255,0.05);color:var(--text-secondary);text-align:center;">
                     Sin portada

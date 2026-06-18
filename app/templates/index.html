@@ -246,7 +246,7 @@
                 <article class="game-card">
                     <div class="game-image-container">
                         {% if juego.imagen_url %}
-                            <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" class="game-image">
+                            <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" class="game-image" loading="lazy">
                         {% else %}
                             <div class="game-image flex flex-center text-center">
                                 Portada pendiente
