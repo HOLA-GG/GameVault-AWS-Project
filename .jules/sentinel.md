@@ -57,3 +57,8 @@
 **Vulnerability:** Active sessions on other devices remained valid after a password change or reset.
 **Learning:** Simply clearing the current session after a password update only affects the local device. Stale sessions on other devices could still be used to access the account until they naturally expired.
 **Prevention:** Store a non-reversible hash (e.g., SHA256) of the current password hash in the session upon login. Verify this hash against the database on every request within authentication decorators. If the password hash in the database changes, all existing sessions will fail the verification and be invalidated globally.
+
+## 2026-06-18 - Audit Log Hardening and Defensive Truncation
+**Vulnerability:** Potential sensitive data leakage in audit log details and DoS risk via unbounded string lengths in log/token fields.
+**Learning:** Even if routes perform validation, the data layer should implement defense-in-depth by truncating strings to match DB schema constraints and redacting sensitive keys (e.g., 'password', 'token') from JSON metadata.
+**Prevention:** Implement a recursive redaction helper for all logging operations that handle structured metadata and enforce strict length limits on all database-bound strings at the model level.

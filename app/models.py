@@ -662,7 +662,8 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
         created_at=now,
         expires_at=expires_at,
         used=False,
-        ip_address=ip_address or 'unknown',
+        # Truncate IP to match DB schema (Security hardening)
+        ip_address=(ip_address or 'unknown')[:64],
     )
     with session_factory() as session:
         session.add(item)
@@ -752,6 +753,23 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
         return {'deleted': deleted, 'error': None}
 
 
+def redact_sensitive_details(details: Dict[str, Any]) -> Dict[str, Any]:
+    """Máscara valores sensibles en diccionarios de logs (Seguridad)."""
+    if not details:
+        return {}
+    sensitive_patterns = {'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential'}
+    redacted = {}
+    for k, v in details.items():
+        key_lower = str(k).lower()
+        if any(pattern in key_lower for pattern in sensitive_patterns):
+            redacted[k] = '[REDACTED]'
+        elif isinstance(v, dict):
+            redacted[k] = redact_sensitive_details(v)
+        else:
+            redacted[k] = v
+    return redacted
+
+
 def crear_log_audit(
     user_id: str,
     action: str,
@@ -764,18 +782,24 @@ def crear_log_audit(
     """Crea un log de auditoría."""
     ensure_tables()
     session_factory = get_session_factory()
+
+    # Harden and truncate strings to match DB schema constraints
+    safe_action = (action or 'UNKNOWN')[:80]
+    safe_resource = (resource or 'UNKNOWN')[:80]
+    derived_name = AUDIT_ACTIONS.get(action, safe_action)[:120]
+
     item = AuditLog(
         audit_id=str(uuid.uuid4()),
         user_id=user_id,
-        action=action,
-        action_name=AUDIT_ACTIONS.get(action, action),
-        resource=resource,
+        action=safe_action,
+        action_name=derived_name,
+        resource=safe_resource,
         timestamp=utcnow(),
         # Ensure fields fit database constraints (Security hardening)
         ip_address=(ip_address or 'unknown')[:64],
         user_agent=(user_agent or 'unknown')[:500],
-        details=details or {},
-        status=status,
+        details=redact_sensitive_details(details),
+        status=status[:20],
     )
     with session_factory() as session:
         session.add(item)
