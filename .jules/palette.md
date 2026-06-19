@@ -21,3 +21,11 @@
 ## 2025-05-15 - [Enhanced Interactive Card Feedback]
 **Learning:** When wrapping inputs (like checkboxes) inside larger "card" containers, the visual connection between the user's action and the feedback can be weakened. Using modern CSS like `:has(input:checked)` and `:focus-within` allows the entire container to act as a responsive interactive element, significantly improving clarity and keyboard accessibility.
 **Action:** For all card-wrapped inputs, always implement container-level styles for checked and focused states to provide a cohesive and accessible experience.
+
+## 2026-06-19 - [Semantic Shortcut Hints with Tactile Styling]
+**Learning:** Keyboard shortcut hints (like "Press /") are more effective when they use semantic `<kbd>` tags styled to look like physical keys. This creates a strong visual metaphor for "keyboard interaction," improving discoverability and making the interface feel more professional and accessible.
+**Action:** Always wrap keyboard shortcut hints in `<kbd>` tags and ensure they have a tactile, "raised" style that adapts to the current theme.
+
+## 2026-06-19 - [Contextual Focus after Internal Navigation]
+**Learning:** When using internal links (anchors) to navigate to a form (e.g., "Add your first game"), the user's focus is often lost on the scroll. Automatically focusing the first relevant input field after the scroll significantly reduces task friction and provides a clear "start here" signal.
+**Action:** For all CTA buttons that lead to internal forms, implement a JavaScript listener to programmatically `.focus()` the first input field after a small delay to allow for the scroll animation.

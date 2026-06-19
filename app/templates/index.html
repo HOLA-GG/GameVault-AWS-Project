@@ -171,7 +171,7 @@
     <form action="{{ url_for('main.dashboard') }}" method="GET">
         <div class="form-row">
             <div class="form-group">
-                <label for="q">Búsqueda <small style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona /)</small></label>
+                <label for="q">Búsqueda <small style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
                 <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma...">
             </div>
             <div class="form-group">
@@ -286,7 +286,7 @@
                 <h3>Tu colección está vacía</h3>
                 <p>Comienza agregando tu primer videojuego usando el formulario de arriba.</p>
                 <div class="mt-20">
-                    <a href="#gameForm" class="btn btn-primary">Agregar mi primer juego</a>
+                    <a href="#gameForm" class="btn btn-primary" id="addFirstGameBtn">Agregar mi primer juego</a>
                 </div>
             {% else %}
                 <span class="feature-icon" aria-hidden="true">🔍</span>
@@ -316,6 +316,22 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const addFirstGameBtn = document.getElementById('addFirstGameBtn');
+        if (addFirstGameBtn) {
+            addFirstGameBtn.addEventListener('click', function(e) {
+                const targetId = this.getAttribute('href').substring(1);
+                const targetForm = document.getElementById(targetId);
+                const firstInput = targetForm ? targetForm.querySelector('input:not([type="hidden"])') : null;
+
+                if (firstInput) {
+                    // Small delay to allow scroll to complete before focusing
+                    setTimeout(() => {
+                        firstInput.focus();
+                    }, 100);
+                }
+            });
+        }
+
         const form = document.getElementById('gameForm');
         const fileInput = document.getElementById('imagen');
         const imageUrlInput = document.getElementById('imagen_url');
