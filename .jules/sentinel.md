@@ -62,3 +62,8 @@
 **Vulnerability:** Potential sensitive data leakage in audit log details and DoS risk via unbounded string lengths in log/token fields.
 **Learning:** Even if routes perform validation, the data layer should implement defense-in-depth by truncating strings to match DB schema constraints and redacting sensitive keys (e.g., 'password', 'token') from JSON metadata.
 **Prevention:** Implement a recursive redaction helper for all logging operations that handle structured metadata and enforce strict length limits on all database-bound strings at the model level.
+
+## 2026-06-20 - Robust Sensitive Data Redaction in Nested Audit Logs
+**Vulnerability:** Incomplete redaction of sensitive data in audit logs when data was nested within lists or arrays.
+**Learning:** Generic redaction utilities often only recurse into dictionaries, missing sensitive keys that might be contained within lists (e.g., a list of objects). This can lead to accidental exposure of tokens or passwords if they are passed as part of a list in metadata.
+**Prevention:** Always implement polymorphic recursion in redaction helpers to handle both dictionaries and lists, ensuring deep traversal of all JSON-serializable structures before data reaches persistent storage or external logging sinks.

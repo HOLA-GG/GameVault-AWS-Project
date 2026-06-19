@@ -753,21 +753,27 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
         return {'deleted': deleted, 'error': None}
 
 
-def redact_sensitive_details(details: Dict[str, Any]) -> Dict[str, Any]:
-    """Máscara valores sensibles en diccionarios de logs (Seguridad)."""
-    if not details:
-        return {}
+def redact_sensitive_details(data: Any) -> Any:
+    """Máscara valores sensibles en diccionarios y listas de logs (Seguridad)."""
+    if not data:
+        return data
+
     sensitive_patterns = {'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential'}
-    redacted = {}
-    for k, v in details.items():
-        key_lower = str(k).lower()
-        if any(pattern in key_lower for pattern in sensitive_patterns):
-            redacted[k] = '[REDACTED]'
-        elif isinstance(v, dict):
-            redacted[k] = redact_sensitive_details(v)
-        else:
-            redacted[k] = v
-    return redacted
+
+    if isinstance(data, dict):
+        redacted_dict = {}
+        for k, v in data.items():
+            key_lower = str(k).lower()
+            if any(pattern in key_lower for pattern in sensitive_patterns):
+                redacted_dict[k] = '[REDACTED]'
+            else:
+                redacted_dict[k] = redact_sensitive_details(v)
+        return redacted_dict
+
+    if isinstance(data, list):
+        return [redact_sensitive_details(item) for item in data]
+
+    return data
 
 
 def crear_log_audit(
