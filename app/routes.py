@@ -448,8 +448,10 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         es_favorito = juego.get('es_favorito')
         calif = juego.get('calificacion')
         prioridad = juego.get('prioridad')
-        updated_at = juego.get('updated_at')
-        created_at = juego.get('created_at')
+
+        # Bolt Optimization: Calculate effective date concisely.
+        dt_created = ensure_dt(juego.get('created_at'))
+        effective_dt = max(ensure_dt(juego.get('updated_at')), dt_created)
 
         platform_counts[plataforma] += 1
         status_counts[estado] += 1
@@ -464,15 +466,8 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             ratings_sum += calif
             ratings_count += 1
 
-        # Date-based metrics optimized: check updated first, then created only if needed.
-        dt_updated = ensure_dt(updated_at)
-        has_updated = dt_updated != MIN_DATE
-
-        dt_created = ensure_dt(created_at)
-        has_created = dt_created != MIN_DATE
-
-        # Use updated date if available, otherwise fallback to created date.
-        effective_dt = dt_updated if has_updated else dt_created
+        if prioridad == 'Alta':
+            high_priority_count += 1
 
         if effective_dt != MIN_DATE:
             if effective_dt < stale_cutoff:
@@ -480,15 +475,11 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             elif effective_dt >= recent_cutoff:
                 recently_updated += 1
 
-            if prioridad == 'Alta':
-                high_priority_count += 1
-                if cat != 'Completado':
-                    if next_focus_at is None or effective_dt < next_focus_at:
-                        next_focus, next_focus_at = juego, effective_dt
-        elif prioridad == 'Alta':
-            high_priority_count += 1
+            if prioridad == 'Alta' and cat != 'Completado':
+                if next_focus_at is None or effective_dt < next_focus_at:
+                    next_focus, next_focus_at = juego, effective_dt
 
-        if has_created and dt_created >= recent_cutoff:
+        if dt_created >= recent_cutoff:
             recently_added += 1
 
     recent_activity = 0
@@ -628,15 +619,14 @@ def filter_and_sort_games(juegos, filters):
         if favoritos == 'solo' and not j_es_favorito:
             continue
 
-        # La búsqueda por texto es la operación más costosa, optimizada con short-circuit
+        # La búsqueda por texto es la operación más costosa, optimizada con short-circuit.
+        # Bolt Optimization: Prioritize shorter platform/state fields over potentially long titles/descriptions.
         if query:
-            j_titulo = juego.get('titulo') or ''
-            j_desc = juego.get('descripcion') or ''
             if not (
-                query in j_titulo.lower() or
                 query in j_plataforma.lower() or
                 query in j_estado.lower() or
-                query in j_desc.lower()
+                query in (juego.get('titulo') or '').lower() or
+                query in (juego.get('descripcion') or '').lower()
             ):
                 continue
 

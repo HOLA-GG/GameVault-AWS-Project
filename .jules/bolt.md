@@ -71,3 +71,11 @@
 ## 2025-08-05 - Breaking Contracts for Performance
 **Learning:** Attempting to optimize `build_dashboard_insights` by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
 **Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
+
+## 2025-08-10 - Short-circuiting String Search in Hot Loops
+**Learning:** In O(N) loops that perform substring searches across multiple fields, reordering the search criteria to check shorter, categorical fields (like platform or state) before large text blocks (like titles or descriptions) allows for faster short-circuiting. This avoids expensive case-folding and searching on long strings in many cases.
+**Action:** Always prioritize shorter or more likely-to-match fields in multi-criteria string search filters to maximize the benefits of short-circuit evaluation.
+
+## 2025-08-10 - Streamlining Fallback Date Logic
+**Learning:** Calculating an "effective date" (e.g., latest of updated or created) using nested if/else or redundant checks in a loop adds unnecessary branching. Using `max()` with `ensure_dt` wrappers provides a concise and efficient way to handle fallbacks and ensure comparisons remain safe between naive and aware objects.
+**Action:** Use `max()` for consolidating multiple timestamp fallbacks in loops to reduce branching and improve code scannability.
