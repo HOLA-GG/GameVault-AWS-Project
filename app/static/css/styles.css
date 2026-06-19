@@ -1125,6 +1125,21 @@ code {
     transition: background 0.3s ease;
 }
 
+kbd {
+    background-color: var(--background-darker);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.2), inset 0 0 0 2px var(--card-bg);
+    color: var(--text-primary);
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    line-height: 1;
+    padding: 2px 5px;
+    white-space: nowrap;
+    margin: 0 2px;
+}
+
 /* ================================
    INFO BOXES
    ================================ */
@@ -1198,6 +1213,12 @@ code {
     font-size: 2.7rem;
     margin-bottom: 4px;
     display: block;
+    transition: transform var(--transition-normal);
+}
+
+.feature-card:hover .feature-icon,
+.feature-card:focus-within .feature-icon {
+    transform: scale(1.15) rotate(5deg);
 }
 
 .feature-card h4 {
