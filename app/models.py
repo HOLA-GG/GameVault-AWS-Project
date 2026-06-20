@@ -252,12 +252,14 @@ def ensure_schema_compatibility() -> None:
                     text("UPDATE users SET collection_visibility = 'private' WHERE collection_visibility IS NULL OR collection_visibility = ''")
                 )
                 connection.execute(
-                    text(f'UPDATE users SET homepage_showcase_opt_in = {default_false} WHERE homepage_showcase_opt_in IS NULL')
+                    text(f"UPDATE users SET homepage_showcase_opt_in = {default_false} WHERE homepage_showcase_opt_in IS NULL")
                 )
-                # Asegurar índices para filtros y ordenamientos comunes
-                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_collection_visibility ON users (collection_visibility)'))
-                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_homepage_showcase_opt_in ON users (homepage_showcase_opt_in)'))
-                connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)'))
+
+        # Asegurar índices para filtros y ordenamientos comunes (Fuera del bloque condicional para mayor robustez)
+        with engine.begin() as connection:
+            connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_collection_visibility ON users (collection_visibility)'))
+            connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_homepage_showcase_opt_in ON users (homepage_showcase_opt_in)'))
+            connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)'))
 
     if not inspector.has_table('games'):
         return
@@ -274,16 +276,16 @@ def ensure_schema_compatibility() -> None:
     if 'es_favorito' not in columns:
         alter_statements.append(f"ALTER TABLE games ADD COLUMN es_favorito BOOLEAN DEFAULT {default_false}")
 
-    if not alter_statements:
-        return
+    if alter_statements:
+        with engine.begin() as connection:
+            for statement in alter_statements:
+                connection.execute(text(statement))
+            connection.execute(text("UPDATE games SET categoria = 'Biblioteca' WHERE categoria IS NULL OR categoria = ''"))
+            connection.execute(text("UPDATE games SET prioridad = 'Media' WHERE prioridad IS NULL OR prioridad = ''"))
+            connection.execute(text(f"UPDATE games SET es_favorito = {default_false} WHERE es_favorito IS NULL"))
 
+    # Asegurar índices para filtros y ordenamientos comunes (Fuera del bloque condicional para mayor robustez)
     with engine.begin() as connection:
-        for statement in alter_statements:
-            connection.execute(text(statement))
-        connection.execute(text("UPDATE games SET categoria = 'Biblioteca' WHERE categoria IS NULL OR categoria = ''"))
-        connection.execute(text("UPDATE games SET prioridad = 'Media' WHERE prioridad IS NULL OR prioridad = ''"))
-        connection.execute(text(f'UPDATE games SET es_favorito = {default_false} WHERE es_favorito IS NULL'))
-        # Asegurar índices para filtros y ordenamientos comunes
         connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_created_at ON games (created_at)'))
         connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_updated_at ON games (updated_at)'))
 
@@ -305,7 +307,7 @@ def ensure_tables() -> None:
     init_database()
 
 
-def _as_iso(value: datetime | None) -> str | None:
+def as_iso(value: datetime | None) -> str | None:
     if value is None:
         return None
     if value.tzinfo is None:
@@ -328,12 +330,13 @@ def user_to_dict(user: User | None) -> Optional[Dict[str, Any]]:
         'status': user.status,
         'collection_visibility': user.collection_visibility,
         'homepage_showcase_opt_in': user.homepage_showcase_opt_in,
-        'created_at': _as_iso(user.created_at),
-        'updated_at': _as_iso(user.updated_at),
+        'created_at': as_iso(user.created_at),
+        'updated_at': as_iso(user.updated_at),
     }
 
 
-def game_to_dict(game: Game | None) -> Optional[Dict[str, Any]]:
+def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[str, Any]]:
+    """Convierte un juego en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if game is None:
         return None
     return {
@@ -348,8 +351,8 @@ def game_to_dict(game: Game | None) -> Optional[Dict[str, Any]]:
         'prioridad': game.prioridad,
         'calificacion': game.calificacion,
         'es_favorito': game.es_favorito,
-        'created_at': _as_iso(game.created_at),
-        'updated_at': _as_iso(game.updated_at),
+        'created_at': as_iso(game.created_at) if format_dates else game.created_at,
+        'updated_at': as_iso(game.updated_at) if format_dates else game.updated_at,
     }
 
 
@@ -497,11 +500,11 @@ def reset_token_to_dict(item: PasswordResetToken | None) -> Optional[Dict[str, A
         'token_id': item.token_id,
         'user_id': item.user_id,
         'reset_token': item.reset_token,
-        'created_at': _as_iso(item.created_at),
-        'expires_at': _as_iso(item.expires_at),
+        'created_at': as_iso(item.created_at),
+        'expires_at': as_iso(item.expires_at),
         'expires_at_unix': int(item.expires_at.timestamp()),
         'used': item.used,
-        'used_at': _as_iso(item.used_at),
+        'used_at': as_iso(item.used_at),
         'ip_address': item.ip_address,
     }
 
@@ -515,7 +518,7 @@ def audit_log_to_dict(item: AuditLog | None) -> Optional[Dict[str, Any]]:
         'action': item.action,
         'action_name': item.action_name,
         'resource': item.resource,
-        'timestamp': _as_iso(item.timestamp),
+        'timestamp': as_iso(item.timestamp),
         'ip_address': item.ip_address,
         'user_agent': item.user_agent,
         'details': item.details or {},
@@ -549,9 +552,12 @@ def validar_telefono(telefono):
 
 
 def validar_password(password):
-    """Valida que la contraseña tenga una longitud segura (8-128)."""
+    """Valida que la contraseña tenga una longitud segura (8-128) y complejidad básica."""
     # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
-    return 8 <= len(password) <= 128
+    if not (8 <= len(password) <= 128):
+        return False
+    # Requerir al menos una letra y un número (Seguridad mejorada)
+    return any(c.isalpha() for c in password) and any(c.isdigit() for c in password)
 
 
 def eliminar_imagen_s3(imagen_url):
@@ -613,14 +619,16 @@ def crear_juego(
 
 
 def obtener_juegos_por_usuario(user_id):
-    """Obtiene todos los juegos de un usuario."""
+    """Obtiene todos los juegos de un usuario (Optimización Bolt: raw datetimes)."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
         items = session.scalars(
             select(Game).where(Game.user_id == user_id).order_by(Game.updated_at.desc(), Game.created_at.desc())
         ).all()
-        return [game_to_dict(item) for item in items]
+        # Deferimos el formateo de fechas a ISO para evitar miles de formateos innecesarios
+        # en colecciones grandes durante el filtrado e insights.
+        return [game_to_dict(item, format_dates=False) for item in items]
 
 
 def obtener_juego_por_id(user_id, game_id):
@@ -791,7 +799,8 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
         created_at=now,
         expires_at=expires_at,
         used=False,
-        ip_address=ip_address or 'unknown',
+        # Truncate IP to match DB schema (Security hardening)
+        ip_address=(ip_address or 'unknown')[:64],
     )
     with session_factory() as session:
         session.add(item)
@@ -881,6 +890,29 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
         return {'deleted': deleted, 'error': None}
 
 
+def redact_sensitive_details(data: Any) -> Any:
+    """Máscara valores sensibles en diccionarios y listas de logs (Seguridad)."""
+    if not data:
+        return data
+
+    sensitive_patterns = {'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential'}
+
+    if isinstance(data, dict):
+        redacted_dict = {}
+        for k, v in data.items():
+            key_lower = str(k).lower()
+            if any(pattern in key_lower for pattern in sensitive_patterns):
+                redacted_dict[k] = '[REDACTED]'
+            else:
+                redacted_dict[k] = redact_sensitive_details(v)
+        return redacted_dict
+
+    if isinstance(data, list):
+        return [redact_sensitive_details(item) for item in data]
+
+    return data
+
+
 def crear_log_audit(
     user_id: str,
     action: str,
@@ -893,17 +925,24 @@ def crear_log_audit(
     """Crea un log de auditoría."""
     ensure_tables()
     session_factory = get_session_factory()
+
+    # Harden and truncate strings to match DB schema constraints
+    safe_action = (action or 'UNKNOWN')[:80]
+    safe_resource = (resource or 'UNKNOWN')[:80]
+    derived_name = AUDIT_ACTIONS.get(action, safe_action)[:120]
+
     item = AuditLog(
         audit_id=str(uuid.uuid4()),
         user_id=user_id,
-        action=action,
-        action_name=AUDIT_ACTIONS.get(action, action),
-        resource=resource,
+        action=safe_action,
+        action_name=derived_name,
+        resource=safe_resource,
         timestamp=utcnow(),
-        ip_address=ip_address or 'unknown',
-        user_agent=user_agent or 'unknown',
-        details=details or {},
-        status=status,
+        # Ensure fields fit database constraints (Security hardening)
+        ip_address=(ip_address or 'unknown')[:64],
+        user_agent=(user_agent or 'unknown')[:500],
+        details=redact_sensitive_details(details),
+        status=status[:20],
     )
     with session_factory() as session:
         session.add(item)
@@ -1182,7 +1221,7 @@ def obtener_resumenes_colecciones(
                 'favorites_count': int(r.favorites_count),
                 'average_rating': round(float(r.average_rating), 1) if r.average_rating is not None else None,
                 'dominant_platform': dominant_platforms.get(r.user_id, 'Sin juegos'),
-                'last_updated_at': _as_iso(r.last_updated_at) or '',
+                'last_updated_at': as_iso(r.last_updated_at) or '',
             }
             for r in results
         ]

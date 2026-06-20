@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import math
 import os
 import uuid
@@ -32,6 +33,7 @@ from app.extensions import csrf, limiter, mail
 from app.models import (
     AUDIT_ACTIONS,
     aplicar_ratings_showcase,
+    as_iso,
     actualizar_juego,
     actualizar_password_usuario,
     actualizar_usuario_nombre,
@@ -102,99 +104,6 @@ _ACTION_BADGE_MAP = {
 }
 
 
-def build_dashboard_insights(juegos: list[dict], user_id: str) -> dict:
-    """Calcula métricas ligeras para el dashboard (optimizado: pass único y fetch mínimo de logs)."""
-    now = datetime.now(timezone.utc)
-    recent_cutoff_iso = (now - timedelta(days=7)).isoformat()
-    stale_cutoff_iso = (now - timedelta(days=30)).isoformat()
-    min_iso = "0001-01-01T00:00:00+00:00"
-
-    platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
-    recently_updated = recently_added = missing_images = favorites_count = 0
-    high_priority_count = stale_games = ratings_sum = ratings_count = 0
-    next_focus = next_focus_at_iso = None
-
-    # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
-    last_updated_game = juegos[0] if juegos else None
-
-    for juego in juegos:
-        plat = juego.get('plataforma') or 'Sin plataforma'
-        platform_counts[plat] += 1
-        est = juego.get('estado') or 'N/A'
-        status_counts[est] += 1
-        cat = juego.get('categoria') or 'Biblioteca'
-        category_counts[cat] += 1
-
-        if not juego.get('imagen_url'):
-            missing_images += 1
-        if juego.get('es_favorito'):
-            favorites_count += 1
-
-        prio = juego.get('prioridad')
-        iso_created = juego.get('created_at') or min_iso
-        iso_updated = juego.get('updated_at') or iso_created
-
-        if prio == 'Alta':
-            high_priority_count += 1
-            if cat != 'Completado':
-                if next_focus_at_iso is None or iso_updated < next_focus_at_iso:
-                    next_focus, next_focus_at_iso = juego, iso_updated
-
-        calif = juego.get('calificacion')
-        if isinstance(calif, int):
-            ratings_sum += calif
-            ratings_count += 1
-
-        if iso_created >= recent_cutoff_iso:
-            recently_added += 1
-        if iso_updated >= recent_cutoff_iso:
-            recently_updated += 1
-        if iso_updated < stale_cutoff_iso:
-            stale_games += 1
-
-    # Fetch ONLY the count of recent logs to avoid loading full objects if not needed
-    recent_activity = 0
-    try:
-        from app.models import AuditLog, func, get_session_factory, select
-        with get_session_factory()() as session:
-            recent_activity = session.scalar(
-                select(func.count(AuditLog.audit_id))
-                .where(AuditLog.user_id == user_id, AuditLog.timestamp >= (now - timedelta(days=7)))
-            ) or 0
-    except Exception:
-        pass
-
-    dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
-    dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
-    dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
-
-    return {
-        'total_games': len(juegos),
-        'platforms_count': len(platform_counts),
-        'recently_added': recently_added,
-        'recently_updated': recently_updated,
-        'recent_activity': recent_activity,
-        'missing_images': missing_images,
-        'favorites_count': favorites_count,
-        'high_priority_count': high_priority_count,
-        'stale_games': stale_games,
-        'wishlist_count': category_counts.get('Wishlist', 0),
-        'backlog_count': category_counts.get('Backlog', 0),
-        'currently_playing_count': category_counts.get('Jugando', 0),
-        'average_rating': round(ratings_sum / ratings_count, 1) if ratings_count > 0 else None,
-        'dominant_platform': {'label': dominant_platform[0], 'count': dominant_platform[1]},
-        'dominant_status': {'label': dominant_status[0], 'count': dominant_status[1]},
-        'dominant_category': {'label': dominant_category[0], 'count': dominant_category[1]},
-        'last_updated_game': last_updated_game,
-        'next_focus': next_focus,
-        'filter_options': {
-            'plataformas': sorted(p for p in platform_counts if p != 'Sin plataforma'),
-            'estados': sorted(s for s in status_counts if s != 'N/A'),
-            'categorias': sorted(category_counts),
-        }
-    }
-
-
 LANDING_SAMPLE_COLLECTIONS = [
     {
         'id': 'demo-nintendo-reliquias',
@@ -247,6 +156,14 @@ def require_login(view):
         if not user or user.get('status') != 'active':
             session.clear()
             flash('Tu sesión ha expirado o tu cuenta no está activa.', 'error')
+            return redirect(url_for('main.login'))
+
+        # Global session invalidation on password change (Security enhancement)
+        # We store a SHA256 of the password hash in the session to detect changes.
+        current_pw_hash_gen = hashlib.sha256(user['password_hash'].encode('utf-8')).hexdigest()
+        if session.get('_pw_hash') != current_pw_hash_gen:
+            session.clear()
+            flash('Tu sesión ha sido invalidada por un cambio de seguridad. Inicia sesión de nuevo.', 'error')
             return redirect(url_for('main.login'))
 
         g.current_user = user
@@ -325,8 +242,8 @@ def is_safe_url(target: str) -> bool:
     """Valida que una URL sea segura para redirección (misma host o relativa)."""
     if not target:
         return False
-    # Normalizar backslashes a forward slashes (algunos navegadores los tratan igual)
-    target = target.replace('\\', '/')
+    # Strip whitespace and normalize backslashes to forward slashes (Security hardening)
+    target = target.strip().replace('\\', '/')
     ref_url = urlparse(request.host_url)
     # urljoin resuelve contra el host actual, manejando correctamente URLs relativas y múltiples slashes
     test_url = urlparse(urljoin(request.host_url, target))
@@ -454,23 +371,53 @@ def parse_iso_datetime(value: str | None) -> datetime | None:
     return parsed
 
 
+# Bolt Optimization: constants and helpers for efficient date handling across routes.
+MIN_DATE = datetime(1, 1, 1, tzinfo=timezone.utc)
+
+
+def ensure_dt(val: str | datetime | None) -> datetime:
+    """Asegura que el valor sea un datetime comparable (UTC aware)."""
+    if isinstance(val, datetime):
+        if val.tzinfo is None:
+            return val.replace(tzinfo=timezone.utc)
+        return val
+    if val is None:
+        return MIN_DATE
+    if isinstance(val, str):
+        return parse_iso_datetime(val) or MIN_DATE
+    return val
+
+
 def normalize_game_metadata(form) -> dict:
     """Normaliza campos opcionales para enriquecer la colección."""
-    categoria = form.get('categoria', 'Biblioteca').strip() or 'Biblioteca'
-    prioridad = form.get('prioridad', 'Media').strip() or 'Media'
+    plataforma = (form.get('plataforma') or 'PC').strip()
+    estado = (form.get('estado') or 'N/A').strip()
+    categoria = (form.get('categoria') or 'Biblioteca').strip()
+    prioridad = (form.get('prioridad') or 'Media').strip()
     calificacion_raw = form.get('calificacion', '').strip()
+
     calificacion = None
     if calificacion_raw:
         try:
             calificacion = int(calificacion_raw)
         except ValueError:
             calificacion = None
+
     es_favorito = form.get('es_favorito') == 'on'
+
+    # Strict validation against allowed options (Security hardening)
+    if plataforma not in GAME_PLATFORM_OPTIONS:
+        plataforma = 'PC'
+    if estado not in GAME_CONDITION_OPTIONS:
+        estado = 'N/A'
     if categoria not in GAME_CATEGORY_OPTIONS:
         categoria = 'Biblioteca'
     if prioridad not in GAME_PRIORITY_OPTIONS:
         prioridad = 'Media'
+
     return {
+        'plataforma': plataforma,
+        'estado': estado,
         'categoria': categoria,
         'prioridad': prioridad,
         'calificacion': calificacion if calificacion in GAME_RATING_OPTIONS else None,
@@ -478,6 +425,103 @@ def normalize_game_metadata(form) -> dict:
     }
 
 
+def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
+    """Calcula métricas ligeras para el dashboard (Optimización Bolt: maintain contract & simplify)."""
+    now = datetime.now(timezone.utc)
+    recent_cutoff = now - timedelta(days=7)
+    stale_cutoff = now - timedelta(days=30)
+    recent_cutoff_iso = recent_cutoff.isoformat()
+
+    platform_counts, status_counts, category_counts = Counter(), Counter(), Counter()
+
+    recently_updated = recently_added = missing_images = favorites_count = 0
+    high_priority_count = stale_games = ratings_sum = ratings_count = 0
+    next_focus = next_focus_at = None
+
+    # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
+    last_updated_game = juegos[0] if juegos else None
+
+    for juego in juegos:
+        # Bolt Optimization: Unpack dictionary once per iteration to avoid redundant O(1) lookups.
+        plataforma = juego.get('plataforma') or 'Sin plataforma'
+        estado = juego.get('estado') or 'N/A'
+        cat = juego.get('categoria') or 'Biblioteca'
+        img_url = juego.get('imagen_url')
+        es_favorito = juego.get('es_favorito')
+        calif = juego.get('calificacion')
+        prioridad = juego.get('prioridad')
+
+        # Bolt Optimization: Calculate effective date concisely.
+        dt_created = ensure_dt(juego.get('created_at'))
+        effective_dt = max(ensure_dt(juego.get('updated_at')), dt_created)
+
+        platform_counts[plataforma] += 1
+        status_counts[estado] += 1
+        category_counts[cat] += 1
+
+        if not img_url:
+            missing_images += 1
+        if es_favorito:
+            favorites_count += 1
+
+        if isinstance(calif, int):
+            ratings_sum += calif
+            ratings_count += 1
+
+        if prioridad == 'Alta':
+            high_priority_count += 1
+
+        if effective_dt != MIN_DATE:
+            if effective_dt < stale_cutoff:
+                stale_games += 1
+            elif effective_dt >= recent_cutoff:
+                recently_updated += 1
+
+            if prioridad == 'Alta' and cat != 'Completado':
+                if next_focus_at is None or effective_dt < next_focus_at:
+                    next_focus, next_focus_at = juego, effective_dt
+
+        if dt_created >= recent_cutoff:
+            recently_added += 1
+
+    recent_activity = 0
+    if activity_logs:
+        for log in activity_logs:
+            ts_iso = log.get('timestamp')
+            if ts_iso and ts_iso >= recent_cutoff_iso:
+                recent_activity += 1
+            else:
+                break
+
+    dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
+    dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
+    dominant_category = category_counts.most_common(1)[0] if category_counts else ('Biblioteca', 0)
+
+    return {
+        'total_games': len(juegos),
+        'platforms_count': len(platform_counts),
+        'recently_added': recently_added,
+        'recently_updated': recently_updated,
+        'recent_activity': recent_activity,
+        'missing_images': missing_images,
+        'favorites_count': favorites_count,
+        'high_priority_count': high_priority_count,
+        'stale_games': stale_games,
+        'wishlist_count': category_counts.get('Wishlist', 0),
+        'backlog_count': category_counts.get('Backlog', 0),
+        'currently_playing_count': category_counts.get('Jugando', 0),
+        'average_rating': round(ratings_sum / ratings_count, 1) if ratings_count > 0 else None,
+        'dominant_platform': {'label': dominant_platform[0], 'count': dominant_platform[1]},
+        'dominant_status': {'label': dominant_status[0], 'count': dominant_status[1]},
+        'dominant_category': {'label': dominant_category[0], 'count': dominant_category[1]},
+        'last_updated_game': last_updated_game,
+        'next_focus': next_focus,
+        'filter_options': {
+            'plataformas': sorted(p for p in platform_counts if p != 'Sin plataforma'),
+            'estados': sorted(s for s in status_counts if s != 'N/A'),
+            'categorias': sorted(category_counts),
+        }
+    }
 
 
 def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
@@ -556,61 +600,81 @@ def filter_and_sort_games(juegos, filters):
     sort_by = filters.get('sort', 'updated_desc')
 
     # Short-circuit: if no filters and default sort, return as is (DB already sorted it).
-    if not any([query, plataforma, estado, categoria, favoritos]) and sort_by == 'updated_desc':
+    if not any((query, plataforma, estado, categoria, favoritos)) and sort_by == 'updated_desc':
         return juegos
 
     filtered = []
     for juego in juegos:
+        # Bolt Optimization: Unpack fields into local variables to minimize repeated .get() and .lower() calls.
+        j_plataforma = juego.get('plataforma') or ''
+        j_estado = juego.get('estado') or ''
+        j_categoria = juego.get('categoria') or ''
+        j_es_favorito = juego.get('es_favorito')
+
         # Chequeos baratos primero para fallar rápido antes de construir el haystack
-        if plataforma and juego.get('plataforma') != plataforma:
+        if plataforma and j_plataforma != plataforma:
             continue
-        if estado and juego.get('estado') != estado:
+        if estado and j_estado != estado:
             continue
-        if categoria and juego.get('categoria') != categoria:
+        if categoria and j_categoria != categoria:
             continue
-        if favoritos == 'solo' and not juego.get('es_favorito'):
+        if favoritos == 'solo' and not j_es_favorito:
             continue
 
-        # La búsqueda por texto es la operación más costosa, optimizada con short-circuit
-        if query and not (
-            query in (juego.get('titulo') or '').lower() or
-            query in (juego.get('plataforma') or '').lower() or
-            query in (juego.get('estado') or '').lower() or
-            query in (juego.get('descripcion') or '').lower()
-        ):
-            continue
+        # La búsqueda por texto es la operación más costosa, optimizada con short-circuit.
+        # Bolt Optimization: Prioritize shorter platform/state fields over potentially long titles/descriptions.
+        if query:
+            if not (
+                query in j_plataforma.lower() or
+                query in j_estado.lower() or
+                query in (juego.get('titulo') or '').lower() or
+                query in (juego.get('descripcion') or '').lower()
+            ):
+                continue
 
         filtered.append(juego)
 
-    def sort_key(item):
-        return item.get('updated_at') or item.get('created_at') or item.get('titulo', '')
-
-    reverse = True
-    if sort_by == 'title_asc':
-        reverse = False
-        filtered.sort(key=lambda item: item.get('titulo', '').lower())
-    elif sort_by == 'title_desc':
-        filtered.sort(key=lambda item: item.get('titulo', '').lower(), reverse=True)
-    elif sort_by == 'created_asc':
-        reverse = False
-        filtered.sort(key=lambda item: item.get('created_at') or item.get('titulo', ''), reverse=reverse)
-    elif sort_by == 'created_desc':
-        filtered.sort(key=lambda item: item.get('created_at') or item.get('titulo', ''), reverse=True)
-    elif sort_by == 'updated_desc':
+    if sort_by == 'updated_desc':
         # Already ordered by DB (updated_at desc, created_at desc)
-        pass
+        return filtered
+
+    # Bolt Optimization: Use idiomatic sort(key=...) which is optimized at C level in Python 3.
+    if sort_by == 'title_asc':
+        filtered.sort(key=lambda j: (j.get('titulo') or '').lower())
+    elif sort_by == 'title_desc':
+        filtered.sort(key=lambda j: (j.get('titulo') or '').lower(), reverse=True)
+    elif sort_by == 'created_asc':
+        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')))
+    elif sort_by == 'created_desc':
+        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')), reverse=True)
     else:
-        filtered.sort(key=sort_key, reverse=True)
+        # Custom sort key for effective update date (updated_at if exists, otherwise created_at)
+        def sort_key_effective(j):
+            upd = ensure_dt(j.get('updated_at'))
+            return upd if upd != MIN_DATE else ensure_dt(j.get('created_at'))
+
+        filtered.sort(key=sort_key_effective, reverse=True)
 
     return filtered
 
 
-def enrich_game_image_url(game: dict | None) -> dict | None:
-    """Enriquece el juego con una URL temporal de imagen (Optimizado: mutación in-place)."""
+def enrich_game_metadata(game: dict | None) -> dict | None:
+    """Enriquece el juego con URL de imagen y serializa fechas (Optimización Bolt: in-place)."""
     if game is None:
         return None
 
     game['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
+
+    # Bolt Optimization: Convert raw datetimes to ISO strings only when needed for templates.
+    # Unroll loop to avoid iterator overhead in this hot path.
+    upd = game.get('updated_at')
+    if isinstance(upd, datetime):
+        game['updated_at'] = as_iso(upd)
+
+    cre = game.get('created_at')
+    if isinstance(cre, datetime):
+        game['created_at'] = as_iso(cre)
+
     return game
 
 
@@ -805,11 +869,16 @@ def dashboard():
     # Bolt optimization: Calculate metrics in-memory from the already fetched list
     # for the dashboard to avoid 9+ redundant SQL queries.
     juegos = obtener_juegos_por_usuario(user_id)
-    dashboard_insights = build_dashboard_insights(juegos, user_id)
+    dashboard_insights = build_dashboard_insights(juegos)
 
     filtered_games = filter_and_sort_games(juegos, filters)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
-    paginated_games = [enrich_game_image_url(juego) for juego in pagination['items']]
+
+    # Bolt Optimization: Enriquecer solo los juegos de la página actual y los destacados del dashboard.
+    paginated_games = [enrich_game_metadata(juego) for juego in pagination['items']]
+    enrich_game_metadata(dashboard_insights.get('last_updated_game'))
+    enrich_game_metadata(dashboard_insights.get('next_focus'))
+
     filter_opts = dashboard_insights.get('filter_options', {})
 
     return render_template(
@@ -869,8 +938,8 @@ def agregar_juego():
     """Crea un juego nuevo para el usuario autenticado."""
     titulo = request.form.get('titulo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
-    plataforma = request.form.get('plataforma', 'PC').strip()
-    estado = request.form.get('estado', 'N/A').strip()
+    plataforma_raw = request.form.get('plataforma', 'PC').strip()
+    estado_raw = request.form.get('estado', 'N/A').strip()
     metadata = normalize_game_metadata(request.form)
     imagen = request.files.get('imagen')
     imagen_url = request.form.get('imagen_url', '').strip()
@@ -884,6 +953,12 @@ def agregar_juego():
         errores.append('La descripción es requerida.')
     elif len(descripcion) > 5000:
         errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
+
+    # Basic length checks for metadata (Security hardening)
+    if len(plataforma_raw) > 80:
+        errores.append('El nombre de la plataforma es demasiado largo.')
+    if len(estado_raw) > 80:
+        errores.append('El estado es demasiado largo.')
 
     if imagen_url:
         if not is_valid_presigned_image_url(imagen_url):
@@ -914,8 +989,8 @@ def agregar_juego():
         titulo,
         descripcion,
         imagen_url,
-        plataforma,
-        estado,
+        metadata['plataforma'],
+        metadata['estado'],
         metadata['categoria'],
         metadata['prioridad'],
         metadata['calificacion'],
@@ -987,7 +1062,7 @@ def editar_juego_ruta(game_id):
     if request.method == 'GET':
         return render_template(
             'edit_game.html',
-            juego=enrich_game_image_url(juego),
+            juego=enrich_game_metadata(juego),
             GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
             GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
             GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
@@ -997,8 +1072,8 @@ def editar_juego_ruta(game_id):
 
     titulo = request.form.get('titulo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
-    plataforma = request.form.get('plataforma', 'PC').strip()
-    estado = request.form.get('estado', 'N/A').strip()
+    plataforma_raw = request.form.get('plataforma', 'PC').strip()
+    estado_raw = request.form.get('estado', 'N/A').strip()
     metadata = normalize_game_metadata(request.form)
     nueva_imagen = request.files.get('nueva_imagen')
     nueva_imagen_url = request.form.get('nueva_imagen_url', '').strip()
@@ -1012,6 +1087,12 @@ def editar_juego_ruta(game_id):
         errores.append('La descripción es requerida.')
     elif len(descripcion) > 5000:
         errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
+
+    # Basic length checks for metadata (Security hardening)
+    if len(plataforma_raw) > 80:
+        errores.append('El nombre de la plataforma es demasiado largo.')
+    if len(estado_raw) > 80:
+        errores.append('El estado es demasiado largo.')
 
     if nueva_imagen_url and not is_valid_presigned_image_url(nueva_imagen_url):
         errores.append('La nueva portada generada no es válida.')
@@ -1033,8 +1114,8 @@ def editar_juego_ruta(game_id):
         {
             'titulo': titulo,
             'descripcion': descripcion,
-            'plataforma': plataforma,
-            'estado': estado,
+            'plataforma': metadata['plataforma'],
+            'estado': metadata['estado'],
             'categoria': metadata['categoria'],
             'prioridad': metadata['prioridad'],
             'calificacion': metadata['calificacion'],
@@ -1095,7 +1176,9 @@ def registro():
     if not password:
         errores.append('La contraseña es requerida.')
     elif not validar_password(password):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
+    if prefijo_pais and len(prefijo_pais) > 10:
+        errores.append('El prefijo de país es demasiado largo (máximo 10 caracteres).')
     if telefono and not validar_telefono(telefono):
         errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
     if password != confirm_password:
@@ -1106,6 +1189,15 @@ def registro():
     if errores:
         for error in errores:
             flash(error, 'error')
+        crear_log_audit(
+            user_id=None,
+            action='REGISTER',
+            resource='users',
+            details={'email': email, 'errors': errores},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.registro'))
 
     password_hash = generate_password_hash(password)
@@ -1120,6 +1212,8 @@ def registro():
     session['email'] = resultado['email']
     session['nombre'] = resultado['nombre']
     session['role'] = resultado.get('role', 'user')
+    # Store a SHA256 of the password hash to detect changes and invalidate other sessions
+    session['_pw_hash'] = hashlib.sha256(password_hash.encode('utf-8')).hexdigest()
 
     crear_log_audit(
         user_id=resultado['user_id'],
@@ -1150,6 +1244,10 @@ def login():
         flash('Email y contraseña son requeridos.', 'error')
         return redirect(url_for('main.login'))
 
+    if len(email) > 255 or len(password) > 128:
+        flash('Email o contraseña demasiado largos.', 'error')
+        return redirect(url_for('main.login'))
+
     usuario = verificar_credenciales(email, password)
 
     # Use a dummy hash for missing users to mitigate timing attacks (Security enhancement)
@@ -1167,7 +1265,7 @@ def login():
             user_id=usuario['user_id'] if usuario else None,
             action='FAILED_LOGIN',
             resource='auth',
-            details={'email': email},
+            details={'email': email, 'reason': 'invalid_credentials_or_inactive'},
             ip_address=request.remote_addr or 'unknown',
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
@@ -1181,6 +1279,8 @@ def login():
     session['email'] = usuario['email']
     session['nombre'] = usuario['nombre']
     session['role'] = usuario.get('role', 'user')
+    # Store a SHA256 of the password hash to detect changes and invalidate other sessions
+    session['_pw_hash'] = hashlib.sha256(usuario['password_hash'].encode('utf-8')).hexdigest()
 
     crear_log_audit(
         user_id=usuario['user_id'],
@@ -1237,6 +1337,10 @@ def profile():
     profile_insights = obtener_metricas_coleccion(user_id)
     recent_activity_logs = obtener_logs_por_usuario(user_id, limit=8)
 
+    # Bolt Optimization: Serializar metadatos de los destacados del perfil.
+    enrich_game_metadata(profile_insights.get('last_updated_game'))
+    enrich_game_metadata(profile_insights.get('next_focus'))
+
     if request.method == 'GET':
         return render_template(
             'profile.html',
@@ -1265,7 +1369,7 @@ def profile():
             )
             errores.append('La contraseña actual no es correcta.')
         if not validar_password(password):
-            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres.')
+            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
         if password != confirm_password:
             errores.append('Las contraseñas no coinciden.')
 
@@ -1360,8 +1464,24 @@ def forgot_password():
         flash('El email es requerido.', 'error')
         return redirect(url_for('main.forgot_password'))
 
+    if len(email) > 255:
+        flash('Email demasiado largo.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
     user = obtener_usuario_por_email(email)
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
+
+    if not user or user.get('status') != 'active':
+        crear_log_audit(
+            user_id=user['user_id'] if user else None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email, 'reason': 'user_not_found_or_inactive'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        return redirect(url_for('main.forgot_password'))
 
     if user and user.get('status') == 'active':
         result = crear_reset_token(user['user_id'], request.remote_addr or None)
@@ -1408,9 +1528,22 @@ def forgot_password_manual_token():
         flash('Para la opción 2 debes indicar correo y teléfono.', 'error')
         return redirect(url_for('main.forgot_password'))
 
+    if len(email) > 255 or len(telefono) > 20:
+        flash('Email o teléfono demasiado largos.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
     user = obtener_usuario_por_email(email)
     # Validar si el usuario existe y el teléfono coincide
     if not user or str(user.get('telefono', '')).strip() != telefono or user.get('status') != 'active':
+        crear_log_audit(
+            user_id=user['user_id'] if user else None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email, 'reason': 'manual_token_validation_failed'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         # En producción no revelamos si los datos son incorrectos para evitar enumeración.
         if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
             flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
@@ -1507,7 +1640,7 @@ def reset_password_with_email(token):
     confirm_password = request.form.get('confirm_password', '').strip()
     errores = []
     if not validar_password(password):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     if user is None or user.get('status') != 'active':
@@ -1617,6 +1750,15 @@ def admin_eliminar_usuario(user_id):
     resultado = eliminar_usuario(user_id)
     if not resultado['success']:
         flash(f'No se pudo eliminar el usuario: {resultado["error"]}', 'error')
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'delete_user', 'error': resultado.get('error')},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.admin_panel'))
 
     crear_log_audit(
@@ -1642,9 +1784,22 @@ def admin_editar_usuario(user_id):
         flash('El nombre no puede estar vacío.', 'error')
         return redirect(url_for('main.admin_panel'))
 
+    if len(nuevo_nombre) > 120:
+        flash('El nombre es demasiado largo (máximo 120 caracteres).', 'error')
+        return redirect(url_for('main.admin_panel'))
+
     resultado = actualizar_usuario_nombre(user_id, nuevo_nombre)
     if not resultado['success']:
         flash(f'No se pudo actualizar el usuario: {resultado["error"]}', 'error')
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': resultado.get('error')},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.admin_panel'))
 
     crear_log_audit(

@@ -13,3 +13,7 @@
 ## 2026-06-11 - Interactive Collection Metrics
 **Learning:** Transforming static dashboard statistics into functional, filtered links significantly improves "explorability" and user engagement without adding visual complexity. Using `text-decoration: none` and `color: inherit` allows for seamless integration of `<a>` tags into existing card/tile components while maintaining the intended design.
 **Action:** Always consider if a metric or summary statistic can serve as a shortcut to its underlying data. Ensure interactive elements use `:focus-visible` to provide clear feedback for keyboard users.
+
+## 2026-06-12 - Hardcoded Transparency vs. Thematic Consistency
+**Learning:** Hardcoded semi-transparent colors (e.g., `rgba(255, 255, 255, 0.08)`) are "invisible bugs" in light themes if they were designed primarily for dark backgrounds. They fail to provide necessary contrast for borders and surfaces. Additionally, contrast-sensitive elements like badges require theme-specific overrides to maintain readability (WCAG compliance) across different background luminosities.
+**Action:** Avoid hardcoded transparency for structural elements. Use CSS variables for borders and background tints. When implementing a light theme override, explicitly verify contrast ratios for text-on-badge combinations and darken colors as needed.

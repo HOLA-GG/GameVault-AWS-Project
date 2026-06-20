@@ -187,15 +187,17 @@ def test_rate_limiting_demo(client):
 def test_stale_session_inactive_user(client):
     """Verifica que un usuario desactivado sea bloqueado a pesar de tener una sesión activa."""
     from app.models import get_session_factory, User, generate_password_hash, select
+    import hashlib
 
     # 1. Crear usuario en DB
+    pw_hash = generate_password_hash('password')
     session_factory = get_session_factory()
     with session_factory() as db_session:
         user = User(
             user_id='stale-id',
             email='stale@example.com',
             nombre='Stale',
-            password_hash=generate_password_hash('password'),
+            password_hash=pw_hash,
             status='active',
             role='user'
         )
@@ -205,6 +207,7 @@ def test_stale_session_inactive_user(client):
     # 2. Inyectar en sesión
     with client.session_transaction() as sess:
         sess['user_id'] = 'stale-id'
+        sess['_pw_hash'] = hashlib.sha256(pw_hash.encode('utf-8')).hexdigest()
 
     # Verificar que el acceso funciona
     response = client.get('/dashboard')
@@ -226,15 +229,17 @@ def test_stale_session_inactive_user(client):
 def test_stale_session_role_change(client):
     """Verifica que un cambio de rol se aplique inmediatamente."""
     from app.models import get_session_factory, User, generate_password_hash, select
+    import hashlib
 
     # 1. Crear usuario en DB
+    pw_hash = generate_password_hash('password')
     session_factory = get_session_factory()
     with session_factory() as db_session:
         user = User(
             user_id='role-id',
             email='role@example.com',
             nombre='Role',
-            password_hash=generate_password_hash('password'),
+            password_hash=pw_hash,
             status='active',
             role='user'
         )
@@ -244,6 +249,7 @@ def test_stale_session_role_change(client):
     # 2. Inyectar en sesión
     with client.session_transaction() as sess:
         sess['user_id'] = 'role-id'
+        sess['_pw_hash'] = hashlib.sha256(pw_hash.encode('utf-8')).hexdigest()
 
     # 3. Intentar acceder al panel admin (debe fallar)
     response = client.get('/admin', follow_redirects=True)

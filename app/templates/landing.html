@@ -5,7 +5,7 @@
 {% block content %}
 <div class="nav-bar">
     <div class="nav-links">
-        <a href="{{ url_for('main.landing') }}" class="btn btn-primary">Inicio</a>
+        <a href="{{ url_for('main.landing') }}" class="btn btn-primary" aria-current="page">Inicio</a>
         <a href="{{ url_for('main.demo') }}" class="btn btn-secondary">Demo</a>
     </div>
     {% if session.get('user_id') %}

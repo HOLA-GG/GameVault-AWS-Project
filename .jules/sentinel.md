@@ -47,3 +47,23 @@
 **Vulnerability:** Use of broad `*.amazonaws.com` wildcard in `img-src` and `connect-src` CSP directives.
 **Learning:** Permissive wildcards for cloud providers allow attackers to bypass CSP by hosting malicious scripts or exfiltration endpoints in their own accounts under the same provider.
 **Prevention:** Dynamically construct CSP directives using specific hostnames derived from application configuration (e.g., `{bucket}.s3.{region}.amazonaws.com`) to enforce the principle of least privilege.
+
+## 2026-06-13 - Enhance Password Complexity and Failed Event Auditing
+**Vulnerability:** Weak password requirements (length only) and insufficient logging of failed security-sensitive events (registration, password reset, admin actions).
+**Learning:** Only checking password length allows weak passwords like "12345678" or "password". Also, failing to log unsuccessful security events hinders incident response and makes it harder to detect brute-force or enumeration attempts.
+**Prevention:** Implement basic complexity requirements (letters + numbers) for passwords. Ensure all security-sensitive routes (register, forgot password, admin actions) log both SUCCESS and FAILED outcomes with relevant (redacted) details.
+
+## 2026-06-15 - Global Session Invalidation on Password Change
+**Vulnerability:** Active sessions on other devices remained valid after a password change or reset.
+**Learning:** Simply clearing the current session after a password update only affects the local device. Stale sessions on other devices could still be used to access the account until they naturally expired.
+**Prevention:** Store a non-reversible hash (e.g., SHA256) of the current password hash in the session upon login. Verify this hash against the database on every request within authentication decorators. If the password hash in the database changes, all existing sessions will fail the verification and be invalidated globally.
+
+## 2026-06-18 - Audit Log Hardening and Defensive Truncation
+**Vulnerability:** Potential sensitive data leakage in audit log details and DoS risk via unbounded string lengths in log/token fields.
+**Learning:** Even if routes perform validation, the data layer should implement defense-in-depth by truncating strings to match DB schema constraints and redacting sensitive keys (e.g., 'password', 'token') from JSON metadata.
+**Prevention:** Implement a recursive redaction helper for all logging operations that handle structured metadata and enforce strict length limits on all database-bound strings at the model level.
+
+## 2026-06-20 - Robust Sensitive Data Redaction in Nested Audit Logs
+**Vulnerability:** Incomplete redaction of sensitive data in audit logs when data was nested within lists or arrays.
+**Learning:** Generic redaction utilities often only recurse into dictionaries, missing sensitive keys that might be contained within lists (e.g., a list of objects). This can lead to accidental exposure of tokens or passwords if they are passed as part of a list in metadata.
+**Prevention:** Always implement polymorphic recursion in redaction helpers to handle both dictionaries and lists, ensuring deep traversal of all JSON-serializable structures before data reaches persistent storage or external logging sinks.
