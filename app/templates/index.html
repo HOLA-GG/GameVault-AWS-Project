@@ -23,17 +23,17 @@
 <section class="section">
     <h2>Panel de colección</h2>
     <div class="features-grid">
-        <div class="feature-card">
+        <a href="{{ url_for('main.dashboard') }}" class="feature-card" aria-label="Ver toda la colección">
             <span class="feature-icon" aria-hidden="true">🎮</span>
             <h4>{{ dashboard_insights.total_games }} juegos</h4>
             <p>Tu biblioteca actual ya cubre {{ dashboard_insights.platforms_count }} plataformas.</p>
-        </div>
-        <a href="{{ url_for('main.dashboard', favoritos='solo') }}" class="feature-card" aria-label="Ver juegos favoritos">
+        </a>
+        <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="feature-card" aria-label="Ver juegos favoritos">
             <span class="feature-icon" aria-hidden="true">⭐</span>
             <h4>{{ dashboard_insights.favorites_count }} favoritos</h4>
             <p>{{ dashboard_insights.high_priority_count }} juegos están marcados con prioridad alta.</p>
         </a>
-        <a href="{{ url_for('main.dashboard', categoria=dashboard_insights.dominant_category.label) }}" class="feature-card" aria-label="Ver juegos de la categoría {{ dashboard_insights.dominant_category.label }}">
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=dashboard_insights.dominant_category.label, page=None)) }}" class="feature-card" aria-label="Ver juegos de la categoría {{ dashboard_insights.dominant_category.label }}">
             <span class="feature-icon" aria-hidden="true">🗂️</span>
             <h4>{{ dashboard_insights.dominant_category.label }}</h4>
             <p>Es la categoría dominante con {{ dashboard_insights.dominant_category.count }} juegos.</p>
@@ -45,15 +45,15 @@
         </div>
     </div>
     <div class="insight-strip">
-        <a href="{{ url_for('main.dashboard', categoria='Wishlist') }}" class="insight-tile" aria-label="Ver wishlist">
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Wishlist', page=None)) }}" class="insight-tile" aria-label="Ver wishlist">
             <strong>{{ dashboard_insights.wishlist_count }}</strong>
             <span>en wishlist</span>
         </a>
-        <a href="{{ url_for('main.dashboard', categoria='Backlog') }}" class="insight-tile" aria-label="Ver backlog">
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Backlog', page=None)) }}" class="insight-tile" aria-label="Ver backlog">
             <strong>{{ dashboard_insights.backlog_count }}</strong>
             <span>en backlog</span>
         </a>
-        <a href="{{ url_for('main.dashboard', categoria='Jugando') }}" class="insight-tile" aria-label="Ver juegos que estoy jugando ahora">
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Jugando', page=None)) }}" class="insight-tile" aria-label="Ver juegos que estoy jugando ahora">
             <strong>{{ dashboard_insights.currently_playing_count }}</strong>
             <span>jugando ahora</span>
         </a>
@@ -171,8 +171,8 @@
     <form action="{{ url_for('main.dashboard') }}" method="GET">
         <div class="form-row">
             <div class="form-group">
-                <label for="q">Búsqueda <small style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
-                <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma...">
+                <label for="q">Búsqueda <small id="search-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
+                <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma..." aria-describedby="search-hint" aria-keyshortcuts="/">
             </div>
             <div class="form-group">
                 <label for="filter_plataforma">Plataforma</label>
@@ -232,8 +232,11 @@
 
 <section class="games-section">
     <h2>Mi colección</h2>
-    <p style="color:var(--text-secondary);margin-bottom:20px;">
+    <p style="color:var(--text-secondary);margin-bottom:20px;" role="status">
         Mostrando {{ total_filtered_games }} de {{ total_user_games }} juegos.
+        {% if total_filtered_games != total_user_games %}
+            <a href="{{ url_for('main.dashboard') }}" style="margin-left:8px; font-size: 0.9em; text-decoration: underline;">(Limpiar filtros)</a>
+        {% endif %}
     </p>
     <div class="section-note">
         La actividad reciente ahora vive en tu perfil para que la colección se mantenga más limpia y enfocada.
@@ -248,16 +251,17 @@
                         {% if juego.imagen_url %}
                             <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" class="game-image" loading="lazy">
                         {% else %}
-                            <div class="game-image flex flex-center text-center">
-                                Portada pendiente
+                            <div class="game-image flex flex-center flex-column text-center" style="background:rgba(255,255,255,0.03); gap: 8px;">
+                                <span style="font-size: 2rem; opacity: 0.3;" aria-hidden="true">🖼️</span>
+                                <span style="font-size: 0.85rem; opacity: 0.6;">Portada pendiente</span>
                             </div>
                         {% endif %}
                         <div class="game-badges">
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=juego.plataforma)) }}" class="badge plataforma" aria-label="Filtrar por plataforma {{ juego.plataforma or 'PC' }}">{{ juego.plataforma or 'PC' }}</a>
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(estado=juego.estado)) }}" class="badge estado" aria-label="Filtrar por estado {{ juego.estado or 'N/A' }}">{{ juego.estado or 'N/A' }}</a>
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=juego.categoria)) }}" class="badge categoria" aria-label="Filtrar por categoría {{ juego.categoria or 'Biblioteca' }}">{{ juego.categoria or 'Biblioteca' }}</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=juego.plataforma, page=None)) }}" class="badge plataforma" aria-label="Filtrar por plataforma {{ juego.plataforma or 'PC' }}">{{ juego.plataforma or 'PC' }}</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(estado=juego.estado, page=None)) }}" class="badge estado" aria-label="Filtrar por estado {{ juego.estado or 'N/A' }}">{{ juego.estado or 'N/A' }}</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=juego.categoria, page=None)) }}" class="badge categoria" aria-label="Filtrar por categoría {{ juego.categoria or 'Biblioteca' }}">{{ juego.categoria or 'Biblioteca' }}</a>
                             {% if juego.es_favorito %}
-                                <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo')) }}" class="badge favorito" aria-label="Ver solo favoritos">Favorito</a>
+                                <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="badge favorito" aria-label="Ver solo favoritos">Favorito</a>
                             {% endif %}
                         </div>
                     </div>
