@@ -67,3 +67,8 @@
 **Vulnerability:** Incomplete redaction of sensitive data in audit logs when data was nested within lists or arrays.
 **Learning:** Generic redaction utilities often only recurse into dictionaries, missing sensitive keys that might be contained within lists (e.g., a list of objects). This can lead to accidental exposure of tokens or passwords if they are passed as part of a list in metadata.
 **Prevention:** Always implement polymorphic recursion in redaction helpers to handle both dictionaries and lists, ensuring deep traversal of all JSON-serializable structures before data reaches persistent storage or external logging sinks.
+
+## 2026-06-22 - Explicit Protocol-Relative URL Blocking in Redirects
+**Vulnerability:** Potential Open Redirect bypasses using multiple leading slashes (e.g., `///`) or backslashes.
+**Learning:** While `urljoin` often normalizes multiple slashes into a single relative path, browsers can have inconsistent interpretations of "malformed" paths in the `Location` header. Relying solely on `urljoin` and `netloc` comparison can leave a small window for browser-specific redirects.
+**Prevention:** Explicitly reject any target URL that starts with `//` after whitespace stripping and backslash normalization. This provides a deterministic "fail-fast" layer that doesn't depend on the underlying URI parser's normalization behavior.
