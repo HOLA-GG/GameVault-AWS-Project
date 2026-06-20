@@ -562,25 +562,15 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
                 'email': (user or {}).get('email', '') if user_id != 'system' else 'sistema@local',
                 'nombre': (user or {}).get('nombre', '') if user_id != 'system' else 'Sistema',
                 'items': [],
-                'latest_timestamp': log.get('timestamp', ''),
+                'events_count': 0,
+                'latest_timestamp': log.get('timestamp'),
                 'latest_action': log.get('action_name') or log.get('action') or 'Actividad',
             }
         bucket = grouped[user_id]
-        # Mutate the log dict in-place instead of copying to reduce allocations during admin view loads.
-        log['action_badge_class'] = get_action_badge_class(log.get('action', ''))
-        log['status_badge_class'] = (
-            'badge-log-success'
-            if log.get('status') == 'SUCCESS'
-            else 'badge-log-error'
-            if log.get('status') in {'FAILED', 'ERROR'}
-            else 'badge-log-neutral'
-        )
         bucket['items'].append(log)
+        bucket['events_count'] += 1
 
-    ordered_groups = list(grouped.values())
-    for group in ordered_groups:
-        group['events_count'] = len(group['items'])
-    return ordered_groups
+    return list(grouped.values())
 
 
 def build_query_args(**updates) -> dict:
@@ -680,6 +670,28 @@ def enrich_game_metadata(game: dict | None) -> dict | None:
         game['created_at'] = as_iso(cre)
 
     return game
+
+
+def enrich_log_metadata(log: dict | None) -> dict | None:
+    """Enriquece el log con clases de badges y serializa fechas (Optimización Bolt: in-place)."""
+    if log is None:
+        return None
+
+    # Bolt Optimization: Assign badge classes and serialize timestamp only when needed for rendering.
+    log['action_badge_class'] = get_action_badge_class(log.get('action', ''))
+    log['status_badge_class'] = (
+        'badge-log-success'
+        if log.get('status') == 'SUCCESS'
+        else 'badge-log-error'
+        if log.get('status') in {'FAILED', 'ERROR'}
+        else 'badge-log-neutral'
+    )
+
+    ts = log.get('timestamp')
+    if isinstance(ts, datetime):
+        log['timestamp'] = as_iso(ts)
+
+    return log
 
 
 @main_bp.route('/')
@@ -1332,7 +1344,11 @@ def profile():
     # Use g.current_user cached by @require_login to avoid redundant DB query
     user = g.current_user
     juegos = obtener_juegos_por_usuario(session['user_id'])
-    recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8)
+    # Bolt Optimization: Fetch raw logs and enrich only those being displayed.
+    recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8, format_dates=False)
+    for log in recent_activity_logs:
+        enrich_log_metadata(log)
+
     profile_insights = build_dashboard_insights(juegos)
 
     # Bolt Optimization: Serializar metadatos de los destacados del perfil.
@@ -1824,11 +1840,21 @@ def admin_logs():
         'start_date': request.args.get('start_date', '').strip(),
         'end_date': request.args.get('end_date', '').strip(),
     }
-    logs = obtener_todos_logs(filters, limit=500)
+    # Bolt Optimization: Fetch raw logs to avoid expensive ISO conversions in the hot path.
+    logs = obtener_todos_logs(filters, limit=500, format_dates=False)
     page = request.args.get('page', 1, type=int)
     stats = obtener_estadisticas_logs()
     grouped_logs = build_admin_log_groups(logs)
     pagination = paginate_items(grouped_logs, page, current_app.config['ADMIN_USERS_PER_PAGE'])
+
+    # Bolt Optimization: Enrich only logs belonging to the current page view.
+    for group in pagination['items']:
+        # Enrich the first log of each group for the sidebar (latest_action, latest_timestamp)
+        if group['items']:
+            enrich_log_metadata(group['items'][0])
+            # Update the ISO string for the template
+            group['latest_timestamp'] = group['items'][0]['timestamp']
+
     selected_user_id = request.args.get('selected_user_id', '').strip()
     selected_group = None
     if pagination['items']:
@@ -1836,6 +1862,11 @@ def admin_logs():
             (group for group in pagination['items'] if group['user_id'] == selected_user_id),
             pagination['items'][0],
         )
+
+    if selected_group:
+        # Bolt Optimization: Enrich all logs in the selected group being rendered in the main panel.
+        for log in selected_group['items']:
+            enrich_log_metadata(log)
 
     return render_template(
         'admin_logs.html',
