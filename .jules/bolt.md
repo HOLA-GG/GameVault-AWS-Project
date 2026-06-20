@@ -79,3 +79,7 @@
 ## 2025-08-10 - Streamlining Fallback Date Logic
 **Learning:** Calculating an "effective date" (e.g., latest of updated or created) using nested if/else or redundant checks in a loop adds unnecessary branching. Using `max()` with `ensure_dt` wrappers provides a concise and efficient way to handle fallbacks and ensure comparisons remain safe between naive and aware objects.
 **Action:** Use `max()` for consolidating multiple timestamp fallbacks in loops to reduce branching and improve code scannability.
+
+## 2025-08-12 - Deferred Metadata Enrichment for Log Collections
+**Learning:** Eagerly serializing dates to ISO strings and assigning UI-specific metadata (like badge classes) for large audit log collections (N=500) creates significant $O(N)$ overhead in CPU and memory allocations. This is especially wasteful in views that subsequently group or paginate the data, as most enriched records are never rendered.
+**Action:** Implement a lazy enrichment pattern where the data layer returns raw objects (using native `datetime` for fast comparisons) and a separate enrichment helper is called only on the specific subset of records destined for the final view.

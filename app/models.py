@@ -372,7 +372,8 @@ def reset_token_to_dict(item: PasswordResetToken | None) -> Optional[Dict[str, A
     }
 
 
-def audit_log_to_dict(item: AuditLog | None) -> Optional[Dict[str, Any]]:
+def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optional[Dict[str, Any]]:
+    """Convierte un log en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if item is None:
         return None
     return {
@@ -381,7 +382,7 @@ def audit_log_to_dict(item: AuditLog | None) -> Optional[Dict[str, Any]]:
         'action': item.action,
         'action_name': item.action_name,
         'resource': item.resource,
-        'timestamp': as_iso(item.timestamp),
+        'timestamp': as_iso(item.timestamp) if format_dates else item.timestamp,
         'ip_address': item.ip_address,
         'user_agent': item.user_agent,
         'details': item.details or {},
@@ -813,19 +814,21 @@ def crear_log_audit(
         return {'success': True, 'audit_id': item.audit_id, 'error': None}
 
 
-def obtener_logs_por_usuario(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
-    """Obtiene logs recientes de un usuario."""
+def obtener_logs_por_usuario(user_id: str, limit: int = 50, **kwargs) -> List[Dict[str, Any]]:
+    """Obtiene logs recientes de un usuario (Optimización Bolt: Deferir formateo de fechas)."""
+    format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
         items = session.scalars(
             select(AuditLog).where(AuditLog.user_id == user_id).order_by(AuditLog.timestamp.desc()).limit(limit)
         ).all()
-        return [audit_log_to_dict(item) for item in items]
+        return [audit_log_to_dict(item, format_dates=format_dates) for item in items]
 
 
-def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100) -> List[Dict[str, Any]]:
-    """Obtiene logs de auditoría con filtros opcionales."""
+def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwargs) -> List[Dict[str, Any]]:
+    """Obtiene logs de auditoría con filtros opcionales (Optimización Bolt: Deferir formateo de fechas)."""
+    format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     filters = filters or {}
@@ -849,7 +852,7 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100) -> List
 
     with session_factory() as session:
         items = session.scalars(query).all()
-        return [audit_log_to_dict(item) for item in items]
+        return [audit_log_to_dict(item, format_dates=format_dates) for item in items]
 
 
 def obtener_estadisticas_logs() -> Dict[str, Any]:

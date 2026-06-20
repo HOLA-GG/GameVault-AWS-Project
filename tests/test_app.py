@@ -469,7 +469,7 @@ def test_admin_logs_groups_entries_by_account(monkeypatch, client):
     monkeypatch.setattr(
         routes,
         'obtener_todos_logs',
-        lambda _filters, limit=300: [
+        lambda _filters, limit=300, **kwargs: [
             {
                 'audit_id': 'a1',
                 'user_id': 'user-1',
