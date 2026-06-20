@@ -242,6 +242,12 @@ def is_safe_url(target: str) -> bool:
         return False
     # Strip whitespace and normalize backslashes to forward slashes (Security hardening)
     target = target.strip().replace('\\', '/')
+
+    # Avoid protocol-relative URLs (e.g. //evil.com) or multiple leading slashes (e.g. ///evil.com)
+    # which some browsers interpret as cross-domain redirects (Security hardening).
+    if target.startswith('//'):
+        return False
+
     ref_url = urlparse(request.host_url)
     # urljoin resuelve contra el host actual, manejando correctamente URLs relativas y múltiples slashes
     test_url = urlparse(urljoin(request.host_url, target))
