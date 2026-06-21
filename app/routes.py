@@ -534,7 +534,7 @@ def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
         'email': email,
         'token': token,
         'expires_at': expires_at,
-        'reset_url': url_for('main.reset_password_with_email', token=token, email=email, _external=True),
+        'reset_url': url_for('main.reset_password_with_email', token=token, _external=True),
         'validate_url': url_for('main.validate_token_page'),
     }
 
@@ -1625,7 +1625,7 @@ def verify_token():
         flash('No se encontró el usuario asociado.', 'error')
         return redirect(url_for('main.validate_token_page'))
 
-    return redirect(url_for('main.reset_password_with_email', token=token, email=user.get('email', '')))
+    return redirect(url_for('main.reset_password_with_email', token=token))
 
 
 @main_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -1645,7 +1645,8 @@ def reset_password_with_email(token):
         flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
         return redirect(url_for('main.forgot_password'))
 
-    email = request.args.get('email', '') or (user.get('email') if user else '')
+    # Always use email from database to prevent email spoofing/deception via URL parameters
+    email = user.get('email', '')
 
     if request.method == 'GET':
         return render_template('reset_password.html', token=token, email=email)
