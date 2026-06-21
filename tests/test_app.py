@@ -175,12 +175,14 @@ def test_dashboard_renders_games(monkeypatch, client):
         lambda _user_id: [
             {
                 'game_id': 'g1',
+                'user_id': 'user-1',
                 'titulo': 'Zelda',
                 'descripcion': 'Aventura',
                 'plataforma': 'Switch',
                 'estado': 'Completado',
                 'categoria': 'Biblioteca',
                 'prioridad': 'Alta',
+                'calificacion': 9,
                 'es_favorito': True,
                 'imagen_url': 'https://example.com/zelda.jpg',
                 'created_at': '2026-03-01T00:00:00+00:00',
