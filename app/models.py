@@ -106,7 +106,7 @@ class User(Base):
     collection_visibility: Mapped[str] = mapped_column(String(20), default='private', index=True)
     homepage_showcase_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, index=True)
 
     games: Mapped[List['Game']] = relationship(cascade='all, delete-orphan', back_populates='user')
     reset_tokens: Mapped[List['PasswordResetToken']] = relationship(cascade='all, delete-orphan', back_populates='user')
@@ -260,6 +260,7 @@ def ensure_schema_compatibility() -> None:
             connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_collection_visibility ON users (collection_visibility)'))
             connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_homepage_showcase_opt_in ON users (homepage_showcase_opt_in)'))
             connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)'))
+            connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_updated_at ON users (updated_at)'))
 
     if not inspector.has_table('games'):
         return
