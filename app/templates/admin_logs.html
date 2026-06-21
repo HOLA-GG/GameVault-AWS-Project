@@ -3,6 +3,21 @@
 {% block title %}GameVault - Logs de actividad{% endblock %}
 
 {% block content %}
+{% set action_emojis = {
+    'CREATE_GAME': '🎮',
+    'UPDATE_GAME': '📝',
+    'DELETE_GAME': '🗑️',
+    'LOGIN': '🔑',
+    'LOGOUT': '🚪',
+    'REGISTER': '✨',
+    'UPDATE_PROFILE': '👤',
+    'CHANGE_PASSWORD': '🔐',
+    'PASSWORD_RESET_REQUEST': '📧',
+    'PASSWORD_RESET': '🔄',
+    'FAILED_LOGIN': '⚠️',
+    'ADMIN_ACTION': '🛡️',
+    'RATE_SHOWCASE': '⭐'
+} %}
 <div class="nav-bar">
     <div class="nav-links">
         <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
@@ -117,7 +132,10 @@
                                 <span class="badge badge-log-neutral log-account-count">{{ group.events_count }} eventos</span>
                             </div>
                             <div class="log-account-card__bottom">
-                                <span class="badge badge-log-action {{ group['items'][0].action_badge_class }}">{{ group.latest_action }}</span>
+                                <span class="badge badge-log-action {{ group['items'][0].action_badge_class }}">
+                                    <span aria-hidden="true">{{ action_emojis.get(group['items'][0].action, '🔔') }}</span>
+                                    {{ group.latest_action }}
+                                </span>
                                 <small data-timestamp="{{ group.latest_timestamp }}">{{ group.latest_timestamp[:19].replace('T', ' ') }}</small>
                             </div>
                         </a>
@@ -145,6 +163,7 @@
                                     <th>Fecha</th>
                                     <th>Acción</th>
                                     <th>Recurso</th>
+                                    <th>Detalles</th>
                                     <th>Estado</th>
                                     <th>Origen</th>
                                 </tr>
@@ -154,10 +173,28 @@
                                     <tr>
                                         <td data-timestamp="{{ log.timestamp }}">{{ log.timestamp[:19].replace('T', ' ') }}</td>
                                         <td>
-                                            <span class="badge badge-log-action {{ log.action_badge_class }}">{{ log.action_name or log.action }}</span>
+                                            <span class="badge badge-log-action {{ log.action_badge_class }}">
+                                                <span aria-hidden="true">{{ action_emojis.get(log.action, '🔔') }}</span>
+                                                {{ log.action_name or log.action }}
+                                            </span>
                                         </td>
                                         <td>
                                             <span class="badge badge-log-resource">{{ log.resource|replace('_', ' ')|title }}</span>
+                                        </td>
+                                        <td>
+                                            {% if log.details and log.details.title %}
+                                                {% if log.details.game_id and log.action != 'DELETE_GAME' %}
+                                                    <a href="{{ url_for('main.editar_juego_ruta', game_id=log.details.game_id) }}" class="info-link" aria-label="Editar {{ log.details.title }}">
+                                                        {{ log.details.title }}
+                                                    </a>
+                                                {% else %}
+                                                    {{ log.details.title }}
+                                                {% endif %}
+                                            {% elif log.details and log.details.email %}
+                                                {{ log.details.email }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
                                         </td>
                                         <td>
                                             <span class="badge {{ log.status_badge_class }}">{{ log.status }}</span>

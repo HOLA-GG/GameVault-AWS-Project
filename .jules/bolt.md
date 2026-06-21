@@ -69,6 +69,9 @@
 **Learning:** Pre-formatting `datetime` objects to ISO strings in the data layer (`obtener_juegos_por_usuario`) for every item in a collection introduces significant overhead in memory allocation and string processing. This is especially wasteful if the data is subsequently filtered or paginated. Native `datetime` comparisons are also faster than ISO string comparisons.
 **Action:** Defer date serialization to the last possible moment (template enrichment layer). Ensure consistent use of UTC-aware datetimes when comparing against `now()` to avoid `TypeError` in heterogeneous environments (e.g., SQLite vs Postgres).
 
+## 2026-06-16 - Breaking Contracts for Performance
+**Learning:** Attempting to optimize  by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
+**Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
 ## 2025-08-05 - Breaking Contracts for Performance
 **Learning:** Attempting to optimize `build_dashboard_insights` by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
 **Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
@@ -80,3 +83,7 @@
 ## 2025-08-10 - Streamlining Fallback Date Logic
 **Learning:** Calculating an "effective date" (e.g., latest of updated or created) using nested if/else or redundant checks in a loop adds unnecessary branching. Using `max()` with `ensure_dt` wrappers provides a concise and efficient way to handle fallbacks and ensure comparisons remain safe between naive and aware objects.
 **Action:** Use `max()` for consolidating multiple timestamp fallbacks in loops to reduce branching and improve code scannability.
+
+## 2025-08-12 - Deferred Metadata Enrichment for Log Collections
+**Learning:** Eagerly serializing dates to ISO strings and assigning UI-specific metadata (like badge classes) for large audit log collections (N=500) creates significant $O(N)$ overhead in CPU and memory allocations. This is especially wasteful in views that subsequently group or paginate the data, as most enriched records are never rendered.
+**Action:** Implement a lazy enrichment pattern where the data layer returns raw objects (using native `datetime` for fast comparisons) and a separate enrichment helper is called only on the specific subset of records destined for the final view.

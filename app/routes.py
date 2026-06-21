@@ -244,6 +244,12 @@ def is_safe_url(target: str) -> bool:
         return False
     # Strip whitespace and normalize backslashes to forward slashes (Security hardening)
     target = target.strip().replace('\\', '/')
+
+    # Avoid protocol-relative URLs (e.g. //evil.com) or multiple leading slashes (e.g. ///evil.com)
+    # which some browsers interpret as cross-domain redirects (Security hardening).
+    if target.startswith('//'):
+        return False
+
     ref_url = urlparse(request.host_url)
     # urljoin resuelve contra el host actual, manejando correctamente URLs relativas y múltiples slashes
     test_url = urlparse(urljoin(request.host_url, target))
@@ -454,6 +460,18 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         # Bolt Optimization: Calculate effective date concisely.
         dt_created = ensure_dt(juego.get('created_at'))
         effective_dt = max(ensure_dt(juego.get('updated_at')), dt_created)
+        # Bolt Optimization: Use direct access for guaranteed keys and simplify unpacking.
+        plataforma = juego['plataforma'] or 'Sin plataforma'
+        estado = juego['estado'] or 'N/A'
+        cat = juego['categoria'] or 'Biblioteca'
+        img_url = juego['imagen_url']
+        es_favorito = juego['es_favorito']
+        calif = juego['calificacion']
+        prioridad = juego['prioridad']
+
+        # Bolt Optimization: Direct extraction of datetimes (already raw from data layer).
+        dt_created = ensure_dt(juego['created_at'])
+        effective_dt = max(ensure_dt(juego['updated_at']), dt_created)
 
         platform_counts[plataforma] += 1
         status_counts[estado] += 1
@@ -480,6 +498,24 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             if prioridad == 'Alta' and cat != 'Completado':
                 if next_focus_at is None or effective_dt < next_focus_at:
                     next_focus, next_focus_at = juego, effective_dt
+
+        if dt_created >= recent_cutoff:
+            recently_added += 1
+
+
+        # Bolt Optimization: Nest dependent logic and consolidate date checks to minimize branching.
+        if prioridad == 'Alta':
+            high_priority_count += 1
+            if cat != 'Completado':
+                if next_focus_at is None or effective_dt < next_focus_at:
+                    next_focus, next_focus_at = juego, effective_dt
+
+        # Ensure we only count valid dates (Optimización Bolt: maintain logic correctness)
+        if effective_dt != MIN_DATE:
+            if effective_dt < stale_cutoff:
+                stale_games += 1
+            elif effective_dt >= recent_cutoff:
+                recently_updated += 1
 
         if dt_created >= recent_cutoff:
             recently_added += 1
@@ -530,7 +566,7 @@ def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
         'email': email,
         'token': token,
         'expires_at': expires_at,
-        'reset_url': url_for('main.reset_password_with_email', token=token, email=email, _external=True),
+        'reset_url': url_for('main.reset_password_with_email', token=token, _external=True),
         'validate_url': url_for('main.validate_token_page'),
     }
 
@@ -558,25 +594,15 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
                 'email': (user or {}).get('email', '') if user_id != 'system' else 'sistema@local',
                 'nombre': (user or {}).get('nombre', '') if user_id != 'system' else 'Sistema',
                 'items': [],
-                'latest_timestamp': log.get('timestamp', ''),
+                'events_count': 0,
+                'latest_timestamp': log.get('timestamp'),
                 'latest_action': log.get('action_name') or log.get('action') or 'Actividad',
             }
         bucket = grouped[user_id]
-        # Mutate the log dict in-place instead of copying to reduce allocations during admin view loads.
-        log['action_badge_class'] = get_action_badge_class(log.get('action', ''))
-        log['status_badge_class'] = (
-            'badge-log-success'
-            if log.get('status') == 'SUCCESS'
-            else 'badge-log-error'
-            if log.get('status') in {'FAILED', 'ERROR'}
-            else 'badge-log-neutral'
-        )
         bucket['items'].append(log)
+        bucket['events_count'] += 1
 
-    ordered_groups = list(grouped.values())
-    for group in ordered_groups:
-        group['events_count'] = len(group['items'])
-    return ordered_groups
+    return list(grouped.values())
 
 
 def build_query_args(**updates) -> dict:
@@ -610,6 +636,11 @@ def filter_and_sort_games(juegos, filters):
         j_estado = juego.get('estado') or ''
         j_categoria = juego.get('categoria') or ''
         j_es_favorito = juego.get('es_favorito')
+        # Bolt Optimization: Use direct access for guaranteed keys to minimize overhead in O(N) loop.
+        j_plataforma = juego['plataforma'] or ''
+        j_estado = juego['estado'] or ''
+        j_categoria = juego['categoria'] or ''
+        j_es_favorito = juego['es_favorito']
 
         # Chequeos baratos primero para fallar rápido antes de construir el haystack
         if plataforma and j_plataforma != plataforma:
@@ -629,6 +660,8 @@ def filter_and_sort_games(juegos, filters):
                 query in j_estado.lower() or
                 query in (juego.get('titulo') or '').lower() or
                 query in (juego.get('descripcion') or '').lower()
+                query in (juego['titulo'] or '').lower() or
+                query in (juego['descripcion'] or '').lower()
             ):
                 continue
 
@@ -654,6 +687,18 @@ def filter_and_sort_games(juegos, filters):
             return upd if upd != MIN_DATE else ensure_dt(j.get('created_at'))
 
         filtered.sort(key=sort_key_effective, reverse=True)
+    # Bolt Optimization: Use idiomatic sort(key=...) with direct key access.
+    if sort_by == 'title_asc':
+        filtered.sort(key=lambda j: (j['titulo'] or '').lower())
+    elif sort_by == 'title_desc':
+        filtered.sort(key=lambda j: (j['titulo'] or '').lower(), reverse=True)
+    elif sort_by == 'created_asc':
+        filtered.sort(key=lambda j: ensure_dt(j['created_at']))
+    elif sort_by == 'created_desc':
+        filtered.sort(key=lambda j: ensure_dt(j['created_at']), reverse=True)
+    else:
+        # Bolt Optimization: Streamline effective update date calculation in sort key.
+        filtered.sort(key=lambda j: max(ensure_dt(j['updated_at']), ensure_dt(j['created_at'])), reverse=True)
 
     return filtered
 
@@ -676,6 +721,28 @@ def enrich_game_metadata(game: dict | None) -> dict | None:
         game['created_at'] = as_iso(cre)
 
     return game
+
+
+def enrich_log_metadata(log: dict | None) -> dict | None:
+    """Enriquece el log con clases de badges y serializa fechas (Optimización Bolt: in-place)."""
+    if log is None:
+        return None
+
+    # Bolt Optimization: Assign badge classes and serialize timestamp only when needed for rendering.
+    log['action_badge_class'] = get_action_badge_class(log.get('action', ''))
+    log['status_badge_class'] = (
+        'badge-log-success'
+        if log.get('status') == 'SUCCESS'
+        else 'badge-log-error'
+        if log.get('status') in {'FAILED', 'ERROR'}
+        else 'badge-log-neutral'
+    )
+
+    ts = log.get('timestamp')
+    if isinstance(ts, datetime):
+        log['timestamp'] = as_iso(ts)
+
+    return log
 
 
 @main_bp.route('/')
@@ -909,8 +976,13 @@ def presign_upload():
     if current_app.config.get('STORAGE_BACKEND') == 'none':
         return jsonify({'error': 'El almacenamiento de imagenes aun no esta configurado.'}), 503
 
-    filename = request.form.get('filename', '').strip() or (request.json or {}).get('filename', '').strip()
-    content_type = request.form.get('content_type', '').strip() or (request.json or {}).get('content_type', '').strip()
+    # Handle both form-data and JSON payloads safely (Security hardening)
+    json_data = request.get_json(silent=True) or {}
+    if not isinstance(json_data, dict):
+        json_data = {}
+
+    filename = request.form.get('filename', '').strip() or json_data.get('filename', '').strip()
+    content_type = request.form.get('content_type', '').strip() or json_data.get('content_type', '').strip()
 
     if not filename or not content_type:
         return jsonify({'error': 'filename y content_type son obligatorios'}), 400
@@ -1341,6 +1413,10 @@ def profile():
     enrich_game_metadata(profile_insights.get('last_updated_game'))
     enrich_game_metadata(profile_insights.get('next_focus'))
 
+    # Bolt Optimization: Serializar metadatos de los destacados del perfil.
+    enrich_game_metadata(profile_insights.get('last_updated_game'))
+    enrich_game_metadata(profile_insights.get('next_focus'))
+
     if request.method == 'GET':
         return render_template(
             'profile.html',
@@ -1611,7 +1687,7 @@ def verify_token():
         flash('No se encontró el usuario asociado.', 'error')
         return redirect(url_for('main.validate_token_page'))
 
-    return redirect(url_for('main.reset_password_with_email', token=token, email=user.get('email', '')))
+    return redirect(url_for('main.reset_password_with_email', token=token))
 
 
 @main_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -1631,7 +1707,8 @@ def reset_password_with_email(token):
         flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
         return redirect(url_for('main.forgot_password'))
 
-    email = request.args.get('email', '') or (user.get('email') if user else '')
+    # Always use email from database to prevent email spoofing/deception via URL parameters
+    email = user.get('email', '')
 
     if request.method == 'GET':
         return render_template('reset_password.html', token=token, email=email)
@@ -1826,11 +1903,21 @@ def admin_logs():
         'start_date': request.args.get('start_date', '').strip(),
         'end_date': request.args.get('end_date', '').strip(),
     }
-    logs = obtener_todos_logs(filters, limit=500)
+    # Bolt Optimization: Fetch raw logs to avoid expensive ISO conversions in the hot path.
+    logs = obtener_todos_logs(filters, limit=500, format_dates=False)
     page = request.args.get('page', 1, type=int)
     stats = obtener_estadisticas_logs()
     grouped_logs = build_admin_log_groups(logs)
     pagination = paginate_items(grouped_logs, page, current_app.config['ADMIN_USERS_PER_PAGE'])
+
+    # Bolt Optimization: Enrich only logs belonging to the current page view.
+    for group in pagination['items']:
+        # Enrich the first log of each group for the sidebar (latest_action, latest_timestamp)
+        if group['items']:
+            enrich_log_metadata(group['items'][0])
+            # Update the ISO string for the template
+            group['latest_timestamp'] = group['items'][0]['timestamp']
+
     selected_user_id = request.args.get('selected_user_id', '').strip()
     selected_group = None
     if pagination['items']:
@@ -1838,6 +1925,11 @@ def admin_logs():
             (group for group in pagination['items'] if group['user_id'] == selected_user_id),
             pagination['items'][0],
         )
+
+    if selected_group:
+        # Bolt Optimization: Enrich all logs in the selected group being rendered in the main panel.
+        for log in selected_group['items']:
+            enrich_log_metadata(log)
 
     return render_template(
         'admin_logs.html',

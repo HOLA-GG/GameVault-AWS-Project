@@ -29,3 +29,11 @@
 ## 2026-06-19 - [Contextual Focus after Internal Navigation]
 **Learning:** When using internal links (anchors) to navigate to a form (e.g., "Add your first game"), the user's focus is often lost on the scroll. Automatically focusing the first relevant input field after the scroll significantly reduces task friction and provides a clear "start here" signal.
 **Action:** For all CTA buttons that lead to internal forms, implement a JavaScript listener to programmatically `.focus()` the first input field after a small delay to allow for the scroll animation.
+
+## 2026-06-20 - [Dashboard Filter Resiliency and Feedback]
+**Learning:** When users apply filters from a deep page of results, they often land on an empty page if the filter reduces the set significantly. Automatically resetting pagination (e.g., `page=None`) in all filter-triggering links (badges, tiles) is crucial for a "glitch-free" experience. Additionally, using `role="status"` on result counts provides essential live feedback for screen reader users during these dynamic updates.
+**Action:** Always ensure filter-applying links reset the current page parameter and use ARIA status roles for dynamic result summaries.
+
+## 2026-06-20 - [Placeholder Aesthetic and Semantic Search]
+**Learning:** Generic "Missing" text placeholders (like "No cover") feel like broken features. Adding a subtle icon (e.g., 🖼️) and a light background tint transforms these into professional-looking "empty states." For search, linking shortcut hints to the input via `aria-describedby` and `aria-keyshortcuts` ensures both visual discoverability and programmatic accessibility.
+**Action:** Enhance text-only placeholders with iconography and background depth. Use standard ARIA attributes to connect keyboard shortcut hints with their target inputs.

@@ -25,6 +25,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     case,
     create_engine,
     delete,
@@ -106,7 +107,7 @@ class User(Base):
     collection_visibility: Mapped[str] = mapped_column(String(20), default='private', index=True)
     homepage_showcase_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, index=True)
 
     games: Mapped[List['Game']] = relationship(cascade='all, delete-orphan', back_populates='user')
     reset_tokens: Mapped[List['PasswordResetToken']] = relationship(cascade='all, delete-orphan', back_populates='user')
@@ -167,6 +168,9 @@ class AuditLog(Base):
 
 class ShowcaseRating(Base):
     __tablename__ = 'showcase_ratings'
+    __table_args__ = (
+        UniqueConstraint('subject_type', 'subject_id', 'ip_address', name='uq_rating_subject_ip'),
+    )
 
     rating_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     subject_type: Mapped[str] = mapped_column(String(20), index=True)
@@ -260,6 +264,7 @@ def ensure_schema_compatibility() -> None:
             connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_collection_visibility ON users (collection_visibility)'))
             connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_homepage_showcase_opt_in ON users (homepage_showcase_opt_in)'))
             connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)'))
+            connection.execute(text('CREATE INDEX IF NOT EXISTS ix_users_updated_at ON users (updated_at)'))
 
     if not inspector.has_table('games'):
         return
@@ -288,6 +293,8 @@ def ensure_schema_compatibility() -> None:
     with engine.begin() as connection:
         connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_created_at ON games (created_at)'))
         connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_updated_at ON games (updated_at)'))
+        # Asegurar integridad de valoraciones (Unique Constraint)
+        connection.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS uq_rating_subject_ip ON showcase_ratings (subject_type, subject_id, ip_address)'))
 
 
 def database_healthcheck() -> bool:
@@ -509,7 +516,8 @@ def reset_token_to_dict(item: PasswordResetToken | None) -> Optional[Dict[str, A
     }
 
 
-def audit_log_to_dict(item: AuditLog | None) -> Optional[Dict[str, Any]]:
+def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optional[Dict[str, Any]]:
+    """Convierte un log en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if item is None:
         return None
     return {
@@ -519,6 +527,7 @@ def audit_log_to_dict(item: AuditLog | None) -> Optional[Dict[str, Any]]:
         'action_name': item.action_name,
         'resource': item.resource,
         'timestamp': as_iso(item.timestamp),
+        'timestamp': as_iso(item.timestamp) if format_dates else item.timestamp,
         'ip_address': item.ip_address,
         'user_agent': item.user_agent,
         'details': item.details or {},
@@ -950,19 +959,21 @@ def crear_log_audit(
         return {'success': True, 'audit_id': item.audit_id, 'error': None}
 
 
-def obtener_logs_por_usuario(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
-    """Obtiene logs recientes de un usuario."""
+def obtener_logs_por_usuario(user_id: str, limit: int = 50, **kwargs) -> List[Dict[str, Any]]:
+    """Obtiene logs recientes de un usuario (Optimización Bolt: Deferir formateo de fechas)."""
+    format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
         items = session.scalars(
             select(AuditLog).where(AuditLog.user_id == user_id).order_by(AuditLog.timestamp.desc()).limit(limit)
         ).all()
-        return [audit_log_to_dict(item) for item in items]
+        return [audit_log_to_dict(item, format_dates=format_dates) for item in items]
 
 
-def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100) -> List[Dict[str, Any]]:
-    """Obtiene logs de auditoría con filtros opcionales."""
+def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwargs) -> List[Dict[str, Any]]:
+    """Obtiene logs de auditoría con filtros opcionales (Optimización Bolt: Deferir formateo de fechas)."""
+    format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     filters = filters or {}
@@ -986,7 +997,7 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100) -> List
 
     with session_factory() as session:
         items = session.scalars(query).all()
-        return [audit_log_to_dict(item) for item in items]
+        return [audit_log_to_dict(item, format_dates=format_dates) for item in items]
 
 
 def obtener_estadisticas_logs() -> Dict[str, Any]:
@@ -1393,16 +1404,27 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
                 'votes_count': summary['votes_count'],
             }
 
-        entry = ShowcaseRating(
-            rating_id=str(uuid.uuid4()),
-            subject_type=subject_type,
-            subject_id=subject_id,
-            ip_address=ip_address or 'unknown',
-            rating=rating,
-            created_at=utcnow(),
-        )
-        session.add(entry)
-        session.commit()
+        try:
+            entry = ShowcaseRating(
+                rating_id=str(uuid.uuid4()),
+                subject_type=subject_type,
+                subject_id=subject_id,
+                ip_address=ip_address or 'unknown',
+                rating=rating,
+                created_at=utcnow(),
+            )
+            session.add(entry)
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            summary = obtener_rating_showcase(subject_type, subject_id)
+            return {
+                'success': False,
+                'duplicate': True,
+                'error': 'Esta IP ya valoró esta colección.',
+                'average': summary['average'],
+                'votes_count': summary['votes_count'],
+            }
 
     summary = obtener_rating_showcase(subject_type, subject_id)
     return {
