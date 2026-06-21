@@ -59,6 +59,7 @@ from app.models import (
     obtener_juego_por_id,
     obtener_juegos_por_usuario,
     obtener_logs_por_usuario,
+    obtener_metricas_coleccion,
     obtener_todos_logs,
     obtener_todos_usuarios,
     obtener_usuario_por_email,
@@ -101,6 +102,7 @@ _ACTION_BADGE_MAP = {
     for class_name, actions in ACTION_BADGE_GROUPS.items()
     for action in actions
 }
+
 
 LANDING_SAMPLE_COLLECTIONS = [
     {
@@ -446,6 +448,18 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
     last_updated_game = juegos[0] if juegos else None
 
     for juego in juegos:
+        # Bolt Optimization: Unpack dictionary once per iteration to avoid redundant O(1) lookups.
+        plataforma = juego.get('plataforma') or 'Sin plataforma'
+        estado = juego.get('estado') or 'N/A'
+        cat = juego.get('categoria') or 'Biblioteca'
+        img_url = juego.get('imagen_url')
+        es_favorito = juego.get('es_favorito')
+        calif = juego.get('calificacion')
+        prioridad = juego.get('prioridad')
+
+        # Bolt Optimization: Calculate effective date concisely.
+        dt_created = ensure_dt(juego.get('created_at'))
+        effective_dt = max(ensure_dt(juego.get('updated_at')), dt_created)
         # Bolt Optimization: Use direct access for guaranteed keys and simplify unpacking.
         plataforma = juego['plataforma'] or 'Sin plataforma'
         estado = juego['estado'] or 'N/A'
@@ -471,6 +485,23 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         if isinstance(calif, int):
             ratings_sum += calif
             ratings_count += 1
+
+        if prioridad == 'Alta':
+            high_priority_count += 1
+
+        if effective_dt != MIN_DATE:
+            if effective_dt < stale_cutoff:
+                stale_games += 1
+            elif effective_dt >= recent_cutoff:
+                recently_updated += 1
+
+            if prioridad == 'Alta' and cat != 'Completado':
+                if next_focus_at is None or effective_dt < next_focus_at:
+                    next_focus, next_focus_at = juego, effective_dt
+
+        if dt_created >= recent_cutoff:
+            recently_added += 1
+
 
         # Bolt Optimization: Nest dependent logic and consolidate date checks to minimize branching.
         if prioridad == 'Alta':
@@ -600,6 +631,11 @@ def filter_and_sort_games(juegos, filters):
 
     filtered = []
     for juego in juegos:
+        # Bolt Optimization: Unpack fields into local variables to minimize repeated .get() and .lower() calls.
+        j_plataforma = juego.get('plataforma') or ''
+        j_estado = juego.get('estado') or ''
+        j_categoria = juego.get('categoria') or ''
+        j_es_favorito = juego.get('es_favorito')
         # Bolt Optimization: Use direct access for guaranteed keys to minimize overhead in O(N) loop.
         j_plataforma = juego['plataforma'] or ''
         j_estado = juego['estado'] or ''
@@ -622,6 +658,8 @@ def filter_and_sort_games(juegos, filters):
             if not (
                 query in j_plataforma.lower() or
                 query in j_estado.lower() or
+                query in (juego.get('titulo') or '').lower() or
+                query in (juego.get('descripcion') or '').lower()
                 query in (juego['titulo'] or '').lower() or
                 query in (juego['descripcion'] or '').lower()
             ):
@@ -633,6 +671,22 @@ def filter_and_sort_games(juegos, filters):
         # Already ordered by DB (updated_at desc, created_at desc)
         return filtered
 
+    # Bolt Optimization: Use idiomatic sort(key=...) which is optimized at C level in Python 3.
+    if sort_by == 'title_asc':
+        filtered.sort(key=lambda j: (j.get('titulo') or '').lower())
+    elif sort_by == 'title_desc':
+        filtered.sort(key=lambda j: (j.get('titulo') or '').lower(), reverse=True)
+    elif sort_by == 'created_asc':
+        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')))
+    elif sort_by == 'created_desc':
+        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')), reverse=True)
+    else:
+        # Custom sort key for effective update date (updated_at if exists, otherwise created_at)
+        def sort_key_effective(j):
+            upd = ensure_dt(j.get('updated_at'))
+            return upd if upd != MIN_DATE else ensure_dt(j.get('created_at'))
+
+        filtered.sort(key=sort_key_effective, reverse=True)
     # Bolt Optimization: Use idiomatic sort(key=...) with direct key access.
     if sort_by == 'title_asc':
         filtered.sort(key=lambda j: (j['titulo'] or '').lower())
@@ -868,7 +922,7 @@ def dashboard():
     if session.get('role') == 'admin':
         return redirect(url_for('main.admin_panel'))
     user_id = session['user_id']
-    juegos = obtener_juegos_por_usuario(user_id)
+
     filters = {
         'q': request.args.get('q', ''),
         'plataforma': request.args.get('plataforma', ''),
@@ -879,8 +933,12 @@ def dashboard():
     }
     page = request.args.get('page', 1, type=int)
 
-    filtered_games = filter_and_sort_games(juegos, filters)
+    # Bolt optimization: Calculate metrics in-memory from the already fetched list
+    # for the dashboard to avoid 9+ redundant SQL queries.
+    juegos = obtener_juegos_por_usuario(user_id)
     dashboard_insights = build_dashboard_insights(juegos)
+
+    filtered_games = filter_and_sort_games(juegos, filters)
     pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
 
     # Bolt Optimization: Enriquecer solo los juegos de la página actual y los destacados del dashboard.
@@ -1345,13 +1403,15 @@ def profile():
         return redirect(url_for('main.admin_panel'))
     # Use g.current_user cached by @require_login to avoid redundant DB query
     user = g.current_user
-    juegos = obtener_juegos_por_usuario(session['user_id'])
-    # Bolt Optimization: Fetch raw logs and enrich only those being displayed.
-    recent_activity_logs = obtener_logs_por_usuario(session['user_id'], limit=8, format_dates=False)
-    for log in recent_activity_logs:
-        enrich_log_metadata(log)
+    user_id = session['user_id']
 
-    profile_insights = build_dashboard_insights(juegos)
+    # Bolt optimization: Calculate profile insights using SQL aggregations instead of loading all games.
+    profile_insights = obtener_metricas_coleccion(user_id)
+    recent_activity_logs = obtener_logs_por_usuario(user_id, limit=8)
+
+    # Bolt Optimization: Serializar metadatos de los destacados del perfil.
+    enrich_game_metadata(profile_insights.get('last_updated_game'))
+    enrich_game_metadata(profile_insights.get('next_focus'))
 
     # Bolt Optimization: Serializar metadatos de los destacados del perfil.
     enrich_game_metadata(profile_insights.get('last_updated_game'))
