@@ -918,8 +918,13 @@ def presign_upload():
     if current_app.config.get('STORAGE_BACKEND') == 'none':
         return jsonify({'error': 'El almacenamiento de imagenes aun no esta configurado.'}), 503
 
-    filename = request.form.get('filename', '').strip() or (request.json or {}).get('filename', '').strip()
-    content_type = request.form.get('content_type', '').strip() or (request.json or {}).get('content_type', '').strip()
+    # Handle both form-data and JSON payloads safely (Security hardening)
+    json_data = request.get_json(silent=True) or {}
+    if not isinstance(json_data, dict):
+        json_data = {}
+
+    filename = request.form.get('filename', '').strip() or json_data.get('filename', '').strip()
+    content_type = request.form.get('content_type', '').strip() or json_data.get('content_type', '').strip()
 
     if not filename or not content_type:
         return jsonify({'error': 'filename y content_type son obligatorios'}), 400

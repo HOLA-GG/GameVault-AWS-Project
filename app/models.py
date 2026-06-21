@@ -25,6 +25,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     case,
     create_engine,
     delete,
@@ -167,6 +168,9 @@ class AuditLog(Base):
 
 class ShowcaseRating(Base):
     __tablename__ = 'showcase_ratings'
+    __table_args__ = (
+        UniqueConstraint('subject_type', 'subject_id', 'ip_address', name='uq_rating_subject_ip'),
+    )
 
     rating_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     subject_type: Mapped[str] = mapped_column(String(20), index=True)
@@ -289,6 +293,8 @@ def ensure_schema_compatibility() -> None:
     with engine.begin() as connection:
         connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_created_at ON games (created_at)'))
         connection.execute(text('CREATE INDEX IF NOT EXISTS ix_games_updated_at ON games (updated_at)'))
+        # Asegurar integridad de valoraciones (Unique Constraint)
+        connection.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS uq_rating_subject_ip ON showcase_ratings (subject_type, subject_id, ip_address)'))
 
 
 def database_healthcheck() -> bool:
@@ -1260,16 +1266,27 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
                 'votes_count': summary['votes_count'],
             }
 
-        entry = ShowcaseRating(
-            rating_id=str(uuid.uuid4()),
-            subject_type=subject_type,
-            subject_id=subject_id,
-            ip_address=ip_address or 'unknown',
-            rating=rating,
-            created_at=utcnow(),
-        )
-        session.add(entry)
-        session.commit()
+        try:
+            entry = ShowcaseRating(
+                rating_id=str(uuid.uuid4()),
+                subject_type=subject_type,
+                subject_id=subject_id,
+                ip_address=ip_address or 'unknown',
+                rating=rating,
+                created_at=utcnow(),
+            )
+            session.add(entry)
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            summary = obtener_rating_showcase(subject_type, subject_id)
+            return {
+                'success': False,
+                'duplicate': True,
+                'error': 'Esta IP ya valoró esta colección.',
+                'average': summary['average'],
+                'votes_count': summary['votes_count'],
+            }
 
     summary = obtener_rating_showcase(subject_type, subject_id)
     return {
