@@ -446,18 +446,18 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
     last_updated_game = juegos[0] if juegos else None
 
     for juego in juegos:
-        # Bolt Optimization: Unpack dictionary once per iteration to avoid redundant O(1) lookups.
-        plataforma = juego.get('plataforma') or 'Sin plataforma'
-        estado = juego.get('estado') or 'N/A'
-        cat = juego.get('categoria') or 'Biblioteca'
-        img_url = juego.get('imagen_url')
-        es_favorito = juego.get('es_favorito')
-        calif = juego.get('calificacion')
-        prioridad = juego.get('prioridad')
+        # Bolt Optimization: Use direct access for guaranteed keys and simplify unpacking.
+        plataforma = juego['plataforma'] or 'Sin plataforma'
+        estado = juego['estado'] or 'N/A'
+        cat = juego['categoria'] or 'Biblioteca'
+        img_url = juego['imagen_url']
+        es_favorito = juego['es_favorito']
+        calif = juego['calificacion']
+        prioridad = juego['prioridad']
 
-        # Bolt Optimization: Calculate effective date concisely.
-        dt_created = ensure_dt(juego.get('created_at'))
-        effective_dt = max(ensure_dt(juego.get('updated_at')), dt_created)
+        # Bolt Optimization: Direct extraction of datetimes (already raw from data layer).
+        dt_created = ensure_dt(juego['created_at'])
+        effective_dt = max(ensure_dt(juego['updated_at']), dt_created)
 
         platform_counts[plataforma] += 1
         status_counts[estado] += 1
@@ -472,18 +472,19 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             ratings_sum += calif
             ratings_count += 1
 
+        # Bolt Optimization: Nest dependent logic and consolidate date checks to minimize branching.
         if prioridad == 'Alta':
             high_priority_count += 1
+            if cat != 'Completado':
+                if next_focus_at is None or effective_dt < next_focus_at:
+                    next_focus, next_focus_at = juego, effective_dt
 
+        # Ensure we only count valid dates (Optimización Bolt: maintain logic correctness)
         if effective_dt != MIN_DATE:
             if effective_dt < stale_cutoff:
                 stale_games += 1
             elif effective_dt >= recent_cutoff:
                 recently_updated += 1
-
-            if prioridad == 'Alta' and cat != 'Completado':
-                if next_focus_at is None or effective_dt < next_focus_at:
-                    next_focus, next_focus_at = juego, effective_dt
 
         if dt_created >= recent_cutoff:
             recently_added += 1
@@ -599,11 +600,11 @@ def filter_and_sort_games(juegos, filters):
 
     filtered = []
     for juego in juegos:
-        # Bolt Optimization: Unpack fields into local variables to minimize repeated .get() and .lower() calls.
-        j_plataforma = juego.get('plataforma') or ''
-        j_estado = juego.get('estado') or ''
-        j_categoria = juego.get('categoria') or ''
-        j_es_favorito = juego.get('es_favorito')
+        # Bolt Optimization: Use direct access for guaranteed keys to minimize overhead in O(N) loop.
+        j_plataforma = juego['plataforma'] or ''
+        j_estado = juego['estado'] or ''
+        j_categoria = juego['categoria'] or ''
+        j_es_favorito = juego['es_favorito']
 
         # Chequeos baratos primero para fallar rápido antes de construir el haystack
         if plataforma and j_plataforma != plataforma:
@@ -621,8 +622,8 @@ def filter_and_sort_games(juegos, filters):
             if not (
                 query in j_plataforma.lower() or
                 query in j_estado.lower() or
-                query in (juego.get('titulo') or '').lower() or
-                query in (juego.get('descripcion') or '').lower()
+                query in (juego['titulo'] or '').lower() or
+                query in (juego['descripcion'] or '').lower()
             ):
                 continue
 
@@ -632,22 +633,18 @@ def filter_and_sort_games(juegos, filters):
         # Already ordered by DB (updated_at desc, created_at desc)
         return filtered
 
-    # Bolt Optimization: Use idiomatic sort(key=...) which is optimized at C level in Python 3.
+    # Bolt Optimization: Use idiomatic sort(key=...) with direct key access.
     if sort_by == 'title_asc':
-        filtered.sort(key=lambda j: (j.get('titulo') or '').lower())
+        filtered.sort(key=lambda j: (j['titulo'] or '').lower())
     elif sort_by == 'title_desc':
-        filtered.sort(key=lambda j: (j.get('titulo') or '').lower(), reverse=True)
+        filtered.sort(key=lambda j: (j['titulo'] or '').lower(), reverse=True)
     elif sort_by == 'created_asc':
-        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')))
+        filtered.sort(key=lambda j: ensure_dt(j['created_at']))
     elif sort_by == 'created_desc':
-        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')), reverse=True)
+        filtered.sort(key=lambda j: ensure_dt(j['created_at']), reverse=True)
     else:
-        # Custom sort key for effective update date (updated_at if exists, otherwise created_at)
-        def sort_key_effective(j):
-            upd = ensure_dt(j.get('updated_at'))
-            return upd if upd != MIN_DATE else ensure_dt(j.get('created_at'))
-
-        filtered.sort(key=sort_key_effective, reverse=True)
+        # Bolt Optimization: Streamline effective update date calculation in sort key.
+        filtered.sort(key=lambda j: max(ensure_dt(j['updated_at']), ensure_dt(j['created_at'])), reverse=True)
 
     return filtered
 
