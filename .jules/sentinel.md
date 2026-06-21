@@ -72,3 +72,8 @@
 **Vulnerability:** Potential Open Redirect bypasses using multiple leading slashes (e.g., `///`) or backslashes.
 **Learning:** While `urljoin` often normalizes multiple slashes into a single relative path, browsers can have inconsistent interpretations of "malformed" paths in the `Location` header. Relying solely on `urljoin` and `netloc` comparison can leave a small window for browser-specific redirects.
 **Prevention:** Explicitly reject any target URL that starts with `//` after whitespace stripping and backslash normalization. This provides a deterministic "fail-fast" layer that doesn't depend on the underlying URI parser's normalization behavior.
+
+## 2026-06-21 - Prevent Rating Race Conditions and JSON-based DoS
+**Vulnerability:** Race condition in showcase ratings allowing multiple votes from the same IP, and potential server crash (AttributeError) on malformed JSON payloads in `presign_upload`.
+**Learning:** Manual "check-then-insert" logic is insufficient for preventing duplicates under high concurrency. Additionally, assuming JSON payloads are always dictionaries when `request.json` is used can lead to unhandled exceptions if a list or other type is sent.
+**Prevention:** Enforce data integrity at the database level with `UniqueConstraint`. Harden JSON endpoints using `request.get_json(silent=True)` and explicit type verification before attribute access.
