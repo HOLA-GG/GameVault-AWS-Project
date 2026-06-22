@@ -77,3 +77,8 @@
 **Vulnerability:** Race condition in showcase ratings allowing multiple votes from the same IP, and potential server crash (AttributeError) on malformed JSON payloads in `presign_upload`.
 **Learning:** Manual "check-then-insert" logic is insufficient for preventing duplicates under high concurrency. Additionally, assuming JSON payloads are always dictionaries when `request.json` is used can lead to unhandled exceptions if a list or other type is sent.
 **Prevention:** Enforce data integrity at the database level with `UniqueConstraint`. Harden JSON endpoints using `request.get_json(silent=True)` and explicit type verification before attribute access.
+
+## 2026-06-25 - Harden Authenticated Routes with Cache-Control and COOP
+**Vulnerability:** Authenticated pages with sensitive user data could be stored in browser caches or shared proxies, and were vulnerable to cross-origin window leaks. Additionally, missing safe lookups on dictionary objects could cause 500 errors, impacting availability.
+**Learning:** Modern browsers require explicit COOP and Cache-Control headers to truly isolate authenticated sessions. Availability is a security concern; unhandled KeyErrors on data objects are a minor DoS vector.
+**Prevention:** Implement global response headers for security (COOP, X-Permitted-Cross-Domain-Policies) and specific "no-cache" rules for routes handling PII or administrative data. Always use `.get()` when processing data objects that might be inconsistent.
