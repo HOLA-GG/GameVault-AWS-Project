@@ -171,8 +171,6 @@
     <form action="{{ url_for('main.dashboard') }}" method="GET">
         <div class="form-row">
             <div class="form-group">
-                <label for="q">Búsqueda <small style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
-                <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma...">
                 <label for="q">Búsqueda <small id="search-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
                 <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma..." aria-describedby="search-hint" aria-keyshortcuts="/">
             </div>
