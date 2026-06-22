@@ -211,6 +211,20 @@ def create_app() -> Flask:
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         # Legacy XSS protection for older browsers
         response.headers['X-XSS-Protection'] = '1; mode=block'
+        # Prevent Adobe Flash/PDF cross-domain leaks
+        response.headers['X-Permitted-Cross-Domain-Policies'] = 'none'
+        # Prevent cross-origin window leaks (defense-in-depth for social/auth)
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+
+        # Disable caching for sensitive authenticated routes (Security enhancement)
+        sensitive_endpoints = {
+            'main.dashboard', 'main.profile', 'main.admin_panel',
+            'main.admin_collections', 'main.admin_logs', 'main.editar_juego_ruta'
+        }
+        if request.endpoint in sensitive_endpoints:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
 
         # Enforce HTTPS in production
         if app.config.get('APP_ENV') == 'production':
