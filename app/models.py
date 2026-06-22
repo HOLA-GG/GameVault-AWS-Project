@@ -363,7 +363,7 @@ def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[
     }
 
 
-def obtener_metricas_coleccion(user_id: str) -> Dict[str, Any]:
+def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any]:
     """Calcula métricas de la colección directamente en la base de datos (Bolt optimization)."""
     ensure_tables()
     session_factory = get_session_factory()
@@ -390,39 +390,41 @@ def obtener_metricas_coleccion(user_id: str) -> Dict[str, Any]:
             ).where(Game.user_id == user_id)
         ).first()
 
+        # Initialize base results with scalar metrics from the first query.
+        results = {
+            'total_games': metrics.total_games if metrics else 0,
+            'platforms_count': metrics.platforms_count if metrics else 0,
+            'recently_added': int(metrics.recently_added or 0) if metrics else 0,
+            'recently_updated': int(metrics.recently_updated or 0) if metrics else 0,
+            'recent_activity': 0,
+            'missing_images': int(metrics.missing_images or 0) if metrics else 0,
+            'favorites_count': int(metrics.favorites_count or 0) if metrics else 0,
+            'high_priority_count': int(metrics.high_priority_count or 0) if metrics else 0,
+            'stale_games': int(metrics.stale_games or 0) if metrics else 0,
+            'wishlist_count': int(metrics.wishlist_count or 0) if metrics else 0,
+            'backlog_count': int(metrics.backlog_count or 0) if metrics else 0,
+            'currently_playing_count': int(metrics.currently_playing_count or 0) if metrics else 0,
+            'average_rating': round(float(metrics.average_rating), 1) if metrics and metrics.average_rating is not None else None,
+            'dominant_platform': {'label': 'Sin juegos', 'count': 0},
+            'dominant_status': {'label': 'N/A', 'count': 0},
+            'dominant_category': {'label': 'Biblioteca', 'count': 0},
+            'last_updated_game': None,
+            'next_focus': None,
+            'filter_options': {'plataformas': [], 'estados': [], 'categorias': []}
+        }
+
+        if not full:
+            return results
+
         # Bolt optimization: Calculate recent activity from logs in a separate scalar query
         # to avoid complex joins that could impact performance on large datasets.
-        recent_activity = session.scalar(
+        results['recent_activity'] = session.scalar(
             select(func.count(AuditLog.audit_id))
             .where(AuditLog.user_id == user_id, AuditLog.timestamp >= recent_cutoff)
         ) or 0
 
         if not metrics or metrics.total_games == 0:
-            return {
-                'total_games': 0,
-                'platforms_count': 0,
-                'recently_added': 0,
-                'recently_updated': 0,
-                'recent_activity': recent_activity,
-                'missing_images': 0,
-                'favorites_count': 0,
-                'high_priority_count': 0,
-                'stale_games': 0,
-                'wishlist_count': 0,
-                'backlog_count': 0,
-                'currently_playing_count': 0,
-                'average_rating': None,
-                'dominant_platform': {'label': 'Sin juegos', 'count': 0},
-                'dominant_status': {'label': 'N/A', 'count': 0},
-                'dominant_category': {'label': 'Biblioteca', 'count': 0},
-                'last_updated_game': None,
-                'next_focus': None,
-                'filter_options': {
-                    'plataformas': [],
-                    'estados': [],
-                    'categorias': [],
-                }
-            }
+            return results
 
         # 2. Dominantes (Platform, Status, Category)
         def get_dominant(column):
@@ -438,6 +440,12 @@ def obtener_metricas_coleccion(user_id: str) -> Dict[str, Any]:
         dom_status = get_dominant(Game.estado)
         dom_category = get_dominant(Game.categoria)
 
+        results.update({
+            'dominant_platform': {'label': dom_platform[0] if dom_platform else 'Sin plataforma', 'count': dom_platform[1] if dom_platform else 0},
+            'dominant_status': {'label': dom_status[0] if dom_status else 'N/A', 'count': dom_status[1] if dom_status else 0},
+            'dominant_category': {'label': dom_category[0] if dom_category else 'Biblioteca', 'count': dom_category[1] if dom_category else 0},
+        })
+
         # 3. Last updated y Next focus
         last_updated = session.scalar(
             select(Game).where(Game.user_id == user_id).order_by(Game.updated_at.desc(), Game.created_at.desc()).limit(1)
@@ -449,55 +457,19 @@ def obtener_metricas_coleccion(user_id: str) -> Dict[str, Any]:
             .limit(1)
         )
 
-        # 4. Filter Options (Excluyendo valores por defecto para coincidir con la lógica previa)
-        plataformas = session.scalars(
-            select(func.distinct(Game.plataforma))
-            .where(Game.user_id == user_id, Game.plataforma.isnot(None), Game.plataforma != 'Sin plataforma')
-            .order_by(Game.plataforma)
-        ).all()
-        estados = session.scalars(
-            select(func.distinct(Game.estado))
-            .where(Game.user_id == user_id, Game.estado.isnot(None), Game.estado != 'N/A')
-            .order_by(Game.estado)
-        ).all()
-        categorias = session.scalars(
-            select(func.distinct(Game.categoria)).where(Game.user_id == user_id).order_by(Game.categoria)
-        ).all()
-
-        return {
-            'total_games': metrics.total_games,
-            'platforms_count': metrics.platforms_count,
-            'recently_added': int(metrics.recently_added or 0),
-            'recently_updated': int(metrics.recently_updated or 0),
-            'recent_activity': recent_activity,
-            'missing_images': int(metrics.missing_images or 0),
-            'favorites_count': int(metrics.favorites_count or 0),
-            'high_priority_count': int(metrics.high_priority_count or 0),
-            'stale_games': int(metrics.stale_games or 0),
-            'wishlist_count': int(metrics.wishlist_count or 0),
-            'backlog_count': int(metrics.backlog_count or 0),
-            'currently_playing_count': int(metrics.currently_playing_count or 0),
-            'average_rating': round(float(metrics.average_rating), 1) if metrics.average_rating is not None else None,
-            'dominant_platform': {
-                'label': dom_platform[0] if dom_platform else 'Sin plataforma',
-                'count': dom_platform[1] if dom_platform else 0
-            },
-            'dominant_status': {
-                'label': dom_status[0] if dom_status else 'N/A',
-                'count': dom_status[1] if dom_status else 0
-            },
-            'dominant_category': {
-                'label': dom_category[0] if dom_category else 'Biblioteca',
-                'count': dom_category[1] if dom_category else 0
-            },
+        results.update({
             'last_updated_game': game_to_dict(last_updated),
             'next_focus': game_to_dict(next_focus),
-            'filter_options': {
-                'plataformas': list(plataformas),
-                'estados': list(estados),
-                'categorias': list(categorias),
-            }
+        })
+
+        # 4. Filter Options (Excluyendo valores por defecto para coincidir con la lógica previa)
+        results['filter_options'] = {
+            'plataformas': list(session.scalars(select(func.distinct(Game.plataforma)).where(Game.user_id == user_id, Game.plataforma.isnot(None), Game.plataforma != 'Sin plataforma').order_by(Game.plataforma)).all()),
+            'estados': list(session.scalars(select(func.distinct(Game.estado)).where(Game.user_id == user_id, Game.estado.isnot(None), Game.estado != 'N/A').order_by(Game.estado)).all()),
+            'categorias': list(session.scalars(select(func.distinct(Game.categoria)).where(Game.user_id == user_id).order_by(Game.categoria)).all()),
         }
+
+        return results
 
 
 def reset_token_to_dict(item: PasswordResetToken | None) -> Optional[Dict[str, Any]]:
