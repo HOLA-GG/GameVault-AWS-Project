@@ -511,7 +511,10 @@ def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
     """Convierte filtros de fecha simple a datetime UTC."""
     if not value:
         return None
-    parsed = datetime.fromisoformat(value)
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     if end:
