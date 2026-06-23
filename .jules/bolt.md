@@ -87,3 +87,11 @@
 ## 2025-08-12 - Deferred Metadata Enrichment for Log Collections
 **Learning:** Eagerly serializing dates to ISO strings and assigning UI-specific metadata (like badge classes) for large audit log collections (N=500) creates significant $O(N)$ overhead in CPU and memory allocations. This is especially wasteful in views that subsequently group or paginate the data, as most enriched records are never rendered.
 **Action:** Implement a lazy enrichment pattern where the data layer returns raw objects (using native `datetime` for fast comparisons) and a separate enrichment helper is called only on the specific subset of records destined for the final view.
+
+## 2026-06-18 - Function Call Overhead (max vs if/else) in Hot Loops
+**Learning:** In a hot loop (N=1000), using the built-in `max(a, b)` function is significantly slower than an inline `a if a > b else b` comparison due to function call overhead. Benchmarks showed a ~35% improvement when inlining the logic.
+**Action:** Prefer inline comparisons over built-in aggregation functions like `max()` or `min()` inside large loops where performance is critical.
+
+## 2026-06-18 - Duplicate Keys in Dictionary Literals
+**Learning:** Duplicate keys in a dictionary literal (e.g., `{'k': v1, 'k': v2}`) cause the last value to silently overwrite previous ones. In `audit_log_to_dict`, this meant an intended optimization (lazy date formatting) was being bypassed because a redundant, non-lazy assignment appeared first in the literal.
+**Action:** Audit dictionary literals in hot paths for redundant keys that might defeat performance optimizations or cause subtle logic bugs.

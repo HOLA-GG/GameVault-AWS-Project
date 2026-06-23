@@ -460,7 +460,8 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
 
         # Bolt Optimization: Direct extraction of datetimes (already raw from data layer).
         dt_created = ensure_dt(juego.get('created_at'))
-        effective_dt = max(ensure_dt(juego.get('updated_at')), dt_created)
+        dt_updated = ensure_dt(juego.get('updated_at'))
+        effective_dt = dt_updated if dt_updated > dt_created else dt_created
 
         platform_counts[plataforma] += 1
         status_counts[estado] += 1

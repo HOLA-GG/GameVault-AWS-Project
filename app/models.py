@@ -498,7 +498,6 @@ def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optio
         'action': item.action,
         'action_name': item.action_name,
         'resource': item.resource,
-        'timestamp': as_iso(item.timestamp),
         'timestamp': as_iso(item.timestamp) if format_dates else item.timestamp,
         'ip_address': item.ip_address,
         'user_agent': item.user_agent,
