@@ -247,6 +247,18 @@
             });
         }
 
+        function setupAutoExpandingTextareas() {
+            document.querySelectorAll('textarea').forEach(el => {
+                const adjustHeight = () => {
+                    el.style.height = 'auto';
+                    el.style.height = `${el.scrollHeight}px`;
+                };
+                el.addEventListener('input', adjustHeight);
+                // Initial adjustment
+                adjustHeight();
+            });
+        }
+
         function setupRelativeTimes() {
             const locale = document.documentElement.lang || 'es';
             const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
@@ -367,6 +379,7 @@
 
             injectCsrfTokens();
             setupCharacterCounters();
+            setupAutoExpandingTextareas();
             setupRelativeTimes();
             setupFlashMessages();
             document.querySelectorAll('input[type="password"]').forEach(i => {
