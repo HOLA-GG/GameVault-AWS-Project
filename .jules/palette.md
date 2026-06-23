@@ -37,3 +37,7 @@
 ## 2026-06-20 - [Placeholder Aesthetic and Semantic Search]
 **Learning:** Generic "Missing" text placeholders (like "No cover") feel like broken features. Adding a subtle icon (e.g., 🖼️) and a light background tint transforms these into professional-looking "empty states." For search, linking shortcut hints to the input via `aria-describedby` and `aria-keyshortcuts` ensures both visual discoverability and programmatic accessibility.
 **Action:** Enhance text-only placeholders with iconography and background depth. Use standard ARIA attributes to connect keyboard shortcut hints with their target inputs.
+
+## 2026-06-23 - [Auto-expanding Textareas for Seamless Content Entry]
+**Learning:** For description or note fields in forms, a fixed-height textarea with internal scrollbars creates a cramped editing experience and hides content. Implementing auto-expansion based on `scrollHeight` allows the form to grow naturally with the content, improving readability and making the interface feel more responsive to user input. Disabling manual `resize: vertical` prevents users from accidentally breaking layouts while ensuring the field always fits its content.
+**Action:** For all multi-line text inputs, implement an auto-expansion helper that adjusts height on `input` and initialization, and pair it with `resize: none` and `overflow-y: hidden` for a polished look.
