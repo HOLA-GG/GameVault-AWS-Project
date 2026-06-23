@@ -82,3 +82,8 @@
 **Vulnerability:** Authenticated pages with sensitive user data could be stored in browser caches or shared proxies, and were vulnerable to cross-origin window leaks. Additionally, missing safe lookups on dictionary objects could cause 500 errors, impacting availability.
 **Learning:** Modern browsers require explicit COOP and Cache-Control headers to truly isolate authenticated sessions. Availability is a security concern; unhandled KeyErrors on data objects are a minor DoS vector.
 **Prevention:** Implement global response headers for security (COOP, X-Permitted-Cross-Domain-Policies) and specific "no-cache" rules for routes handling PII or administrative data. Always use `.get()` when processing data objects that might be inconsistent.
+
+## 2026-06-28 - Prevent Crash on Malformed Date Filters
+**Vulnerability:** Unhandled `ValueError` in `parse_date_filter` when processing malformed ISO date strings from query parameters.
+**Learning:** External inputs passed to standard library parsers (like `datetime.fromisoformat`) must be wrapped in error handling to prevent application crashes (500 errors) which can be used for minor DoS.
+**Prevention:** Always wrap date/number parsing of user-controlled strings in `try...except` blocks and return a safe default or `None`.
