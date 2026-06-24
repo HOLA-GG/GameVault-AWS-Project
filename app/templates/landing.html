@@ -265,6 +265,18 @@
                     }
                     paintStars(Number(this.dataset.rating));
                 });
+                star.addEventListener('focus', function () {
+                    if (isLocked) {
+                        return;
+                    }
+                    paintStars(Number(this.dataset.rating));
+                });
+                star.addEventListener('blur', function () {
+                    if (isLocked) {
+                        return;
+                    }
+                    paintStars(Number(card.dataset.currentRating || '0'));
+                });
                 star.addEventListener('click', function () {
                     const chosenRating = Number(this.dataset.rating);
                     if (isLocked || !subjectType || !subjectId) {
@@ -327,6 +339,7 @@
                 }
                 paintStars(Number(card.dataset.currentRating || '0'));
             });
+
         });
     });
 </script>
