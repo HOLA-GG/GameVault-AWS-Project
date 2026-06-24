@@ -927,7 +927,6 @@ header p {
     transform: translateY(-3px);
     border-color: var(--primary-color);
     background: rgba(var(--primary-color-rgb), 0.05);
-    outline: none;
 }
 
 .insight-tile strong {
@@ -1207,7 +1206,6 @@ kbd {
     transform: translateY(-5px);
     background: var(--background-darker);
     border-color: rgba(255, 255, 255, 0.16);
-    outline: none;
 }
 
 .feature-icon {
@@ -1430,11 +1428,17 @@ kbd {
 }
 
 .star-chip:hover,
-.star-chip.is-filled {
+.star-chip.is-filled,
+.star-chip:focus-visible {
     color: var(--star-active);
     border-color: rgba(var(--warning-color-rgb), 0.32);
     background: rgba(243, 156, 18, 0.08);
     transform: translateY(-1px);
+}
+
+.star-chip:focus-visible {
+    outline: 2px solid var(--star-active);
+    outline-offset: 2px;
 }
 
 .collection-rating-demo.is-loading .star-chip {
@@ -1792,7 +1796,6 @@ kbd {
     transform: translateY(-2px);
     filter: brightness(1.1);
     box-shadow: var(--shadow-sm);
-    outline: none;
 }
 
 .badge[href]:active {

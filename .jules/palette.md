@@ -41,3 +41,7 @@
 ## 2026-06-23 - [Auto-expanding Textareas for Seamless Content Entry]
 **Learning:** For description or note fields in forms, a fixed-height textarea with internal scrollbars creates a cramped editing experience and hides content. Implementing auto-expansion based on `scrollHeight` allows the form to grow naturally with the content, improving readability and making the interface feel more responsive to user input. Disabling manual `resize: vertical` prevents users from accidentally breaking layouts while ensuring the field always fits its content.
 **Action:** For all multi-line text inputs, implement an auto-expansion helper that adjusts height on `input` and initialization, and pair it with `resize: none` and `overflow-y: hidden` for a polished look.
+
+## 2025-06-24 - [Focus Indicators and Star Rating Accessibility]
+**Learning:** Overriding browser default focus indicators with `outline: none` without providing a high-contrast alternative is a common accessibility trap. Interactive elements like cards and badges need visible focus states to be usable by keyboard-only users.
+**Action:** Always ensure `:focus-visible` provides a clear visual indicator. For complex interactive components like star ratings, mouse-specific feedback (hover) should be mirrored with keyboard-specific feedback (focus).
