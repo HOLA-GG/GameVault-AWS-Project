@@ -432,7 +432,7 @@ def normalize_game_metadata(form) -> dict:
 
 
 def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
-    """Calcula métricas ligeras para el dashboard (Optimización Bolt: maintain contract & simplify)."""
+    """Calcula métricas ligeras para el dashboard (Optimización Bolt: maintain contract & inline logic)."""
     now = datetime.now(timezone.utc)
     recent_cutoff = now - timedelta(days=7)
     stale_cutoff = now - timedelta(days=30)
@@ -447,44 +447,44 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
     # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
     last_updated_game = juegos[0] if juegos else None
 
+    # Pre-cache functions/constants for hot loop
+    _ensure_dt = ensure_dt
+    _MIN_DATE = MIN_DATE
+
     for juego in juegos:
-        # Bolt Optimization: Unpack dictionary once per iteration to avoid redundant lookups.
-        # Use .get() to avoid KeyErrors (Security: prevent 500 errors on malformed data).
+        # Bolt Optimization: Unpack dictionary once per iteration.
         plataforma = juego.get('plataforma') or 'Sin plataforma'
         estado = juego.get('estado') or 'N/A'
         cat = juego.get('categoria') or 'Biblioteca'
-        img_url = juego.get('imagen_url')
-        es_favorito = juego.get('es_favorito')
-        calif = juego.get('calificacion')
         prioridad = juego.get('prioridad')
-
-        # Bolt Optimization: Direct extraction of datetimes (already raw from data layer).
-        dt_created = ensure_dt(juego.get('created_at'))
-        dt_updated = ensure_dt(juego.get('updated_at'))
-        effective_dt = dt_updated if dt_updated > dt_created else dt_created
 
         platform_counts[plataforma] += 1
         status_counts[estado] += 1
         category_counts[cat] += 1
 
-        if not img_url:
+        if not juego.get('imagen_url'):
             missing_images += 1
-        if es_favorito:
+        if juego.get('es_favorito'):
             favorites_count += 1
 
+        calif = juego.get('calificacion')
         if isinstance(calif, int):
             ratings_sum += calif
             ratings_count += 1
 
-        # Bolt Optimization: Nest dependent logic and consolidate date checks to minimize branching.
+        # Date metrics (Restored functionality with optimized inline processing)
+        dt_created = _ensure_dt(juego.get('created_at'))
+        dt_updated = _ensure_dt(juego.get('updated_at'))
+        # Optimized inline comparison instead of max()
+        effective_dt = dt_updated if dt_updated > dt_created else dt_created
+
         if prioridad == 'Alta':
             high_priority_count += 1
             if cat != 'Completado':
                 if next_focus_at is None or effective_dt < next_focus_at:
                     next_focus, next_focus_at = juego, effective_dt
 
-        # Ensure we only count valid dates (Optimización Bolt: maintain logic correctness)
-        if effective_dt != MIN_DATE:
+        if effective_dt != _MIN_DATE:
             if effective_dt < stale_cutoff:
                 stale_games += 1
             elif effective_dt >= recent_cutoff:
@@ -495,12 +495,21 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
 
     recent_activity = 0
     if activity_logs:
+        # Optimized O(N) loop with early break for sorted activity logs
         for log in activity_logs:
-            ts_iso = log.get('timestamp')
-            if ts_iso and ts_iso >= recent_cutoff_iso:
-                recent_activity += 1
-            else:
-                break
+            ts = log.get('timestamp')
+            if ts:
+                if ts.__class__ is str:
+                    if ts >= recent_cutoff_iso:
+                        recent_activity += 1
+                    else:
+                        break
+                else: # Assume datetime
+                    if ts.tzinfo is None: ts = ts.replace(tzinfo=timezone.utc)
+                    if ts >= recent_cutoff:
+                        recent_activity += 1
+                    else:
+                        break
 
     dominant_platform = platform_counts.most_common(1)[0] if platform_counts else ('Sin juegos', 0)
     dominant_status = status_counts.most_common(1)[0] if status_counts else ('N/A', 0)
