@@ -1900,6 +1900,17 @@ def admin_logs_export():
         'end_date': request.args.get('end_date', '').strip(),
     }
     csv_content = exportar_logs_csv(obtener_todos_logs(filters, limit=1000))
+
+    crear_log_audit(
+        user_id=session['user_id'],
+        action='ADMIN_ACTION',
+        resource='audit_logs',
+        details={'operation': 'export_logs', 'filters': filters},
+        ip_address=request.remote_addr or 'unknown',
+        user_agent=request.headers.get('User-Agent', 'unknown'),
+        status='SUCCESS',
+    )
+
     response = Response(csv_content, mimetype='text/csv')
     response.headers.set('Content-Disposition', 'attachment', filename='gamevault_audit_logs.csv')
     return response

@@ -87,3 +87,8 @@
 **Vulnerability:** Unhandled `ValueError` in `parse_date_filter` when processing malformed ISO date strings from query parameters.
 **Learning:** External inputs passed to standard library parsers (like `datetime.fromisoformat`) must be wrapped in error handling to prevent application crashes (500 errors) which can be used for minor DoS.
 **Prevention:** Always wrap date/number parsing of user-controlled strings in `try...except` blocks and return a safe default or `None`.
+
+## 2026-06-24 - Search Engine De-indexing of Sensitive Routes and Export Auditing
+**Vulnerability:** Sensitive authenticated pages (dashboard, profile, admin panels) could potentially be indexed by search engines if leaked, and administrative log exports lacked an audit trail.
+**Learning:** Defense-in-depth requires explicit signals to crawlers (X-Robots-Tag) for any route handling PII or system metadata. Furthermore, "who audits the auditors" is a key principle; exporting the audit log is a high-sensitivity action that must be logged.
+**Prevention:** Apply `X-Robots-Tag: noindex, nofollow` to all sensitive endpoints in a global response handler. Ensure all data export routes trigger an internal audit log entry including the request parameters.

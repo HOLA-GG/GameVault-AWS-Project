@@ -216,15 +216,17 @@ def create_app() -> Flask:
         # Prevent cross-origin window leaks (defense-in-depth for social/auth)
         response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
 
-        # Disable caching for sensitive authenticated routes (Security enhancement)
+        # Disable caching and indexing for sensitive authenticated routes (Security enhancement)
         sensitive_endpoints = {
             'main.dashboard', 'main.profile', 'main.admin_panel',
-            'main.admin_collections', 'main.admin_logs', 'main.editar_juego_ruta'
+            'main.admin_collections', 'main.admin_logs', 'main.editar_juego_ruta',
+            'main.admin_logs_export', 'main.admin_logs_clear'
         }
         if request.endpoint in sensitive_endpoints:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
+            response.headers['X-Robots-Tag'] = 'noindex, nofollow'
 
         # Enforce HTTPS in production
         if app.config.get('APP_ENV') == 'production':
