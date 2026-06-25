@@ -184,6 +184,15 @@ def require_admin(view):
             user = obtener_usuario_por_id(session.get('user_id'))
 
         if not user or user.get('role') != 'admin':
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='UNAUTHORIZED_ACCESS',
+                resource='admin_panel',
+                details={'target_url': request.url, 'email': session.get('email')},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
             flash('Acceso denegado. Solo administradores.', 'error')
             return redirect(url_for('main.dashboard'))
         return view(*args, **kwargs)
@@ -1632,6 +1641,15 @@ def verify_token():
 
     token_validation = validar_reset_token(token)
     if not token_validation['valid']:
+        crear_log_audit(
+            user_id=None,
+            action='TOKEN_VALIDATION_FAILED',
+            resource='auth',
+            details={'reason': token_validation.get('error'), 'context': 'verify_token'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash(token_validation['error'], 'error')
         return redirect(url_for('main.validate_token_page'))
 
@@ -1652,6 +1670,15 @@ def reset_password_with_email(token):
 
     token_validation = validar_reset_token(token)
     if not token_validation['valid']:
+        crear_log_audit(
+            user_id=None,
+            action='TOKEN_VALIDATION_FAILED',
+            resource='auth',
+            details={'reason': token_validation.get('error'), 'context': 'reset_password'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash(token_validation['error'], 'error')
         return redirect(url_for('main.forgot_password'))
 
