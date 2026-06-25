@@ -1132,48 +1132,50 @@ def obtener_resumenes_colecciones(
     offset: int | None = None,
     homepage_only: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Obtiene resúmenes de colecciones de usuarios (optimizado con agregación en SQL)."""
+    """Obtiene resúmenes de colecciones de usuarios (Optimización Bolt: Consolidar agregación)."""
     ensure_tables()
     session_factory = get_session_factory()
 
-    # Subquery para métricas de juegos
-    game_metrics = (
-        select(
-            Game.user_id,
-            func.count(Game.game_id).label('total_games'),
-            func.sum(case((Game.es_favorito.is_(True), 1), else_=0)).label('favorites_count'),
-            func.avg(Game.calificacion).label('average_rating'),
-            func.max(func.coalesce(Game.updated_at, Game.created_at)).label('last_updated_at'),
-        )
-        .group_by(Game.user_id)
-        .subquery()
-    )
-
     with session_factory() as session:
-        # Query principal uniendo User con el resumen de sus juegos
+        # Definimos las métricas directamente en la consulta principal para que el motor
+        # de la base de datos pueda filtrar usuarios antes de realizar agregaciones costosas.
+        total_games_expr = func.count(Game.game_id)
+        favorites_count_expr = func.coalesce(func.sum(case((Game.es_favorito.is_(True), 1), else_=0)), 0)
+        average_rating_expr = func.avg(Game.calificacion)
+        last_updated_expr = func.max(func.coalesce(Game.updated_at, Game.created_at))
+
         query = select(
             User.user_id,
             User.nombre,
             User.email,
             User.collection_visibility,
             User.homepage_showcase_opt_in,
-            func.coalesce(game_metrics.c.total_games, 0).label('total_games'),
-            func.coalesce(game_metrics.c.favorites_count, 0).label('favorites_count'),
-            game_metrics.c.average_rating,
-            game_metrics.c.last_updated_at,
-        ).outerjoin(game_metrics, User.user_id == game_metrics.c.user_id)
+            total_games_expr.label('total_games'),
+            favorites_count_expr.label('favorites_count'),
+            average_rating_expr.label('average_rating'),
+            last_updated_expr.label('last_updated_at'),
+        )
+
+        if homepage_only:
+            # Join interno para la portada: solo usuarios con al menos un juego.
+            query = query.join(Game, User.user_id == Game.user_id)
+            query = query.where(User.homepage_showcase_opt_in.is_(True))
+        else:
+            # Outer join para administración: incluir usuarios sin juegos.
+            query = query.outerjoin(Game, User.user_id == Game.user_id)
 
         if visibility:
             query = query.where(User.collection_visibility == visibility)
-        if homepage_only:
-            query = query.where(User.homepage_showcase_opt_in.is_(True), game_metrics.c.total_games > 0)
 
-        # Ordenamiento en SQL: Rating desc, Favoritos desc, Total desc, Actualización desc
+        # Agrupamos por el usuario para calcular las métricas por colección.
+        query = query.group_by(User.user_id)
+
+        # Ordenamiento en SQL: Rating desc, Favoritos desc, Total desc, Actualización desc.
         query = query.order_by(
-            func.coalesce(game_metrics.c.average_rating, -1).desc(),
-            func.coalesce(game_metrics.c.favorites_count, 0).desc(),
-            func.coalesce(game_metrics.c.total_games, 0).desc(),
-            game_metrics.c.last_updated_at.desc(),
+            func.coalesce(average_rating_expr, -1).desc(),
+            favorites_count_expr.desc(),
+            total_games_expr.desc(),
+            last_updated_expr.desc(),
         )
 
         if limit:

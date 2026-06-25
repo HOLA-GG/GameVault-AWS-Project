@@ -95,3 +95,7 @@
 ## 2026-06-18 - Duplicate Keys in Dictionary Literals
 **Learning:** Duplicate keys in a dictionary literal (e.g., `{'k': v1, 'k': v2}`) cause the last value to silently overwrite previous ones. In `audit_log_to_dict`, this meant an intended optimization (lazy date formatting) was being bypassed because a redundant, non-lazy assignment appeared first in the literal.
 **Action:** Audit dictionary literals in hot paths for redundant keys that might defeat performance optimizations or cause subtle logic bugs.
+
+## 2026-06-20 - Consolidating Aggregations for Filtered Collections
+**Learning:** Using an unfiltered subquery to aggregate metrics (like game counts) across an entire table before joining with a filtered user list is a major bottleneck as the dataset grows. Consolidating the aggregation directly into the main query with a `group_by` allows the database to push filters down, significantly reducing the number of rows processed.
+**Action:** Always prefer direct joins with `group_by` over unfiltered aggregation subqueries when the parent table has highly selective filters (e.g., visibility, opt-in status). Use inner joins for "must-have-content" views and outer joins for general administrative lists.
