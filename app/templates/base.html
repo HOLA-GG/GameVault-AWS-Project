@@ -377,6 +377,23 @@
                 }
             });
 
+            document.addEventListener('click', function(event) {
+                const copyBtn = event.target.closest('[data-copy]');
+                if (!copyBtn) return;
+
+                const textToCopy = copyBtn.getAttribute('data-copy');
+                if (!textToCopy) return;
+
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    copyBtn.classList.add('is-copied');
+                    setTimeout(() => {
+                        copyBtn.classList.remove('is-copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar al portapapeles', err);
+                });
+            });
+
             injectCsrfTokens();
             setupCharacterCounters();
             setupAutoExpandingTextareas();

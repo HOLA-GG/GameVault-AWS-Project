@@ -2245,3 +2245,11 @@ kbd {
 .pw-toggle:hover { color: var(--primary-color); }
 .pw-toggle svg { width: 20px; height: 20px; }
 .form-group input[type="password"] { padding-right: 44px; }
+
+/* ================================
+   COPY UTILITY
+   ================================ */
+.btn-copy{background:none;border:none;padding:0;font:inherit;color:inherit;cursor:pointer;position:relative;display:inline-flex;align-items:center;transition:color .2s}
+.btn-copy:hover{color:var(--primary-color)}
+.btn-copy::after{content:"¡Copiado!";position:absolute;bottom:100%;left:50%;transform:translateX(-50%) translateY(-5px);background:var(--primary-color);color:#fff;padding:4px 8px;border-radius:4px;font-size:.75rem;opacity:0;visibility:hidden;transition:all .2s;white-space:nowrap;z-index:10}
+.btn-copy.is-copied::after{opacity:1;visibility:visible;transform:translateX(-50%) translateY(-10px)}

@@ -37,7 +37,11 @@
                 <tbody>
                     {% for usuario in usuarios %}
                         <tr>
-                            <td>{{ usuario.email }}</td>
+                            <td>
+                                <button type="button" class="btn-copy" data-copy="{{ usuario.email }}" aria-label="Copiar correo {{ usuario.email }}">
+                                    {{ usuario.email }}
+                                </button>
+                            </td>
                             <td>
                                 <form action="{{ url_for('main.admin_editar_usuario', user_id=usuario.user_id) }}" method="POST" style="display:flex;gap:8px;align-items:center;">
                                     <input type="text" name="nombre" value="{{ usuario.nombre }}" required aria-label="Nombre de usuario para {{ usuario.email }}" maxlength="120">

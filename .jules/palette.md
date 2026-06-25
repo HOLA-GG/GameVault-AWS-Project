@@ -45,3 +45,7 @@
 ## 2025-06-24 - [Focus Indicators and Star Rating Accessibility]
 **Learning:** Overriding browser default focus indicators with `outline: none` without providing a high-contrast alternative is a common accessibility trap. Interactive elements like cards and badges need visible focus states to be usable by keyboard-only users.
 **Action:** Always ensure `:focus-visible` provides a clear visual indicator. For complex interactive components like star ratings, mouse-specific feedback (hover) should be mirrored with keyboard-specific feedback (focus).
+
+## 2026-06-25 - [Actionable Data via Copy-to-Clipboard]
+**Learning:** Administrators and power users frequently need to extract data (like emails or IDs) from lists for external use. Forcing manual selection and copying creates high friction. A "one-click" copy utility with instant visual feedback (like a CSS tooltip) significantly improves the perceived efficiency of the administrative workflow while maintaining a clean UI.
+**Action:** Identify high-frequency extraction targets in administrative or list views and evaluate if they should be enhanced with a "click-to-copy" utility.
