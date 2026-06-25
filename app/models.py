@@ -194,6 +194,9 @@ AUDIT_ACTIONS = {
     'CHANGE_PASSWORD': 'Cambio de contraseña',
     'FAILED_LOGIN': 'Login fallido',
     'RATE_SHOWCASE': 'Valoración de vitrina',
+    'UNAUTHORIZED_ACCESS': 'Acceso no autorizado',
+    'CSRF_FAILURE': 'Fallo de validación CSRF',
+    'TOKEN_VALIDATION_FAILED': 'Fallo de validación de token',
 }
 
 
@@ -878,7 +881,10 @@ def redact_sensitive_details(data: Any) -> Any:
     if not data:
         return data
 
-    sensitive_patterns = {'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential'}
+    sensitive_patterns = {
+        'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential',
+        'cookie', 'session', 'jwt', 'api', 'signature', 'private'
+    }
 
     if isinstance(data, dict):
         redacted_dict = {}

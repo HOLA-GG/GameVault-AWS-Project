@@ -282,7 +282,17 @@ def create_app() -> Flask:
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
+        from app.models import crear_log_audit
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
+        crear_log_audit(
+            user_id=None,
+            action='CSRF_FAILURE',
+            resource='web',
+            details={'reason': error.description, 'path': request.path},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return ('Tu formulario expiro o no paso la validacion de seguridad.', 400)
 
     from app.models import ensure_bootstrap_admin, init_database

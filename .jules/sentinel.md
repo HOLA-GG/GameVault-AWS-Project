@@ -92,3 +92,8 @@
 **Vulnerability:** Sensitive authenticated pages (dashboard, profile, admin panels) could potentially be indexed by search engines if leaked, and administrative log exports lacked an audit trail.
 **Learning:** Defense-in-depth requires explicit signals to crawlers (X-Robots-Tag) for any route handling PII or system metadata. Furthermore, "who audits the auditors" is a key principle; exporting the audit log is a high-sensitivity action that must be logged.
 **Prevention:** Apply `X-Robots-Tag: noindex, nofollow` to all sensitive endpoints in a global response handler. Ensure all data export routes trigger an internal audit log entry including the request parameters.
+
+## 2026-07-02 - Comprehensive Auditing of Security Failures and Enhanced Redaction
+**Vulnerability:** Lack of visibility into security-sensitive failures (CSRF, unauthorized access, token failures) and potential leakage of session/JWT metadata in logs.
+**Learning:** Generic auditing often misses failed security events, which are critical for detecting brute-force or exploitation attempts. Furthermore, common redaction patterns often miss modern session/token keywords like 'jwt' or 'session'.
+**Prevention:** Implement explicit audit logging for CSRF failures, unauthorized access attempts, and failed token validations. Expand redaction keywords to include 'cookie', 'session', 'jwt', 'api', 'signature', and 'private' to ensure defense-in-depth against data leakage in audit trails.
