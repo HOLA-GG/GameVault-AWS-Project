@@ -171,11 +171,22 @@ header {
 
 header h1 {
     font-size: 3rem;
-    color: var(--primary-color);
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     margin-bottom: 10px;
     letter-spacing: 1px;
-    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.logo-link {
+    color: var(--primary-color);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    text-decoration: none;
+    transition: color 0.3s ease, text-shadow 0.3s ease, transform 0.2s ease;
+    display: inline-block;
+}
+
+.logo-link:hover,
+.logo-link:focus-visible {
+    transform: scale(1.02);
+    filter: brightness(1.1);
 }
 
 header p {
@@ -923,10 +934,15 @@ header p {
 }
 
 .insight-tile:hover,
-.insight-tile:focus-visible {
+.insight-tile:focus-visible,
+.insight-tile.is-active {
     transform: translateY(-3px);
     border-color: var(--primary-color);
     background: rgba(var(--primary-color-rgb), 0.05);
+}
+
+.insight-tile.is-active {
+    box-shadow: 0 0 0 2px var(--primary-color);
 }
 
 .insight-tile strong {
@@ -1202,10 +1218,15 @@ kbd {
 }
 
 .feature-card:hover,
-.feature-card:focus-visible {
+.feature-card:focus-visible,
+.feature-card.is-active {
     transform: translateY(-5px);
     background: var(--background-darker);
-    border-color: rgba(255, 255, 255, 0.16);
+    border-color: var(--primary-color);
+}
+
+.feature-card.is-active {
+    box-shadow: 0 0 0 2px var(--primary-color), var(--shadow-lg);
 }
 
 .feature-icon {

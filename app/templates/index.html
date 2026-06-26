@@ -23,17 +23,20 @@
 <section class="section">
     <h2>Panel de colección</h2>
     <div class="features-grid">
-        <a href="{{ url_for('main.dashboard') }}" class="feature-card" aria-label="Ver toda la colección">
+        {% set total_active = not filters.q and not filters.plataforma and not filters.estado and not filters.categoria and not filters.favoritos %}
+        <a href="{{ url_for('main.dashboard') }}" class="feature-card {{ 'is-active' if total_active }}" aria-label="Ver toda la colección" {{ 'aria-current="true"'|safe if total_active }}>
             <span class="feature-icon" aria-hidden="true">🎮</span>
             <h4>{{ dashboard_insights.total_games }} juegos</h4>
             <p>Tu biblioteca actual ya cubre {{ dashboard_insights.platforms_count }} plataformas.</p>
         </a>
-        <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="feature-card" aria-label="Ver juegos favoritos">
+        {% set favs_active = filters.favoritos == 'solo' %}
+        <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="feature-card {{ 'is-active' if favs_active }}" aria-label="Ver juegos favoritos" {{ 'aria-current="true"'|safe if favs_active }}>
             <span class="feature-icon" aria-hidden="true">⭐</span>
             <h4>{{ dashboard_insights.favorites_count }} favoritos</h4>
             <p>{{ dashboard_insights.high_priority_count }} juegos están marcados con prioridad alta.</p>
         </a>
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=dashboard_insights.dominant_category.label, page=None)) }}" class="feature-card" aria-label="Ver juegos de la categoría {{ dashboard_insights.dominant_category.label }}">
+        {% set cat_active = filters.categoria == dashboard_insights.dominant_category.label %}
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=dashboard_insights.dominant_category.label, page=None)) }}" class="feature-card {{ 'is-active' if cat_active }}" aria-label="Ver juegos de la categoría {{ dashboard_insights.dominant_category.label }}" {{ 'aria-current="true"'|safe if cat_active }}>
             <span class="feature-icon" aria-hidden="true">🗂️</span>
             <h4>{{ dashboard_insights.dominant_category.label }}</h4>
             <p>Es la categoría dominante con {{ dashboard_insights.dominant_category.count }} juegos.</p>
@@ -45,15 +48,18 @@
         </div>
     </div>
     <div class="insight-strip">
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Wishlist', page=None)) }}" class="insight-tile" aria-label="Ver wishlist">
+        {% set wishlist_active = filters.categoria == 'Wishlist' %}
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Wishlist', page=None)) }}" class="insight-tile {{ 'is-active' if wishlist_active }}" aria-label="Ver wishlist" {{ 'aria-current="true"'|safe if wishlist_active }}>
             <strong>{{ dashboard_insights.wishlist_count }}</strong>
             <span>en wishlist</span>
         </a>
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Backlog', page=None)) }}" class="insight-tile" aria-label="Ver backlog">
+        {% set backlog_active = filters.categoria == 'Backlog' %}
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Backlog', page=None)) }}" class="insight-tile {{ 'is-active' if backlog_active }}" aria-label="Ver backlog" {{ 'aria-current="true"'|safe if backlog_active }}>
             <strong>{{ dashboard_insights.backlog_count }}</strong>
             <span>en backlog</span>
         </a>
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Jugando', page=None)) }}" class="insight-tile" aria-label="Ver juegos que estoy jugando ahora">
+        {% set playing_active = filters.categoria == 'Jugando' %}
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Jugando', page=None)) }}" class="insight-tile {{ 'is-active' if playing_active }}" aria-label="Ver juegos que estoy jugando ahora" {{ 'aria-current="true"'|safe if playing_active }}>
             <strong>{{ dashboard_insights.currently_playing_count }}</strong>
             <span>jugando ahora</span>
         </a>
