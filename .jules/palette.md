@@ -49,3 +49,7 @@
 ## 2026-06-25 - [Actionable Data via Copy-to-Clipboard]
 **Learning:** Administrators and power users frequently need to extract data (like emails or IDs) from lists for external use. Forcing manual selection and copying creates high friction. A "one-click" copy utility with instant visual feedback (like a CSS tooltip) significantly improves the perceived efficiency of the administrative workflow while maintaining a clean UI.
 **Action:** Identify high-frequency extraction targets in administrative or list views and evaluate if they should be enhanced with a "click-to-copy" utility.
+
+## 2025-02-05 - [Visual Context for Active Dashboard Filters]
+**Learning:** Dashboard metrics and overview cards often double as filter triggers. However, without visual feedback indicating which filter is currently active, users can lose context, especially when multiple overlapping filters are available. Adding an `.is-active` state to these cards/tiles provides immediate "You are here" orientation and visual confirmation of the applied filter, improving the exploratory UX.
+**Action:** When dashboard summary elements act as links to filtered views, always implement an active state that visually highlights the element (e.g., using borders or background shifts) and include `aria-current="true"` when its corresponding filter parameters match the current state.
