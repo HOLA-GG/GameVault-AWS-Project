@@ -99,3 +99,7 @@
 ## 2026-06-20 - Consolidating Aggregations for Filtered Collections
 **Learning:** Using an unfiltered subquery to aggregate metrics (like game counts) across an entire table before joining with a filtered user list is a major bottleneck as the dataset grows. Consolidating the aggregation directly into the main query with a `group_by` allows the database to push filters down, significantly reducing the number of rows processed.
 **Action:** Always prefer direct joins with `group_by` over unfiltered aggregation subqueries when the parent table has highly selective filters (e.g., visibility, opt-in status). Use inner joins for "must-have-content" views and outer joins for general administrative lists.
+
+## 2026-06-25 - Overhead of collections.Counter and .get() in Hot Loops
+**Learning:** In hot loops (N=5000), `collections.Counter` and dictionary `.get()` method calls introduce measurable overhead compared to plain dictionaries and bracket access `[]`. Additionally, `Counter.most_common(1)` is slower than `max(dict, key=dict.get)` for finding a single dominant element.
+**Action:** Use plain dictionaries for counting in performance-critical loops and prefer bracket access for keys guaranteed by the data layer. Use `max()` with a key function for $O(N)$ dominant element lookups instead of sorting-based methods.
