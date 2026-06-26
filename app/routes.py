@@ -742,6 +742,8 @@ def landing():
 def rate_showcase():
     """Permite valorar colecciones públicas o demo, una vez por IP y colección."""
     payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        payload = {}
     raw_subject_type = payload.get('subject_type')
     raw_subject_id = payload.get('subject_id')
 
