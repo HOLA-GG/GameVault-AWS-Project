@@ -57,6 +57,10 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Bolt Optimization: Constant for safe date comparisons.
+MIN_DATE = datetime(1, 1, 1, tzinfo=timezone.utc)
+
+
 def iso_now() -> str:
     """Serializa el tiempo actual en UTC."""
     return utcnow().isoformat()
@@ -349,6 +353,17 @@ def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[
     """Convierte un juego en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if game is None:
         return None
+
+    if format_dates:
+        cre, upd = as_iso(game.created_at), as_iso(game.updated_at)
+    else:
+        # Centralized normalization to UTC-aware datetimes for hot-loop efficiency.
+        # Fallback to MIN_DATE for safe comparisons in routes.
+        cre = game.created_at or MIN_DATE
+        upd = game.updated_at or MIN_DATE
+        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+
     return {
         'game_id': game.game_id,
         'user_id': game.user_id,
@@ -361,8 +376,8 @@ def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[
         'prioridad': game.prioridad,
         'calificacion': game.calificacion,
         'es_favorito': game.es_favorito,
-        'created_at': as_iso(game.created_at) if format_dates else game.created_at,
-        'updated_at': as_iso(game.updated_at) if format_dates else game.updated_at,
+        'created_at': cre,
+        'updated_at': upd,
     }
 
 
@@ -495,13 +510,21 @@ def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optio
     """Convierte un log en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if item is None:
         return None
+
+    if format_dates:
+        ts = as_iso(item.timestamp)
+    else:
+        # Centralized normalization to UTC-aware datetimes for hot-loop efficiency.
+        ts = item.timestamp or MIN_DATE
+        if ts.tzinfo is None: ts = ts.replace(tzinfo=timezone.utc)
+
     return {
         'audit_id': item.audit_id,
         'user_id': item.user_id,
         'action': item.action,
         'action_name': item.action_name,
         'resource': item.resource,
-        'timestamp': as_iso(item.timestamp) if format_dates else item.timestamp,
+        'timestamp': ts,
         'ip_address': item.ip_address,
         'user_agent': item.user_agent,
         'details': item.details or {},

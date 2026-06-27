@@ -468,7 +468,7 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         cat = juego['categoria'] or 'Biblioteca'
         prioridad = juego['prioridad']
 
-        # Manual increment avoids .get() and Counter call overhead.
+        # Bolt Optimization: Direct increments avoid .get() or Counter overhead.
         platform_counts[plataforma] = platform_counts.get(plataforma, 0) + 1
         status_counts[estado] = status_counts.get(estado, 0) + 1
         category_counts[cat] = category_counts.get(cat, 0) + 1
@@ -483,10 +483,10 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             ratings_sum += calif
             ratings_count += 1
 
-        # Date metrics (Restored functionality with optimized inline processing)
+        # Date metrics (Optimized: Rely on model layer for UTC-aware datetimes)
         dt_created = _ensure_dt(juego['created_at'])
         dt_updated = _ensure_dt(juego['updated_at'])
-        # Optimized inline comparison instead of max()
+        # Bolt Optimization: Inline effective date calculation.
         effective_dt = dt_updated if dt_updated > dt_created else dt_created
 
         if prioridad == 'Alta':
@@ -495,11 +495,12 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
                 if next_focus_at is None or effective_dt < next_focus_at:
                     next_focus, next_focus_at = juego, effective_dt
 
+        # Bolt Optimization: Nested branching for faster date checks.
         if effective_dt != _MIN_DATE:
-            if effective_dt < stale_cutoff:
-                stale_games += 1
-            elif effective_dt >= recent_cutoff:
+            if effective_dt >= recent_cutoff:
                 recently_updated += 1
+            elif effective_dt < stale_cutoff:
+                stale_games += 1
 
         if dt_created >= recent_cutoff:
             recently_added += 1
@@ -664,16 +665,16 @@ def filter_and_sort_games(juegos, filters):
         return filtered
 
     if sort_by == 'title_asc':
-        filtered.sort(key=lambda j: (j.get('titulo') or '').lower())
+        filtered.sort(key=lambda j: (j['titulo'] or '').lower())
     elif sort_by == 'title_desc':
-        filtered.sort(key=lambda j: (j.get('titulo') or '').lower(), reverse=True)
+        filtered.sort(key=lambda j: (j['titulo'] or '').lower(), reverse=True)
     elif sort_by == 'created_asc':
-        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')))
+        filtered.sort(key=lambda j: j['created_at'])
     elif sort_by == 'created_desc':
-        filtered.sort(key=lambda j: ensure_dt(j.get('created_at')), reverse=True)
+        filtered.sort(key=lambda j: j['created_at'], reverse=True)
     else:
-        # Bolt Optimization: Streamline effective update date calculation in sort key.
-        filtered.sort(key=lambda j: max(ensure_dt(j.get('updated_at')), ensure_dt(j.get('created_at'))), reverse=True)
+        # Bolt Optimization: Inline effective update date comparison in sort key to avoid max() overhead.
+        filtered.sort(key=lambda j: j['updated_at'] if j['updated_at'] > j['created_at'] else j['created_at'], reverse=True)
 
     return filtered
 
