@@ -883,7 +883,8 @@ def redact_sensitive_details(data: Any) -> Any:
 
     sensitive_patterns = {
         'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential',
-        'cookie', 'session', 'jwt', 'api', 'signature', 'private'
+        'cookie', 'session', 'jwt', 'api', 'signature', 'private',
+        'salt', 'otp', 'mfa', '2fa', 'certificate', 'nonce'
     }
 
     if isinstance(data, dict):
@@ -1368,12 +1369,13 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
         return {'success': False, 'duplicate': False, 'error': 'La valoración debe estar entre 1 y 5.'}
 
     session_factory = get_session_factory()
+    safe_ip = (ip_address or 'unknown')[:64]
     with session_factory() as session:
         existing = session.scalar(
             select(ShowcaseRating).where(
                 ShowcaseRating.subject_type == subject_type,
                 ShowcaseRating.subject_id == subject_id,
-                ShowcaseRating.ip_address == (ip_address or 'unknown'),
+                ShowcaseRating.ip_address == safe_ip,
             )
         )
         if existing is not None:
@@ -1391,7 +1393,7 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
                 rating_id=str(uuid.uuid4()),
                 subject_type=subject_type,
                 subject_id=subject_id,
-                ip_address=ip_address or 'unknown',
+                ip_address=safe_ip,
                 rating=rating,
                 created_at=utcnow(),
             )

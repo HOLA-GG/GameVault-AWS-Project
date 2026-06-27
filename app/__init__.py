@@ -233,7 +233,7 @@ def create_app() -> Flask:
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
 
         # Minimize attack surface by disabling unused browser features
-        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), hid=(), serial=()'
 
         # Harden CSP by restricting S3 access to the specific bucket host (Security enhancement)
         img_sources = ["'self'", "data:"]
