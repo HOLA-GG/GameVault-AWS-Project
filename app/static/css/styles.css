@@ -34,21 +34,51 @@
 
 /* Tema Claro (Light) */
 [data-theme="light"] {
-    --primary-color: #6c5ce7;
-    --primary-color-rgb: 108, 92, 231;
-    --primary-dark: #5649b8;
-    --secondary-color: #dfe6e9;
-    --background-dark: #f5f6fa;
-    --background-darker: #dfe6e9;
-    --text-primary: #2d3436;
-    --text-secondary: #636e72;
-    --border-color: #b2bec3;
+    --primary-color: #5c4cd1;
+    --primary-color-rgb: 92, 76, 209;
+    --primary-dark: #4a3ba3;
+    --secondary-color: #f1f2f6;
+    --background-dark: #f8f9fa;
+    --background-darker: #f1f2f6;
+    --text-primary: #1a1a1a;
+    --text-secondary: #4a4a4a;
+    --border-color: #d1d8e0;
     --card-bg: #ffffff;
-    --input-bg: #f5f6fa;
-    --electric-color: #6c5ce7;
-    --electric-glow: rgba(108, 92, 231, 0.5);
-    --star-active: #f4b400;
-    --star-inactive: rgba(45, 52, 54, 0.14);
+    --input-bg: #f8f9fa;
+    --electric-color: #5c4cd1;
+    --electric-glow: rgba(92, 76, 209, 0.3);
+    --star-active: #f39c12;
+    --star-inactive: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .badge-log-action {
+    background: rgba(92, 76, 209, 0.1);
+    color: #4a3ba3;
+    border-color: rgba(92, 76, 209, 0.25);
+}
+
+[data-theme="light"] .badge-log-resource {
+    background: #f1f2f6;
+    color: #2d3436;
+    border-color: #d1d8e0;
+}
+
+[data-theme="light"] .badge-log-success {
+    background: rgba(39, 174, 96, 0.12);
+    color: #1e8449;
+    border-color: rgba(39, 174, 96, 0.25);
+}
+
+[data-theme="light"] .badge-log-error {
+    background: rgba(192, 57, 43, 0.12);
+    color: #922b21;
+    border-color: rgba(192, 57, 43, 0.25);
+}
+
+[data-theme="light"] .badge-log-neutral {
+    background: rgba(211, 84, 0, 0.12);
+    color: #a04000;
+    border-color: rgba(211, 84, 0, 0.25);
 }
 
 /* Tema Gamer (Neon) */
@@ -1577,6 +1607,24 @@ kbd {
     transition: color 0.3s ease;
 }
 
+
+.admin-table th:nth-child(2),
+.admin-table td:nth-child(2) {
+    min-width: 160px;
+}
+
+.admin-table th:nth-child(5),
+.admin-table td:nth-child(5) {
+    min-width: 100px; }
+.admin-table th:nth-child(6), .admin-table td:nth-child(6) { min-width: 120px;
+}
+
+@media (max-width: 1100px) {
+    .log-explorer {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ================================
    RESPONSIVE DESIGN
    ================================ */
@@ -1784,6 +1832,7 @@ kbd {
 
 .badge {
     display: inline-flex;
+    white-space: nowrap;
     align-items: center;
     justify-content: center;
     gap: 6px;
@@ -1849,7 +1898,7 @@ kbd {
 }
 
 .table-container {
-    overflow: hidden;
+    overflow-x: auto;
     border-radius: var(--border-radius-md);
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.02);
@@ -2005,7 +2054,7 @@ kbd {
 }
 
 .log-activity-panel .admin-table td:first-child {
-    width: 18%;
+    min-width: 120px;
 }
 
 .log-activity-panel .admin-table td:last-child {
@@ -2219,7 +2268,7 @@ kbd {
 
 [data-theme="gamer"] .log-account-card .badge,
 [data-theme="gamer"] .admin-table .badge {
-    white-space: normal;
+    white-space: nowrap;
     text-align: left;
     justify-content: flex-start;
 }
