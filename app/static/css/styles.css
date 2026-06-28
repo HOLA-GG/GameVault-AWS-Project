@@ -2274,3 +2274,10 @@ kbd {
 .btn-copy:hover{color:var(--primary-color)}
 .btn-copy::after{content:"¡Copiado!";position:absolute;bottom:100%;left:50%;transform:translateX(-50%) translateY(-5px);background:var(--primary-color);color:#fff;padding:4px 8px;border-radius:4px;font-size:.75rem;opacity:0;visibility:hidden;transition:all .2s;white-space:nowrap;z-index:10}
 .btn-copy.is-copied::after{opacity:1;visibility:visible;transform:translateX(-50%) translateY(-10px)}
+
+/* ================================
+   PRIORITY COLORS
+   ================================ */
+.priority-alta { color: var(--danger-color); font-weight: 700; }
+.priority-media { color: var(--warning-color); font-weight: 700; }
+.priority-baja { color: var(--success-color); font-weight: 700; }
