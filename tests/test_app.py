@@ -169,6 +169,7 @@ def test_dashboard_redirects_admin_to_admin_panel(client):
 def test_dashboard_renders_games(monkeypatch, client):
     import app.routes as routes
 
+    from datetime import datetime, timezone
     monkeypatch.setattr(
         routes,
         'obtener_juegos_por_usuario',
@@ -185,8 +186,8 @@ def test_dashboard_renders_games(monkeypatch, client):
                 'calificacion': 9,
                 'es_favorito': True,
                 'imagen_url': 'https://example.com/zelda.jpg',
-                'created_at': '2026-03-01T00:00:00+00:00',
-                'updated_at': '2026-03-02T00:00:00+00:00',
+                'created_at': datetime(2026, 3, 1, tzinfo=timezone.utc),
+                'updated_at': datetime(2026, 3, 2, tzinfo=timezone.utc),
             }
         ],
     )
