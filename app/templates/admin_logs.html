@@ -127,7 +127,7 @@
                             <div class="log-account-card__top">
                                 <div class="log-account-link">
                                     <strong>{{ group.nombre or 'Cuenta sin nombre' }}</strong>
-                                    <span>{{ group.email or group.user_id }}</span>
+                                    <button type="button" class="btn-copy" data-copy="{{ group.email or group.user_id }}" aria-label="Copiar identificador">{{ group.email or group.user_id }}</button>
                                 </div>
                                 <span class="badge badge-log-neutral log-account-count">{{ group.events_count }} eventos</span>
                             </div>
@@ -148,10 +148,10 @@
                     <div class="log-group-header">
                         <div>
                             <h3>{{ selected_group.nombre or 'Cuenta sin nombre' }}</h3>
-                            <p>{{ selected_group.email or selected_group.user_id }}</p>
+                            <p><button type="button" class="btn-copy" data-copy="{{ selected_group.email or selected_group.user_id }}" aria-label="Copiar email">{{ selected_group.email or selected_group.user_id }}</button></p>
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                            <span class="badge badge-log-resource">{{ selected_group.user_id }}</span>
+                            <button type="button" class="badge badge-log-resource btn-copy" data-copy="{{ selected_group.user_id }}" aria-label="Copiar ID de usuario">{{ selected_group.user_id }}</button>
                             <span class="badge badge-log-neutral">{{ selected_group.events_count }} eventos</span>
                         </div>
                     </div>
@@ -199,7 +199,7 @@
                                         <td>
                                             <span class="badge {{ log.status_badge_class }}">{{ log.status }}</span>
                                         </td>
-                                        <td>{{ log.ip_address }}</td>
+                                        <td><button type="button" class="btn-copy" data-copy="{{ log.ip_address }}" aria-label="Copiar IP">{{ log.ip_address }}</button></td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
