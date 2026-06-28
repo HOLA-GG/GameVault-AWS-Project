@@ -7,7 +7,7 @@ import os
 import uuid
 from datetime import timedelta
 
-from flask import Flask, g, request
+from flask import Flask, g, request, session
 from flask_wtf.csrf import CSRFError
 from sentry_sdk import init as init_sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -285,7 +285,7 @@ def create_app() -> Flask:
         from app.models import crear_log_audit
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
         crear_log_audit(
-            user_id=None,
+            user_id=session.get('user_id'),
             action='CSRF_FAILURE',
             resource='web',
             details={'reason': error.description, 'path': request.path},

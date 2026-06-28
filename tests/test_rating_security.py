@@ -1,4 +1,5 @@
 import pytest
+import uuid
 from app.models import registrar_rating_showcase, ShowcaseRating, get_session_factory
 from sqlalchemy import select
 import sys
@@ -52,7 +53,7 @@ def test_rating_unique_constraint_enforcement(app):
     incluso si se intentara bypassear la lógica de verificación manual.
     """
     subject_type = "sample"
-    subject_id = "test-unique-col"
+    subject_id = f"test-unique-col-{uuid.uuid4()}"
     ip_address = "1.2.3.4"
     rating = 5
 
@@ -71,7 +72,6 @@ def test_rating_unique_constraint_enforcement(app):
         # 3. Forzar una inserción directa para probar la restricción de integridad de la DB
         # Simulamos una condición de carrera donde el manual check no ve el registro aún
         from sqlalchemy.exc import IntegrityError
-        import uuid
         from app.models import utcnow
 
         session_factory = get_session_factory()

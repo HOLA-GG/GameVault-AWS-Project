@@ -154,6 +154,15 @@ def require_login(view):
         # Real-time database validation to prevent stale sessions (Security enhancement)
         user = obtener_usuario_por_id(user_id)
         if not user or user.get('status') != 'active':
+            crear_log_audit(
+                user_id=user_id,
+                action='UNAUTHORIZED_ACCESS',
+                resource='auth',
+                details={'reason': 'user_inactive_or_not_found', 'target_url': request.url},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
             session.clear()
             flash('Tu sesión ha expirado o tu cuenta no está activa.', 'error')
             return redirect(url_for('main.login'))
@@ -162,6 +171,15 @@ def require_login(view):
         # We store a SHA256 of the password hash in the session to detect changes.
         current_pw_hash_gen = hashlib.sha256(user['password_hash'].encode('utf-8')).hexdigest()
         if session.get('_pw_hash') != current_pw_hash_gen:
+            crear_log_audit(
+                user_id=user_id,
+                action='UNAUTHORIZED_ACCESS',
+                resource='auth',
+                details={'reason': 'stale_password_hash', 'target_url': request.url},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
             session.clear()
             flash('Tu sesión ha sido invalidada por un cambio de seguridad. Inicia sesión de nuevo.', 'error')
             return redirect(url_for('main.login'))
