@@ -74,7 +74,7 @@
             <a href="{{ url_for('main.editar_juego_ruta', game_id=dashboard_insights.next_focus.game_id) }}" aria-label="Editar {{ dashboard_insights.next_focus.titulo }}" class="info-link">
                 {{ dashboard_insights.next_focus.titulo }}
             </a>
-            · {{ dashboard_insights.next_focus.categoria }} · prioridad {{ dashboard_insights.next_focus.prioridad|lower }}.
+            · {{ dashboard_insights.next_focus.categoria }} · prioridad <span class="priority-{{ dashboard_insights.next_focus.prioridad|lower }}">{{ dashboard_insights.next_focus.prioridad|lower }}</span>.
         </div>
     {% elif dashboard_insights.last_updated_game %}
         <p style="margin-top:18px;color:var(--text-secondary);">
@@ -275,7 +275,7 @@
                         <h3>{{ juego.titulo }}</h3>
                         <p class="game-description">{{ juego.descripcion }}</p>
                         <div class="game-meta">
-                            <span class="meta-item">Prioridad: {{ juego.prioridad or 'Media' }}</span>
+                            <span class="meta-item">Prioridad: <strong class="priority-{{ (juego.prioridad or 'Media')|lower }}">{{ juego.prioridad or 'Media' }}</strong></span>
                             <span class="meta-item">{% if juego.calificacion %}Tu nota: {{ juego.calificacion }}/10{% else %}Sin nota{% endif %}</span>
                             <span class="meta-item">Actualizado: <span data-timestamp="{{ juego.updated_at or juego.created_at or '' }}">{{ (juego.updated_at or juego.created_at or '')[:10] or 'sin fecha' }}</span></span>
                         </div>

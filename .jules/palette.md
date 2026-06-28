@@ -53,3 +53,7 @@
 ## 2025-02-05 - [Visual Context for Active Dashboard Filters]
 **Learning:** Dashboard metrics and overview cards often double as filter triggers. However, without visual feedback indicating which filter is currently active, users can lose context, especially when multiple overlapping filters are available. Adding an `.is-active` state to these cards/tiles provides immediate "You are here" orientation and visual confirmation of the applied filter, improving the exploratory UX.
 **Action:** When dashboard summary elements act as links to filtered views, always implement an active state that visually highlights the element (e.g., using borders or background shifts) and include `aria-current="true"` when its corresponding filter parameters match the current state.
+
+## 2024-05-15 - [Semantic Color-coding for Scannability]
+**Learning:** Using semantic color-coding (mapped to existing theme variables like `--danger-color`) for priority-based metadata significantly improves visual scannability of dashboards and lists. Combining color with bold text (`font-weight: 700`) ensures the emphasis is clear even for users with moderate vision impairment.
+**Action:** Identify text-based metadata with inherent severity or importance (e.g., priority, status, urgency) and apply semantic coloring that aligns with the application's established theme.
