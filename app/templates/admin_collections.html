@@ -61,7 +61,7 @@
                         <tr>
                             <td>
                                 <strong>{{ collection.owner_name }}</strong><br>
-                                <span>{{ collection.owner_email }}</span>
+                                <button type="button" class="btn-copy" data-copy="{{ collection.owner_email }}" aria-label="Copiar email">{{ collection.owner_email }}</button>
                             </td>
                             <td>
                                 <span class="badge {{ 'badge-public' if collection.collection_visibility == 'public' else 'badge-private' }}">
