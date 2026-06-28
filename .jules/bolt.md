@@ -103,3 +103,11 @@
 ## 2026-06-25 - Overhead of collections.Counter and .get() in Hot Loops
 **Learning:** In hot loops (N=5000), `collections.Counter` and dictionary `.get()` method calls introduce measurable overhead compared to plain dictionaries and bracket access `[]`. Additionally, `Counter.most_common(1)` is slower than `max(dict, key=dict.get)` for finding a single dominant element.
 **Action:** Use plain dictionaries for counting in performance-critical loops and prefer bracket access for keys guaranteed by the data layer. Use `max()` with a key function for $O(N)$ dominant element lookups instead of sorting-based methods.
+
+## 2025-05-23 - Micro-optimizations in Dashboard Insights Loop
+**Learning:** In hot loops (N=1000+), extracting helper functions to the module level and removing redundant normalization calls (like ) significantly reduces CPU overhead. Replacing  with  and using  over  checks further streamlines execution.
+**Action:** Always verify that the data layer provides normalized types to avoid redundant checks in view-layer loops. Move inner helper functions to module level to avoid re-definition overhead.
+
+## 2025-05-23 - Micro-optimizations in Dashboard Insights Loop
+**Learning:** In hot loops (N=1000+), extracting helper functions to the module level and removing redundant normalization calls (like ensure_dt) significantly reduces CPU overhead. Replacing .get() with if key in dict and using isinstance() over __class__ checks further streamlines execution.
+**Action:** Always verify that the data layer provides normalized types to avoid redundant checks in view-layer loops. Move inner helper functions to module level to avoid re-definition overhead.

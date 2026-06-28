@@ -458,6 +458,14 @@ def normalize_game_metadata(form) -> dict:
     }
 
 
+def _get_dominant_metric(d, default_label):
+    """Calcula el elemento dominante en un diccionario de conteo (Optimizado: O(N))."""
+    if not d:
+        return {'label': default_label, 'count': 0}
+    label = max(d, key=d.get)
+    return {'label': label, 'count': d[label]}
+
+
 def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | None = None) -> dict:
     """Calcula métricas ligeras para el dashboard (Optimización Bolt: plain dicts & fast access)."""
     now = datetime.now(timezone.utc)
@@ -475,8 +483,7 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
     # Database already orders by updated_at DESC, created_at DESC, so we get O(1) detection.
     last_updated_game = juegos[0] if juegos else None
 
-    # Pre-cache functions/constants for hot loop
-    _ensure_dt = ensure_dt
+    # Pre-cache constant for hot loop
     _MIN_DATE = MIN_DATE
 
     for juego in juegos:
@@ -487,9 +494,20 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         prioridad = juego['prioridad']
 
         # Bolt Optimization: Direct increments avoid .get() or Counter overhead.
-        platform_counts[plataforma] = platform_counts.get(plataforma, 0) + 1
-        status_counts[estado] = status_counts.get(estado, 0) + 1
-        category_counts[cat] = category_counts.get(cat, 0) + 1
+        if plataforma in platform_counts:
+            platform_counts[plataforma] += 1
+        else:
+            platform_counts[plataforma] = 1
+
+        if estado in status_counts:
+            status_counts[estado] += 1
+        else:
+            status_counts[estado] = 1
+
+        if cat in category_counts:
+            category_counts[cat] += 1
+        else:
+            category_counts[cat] = 1
 
         if not juego['imagen_url']:
             missing_images += 1
@@ -497,13 +515,17 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             favorites_count += 1
 
         calif = juego['calificacion']
-        if isinstance(calif, int):
+        # Bolt Optimization: Fast non-null check for integers guaranteed by data layer.
+        if calif is not None:
             ratings_sum += calif
             ratings_count += 1
 
         # Date metrics (Optimized: Rely on model layer for UTC-aware datetimes)
-        dt_created = _ensure_dt(juego['created_at'])
-        dt_updated = _ensure_dt(juego['updated_at'])
+        # Bolt Optimization: Remove redundant _ensure_dt() calls as game_to_dict(format_dates=False)
+        # already provides UTC-aware datetimes or MIN_DATE.
+        dt_created = juego['created_at']
+        dt_updated = juego['updated_at']
+
         # Bolt Optimization: Inline effective date calculation.
         effective_dt = dt_updated if dt_updated > dt_created else dt_created
 
@@ -529,7 +551,8 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         for log in activity_logs:
             ts = log.get('timestamp')
             if ts:
-                if ts.__class__ is str:
+                # Bolt Optimization: Idiomatic and faster isinstance check.
+                if isinstance(ts, str):
                     if ts >= recent_cutoff_iso:
                         recent_activity += 1
                     else:
@@ -541,15 +564,10 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
                     else:
                         break
 
-    # Bolt Optimization: Efficient max() for plain dicts instead of O(N log N) most_common(1).
-    def _get_dominant(d, default_label):
-        if not d: return {'label': default_label, 'count': 0}
-        label = max(d, key=d.get)
-        return {'label': label, 'count': d[label]}
-
-    dominant_platform = _get_dominant(platform_counts, 'Sin juegos')
-    dominant_status = _get_dominant(status_counts, 'N/A')
-    dominant_category = _get_dominant(category_counts, 'Biblioteca')
+    # Bolt Optimization: Use module-level helper to avoid re-definition overhead.
+    dominant_platform = _get_dominant_metric(platform_counts, 'Sin juegos')
+    dominant_status = _get_dominant_metric(status_counts, 'N/A')
+    dominant_category = _get_dominant_metric(category_counts, 'Biblioteca')
 
     return {
         'total_games': len(juegos),
