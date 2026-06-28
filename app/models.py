@@ -959,7 +959,28 @@ def crear_log_audit(
     )
     with session_factory() as session:
         session.add(item)
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError:
+            # Fallback for deleted users (Security resilience)
+            session.rollback()
+            # item is expired after rollback, we must create a new one to retry safely
+            safe_details = redact_sensitive_details(details) or {}
+            safe_details['attempted_user_id'] = user_id
+            item = AuditLog(
+                audit_id=str(uuid.uuid4()),
+                user_id=None,
+                action=safe_action,
+                action_name=derived_name,
+                resource=safe_resource,
+                timestamp=utcnow(),
+                ip_address=(ip_address or 'unknown')[:64],
+                user_agent=(user_agent or 'unknown')[:500],
+                details=safe_details,
+                status=status[:20],
+            )
+            session.add(item)
+            session.commit()
         return {'success': True, 'audit_id': item.audit_id, 'error': None}
 
 

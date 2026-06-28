@@ -97,3 +97,8 @@
 **Vulnerability:** Lack of visibility into security-sensitive failures (CSRF, unauthorized access, token failures) and potential leakage of session/JWT metadata in logs.
 **Learning:** Generic auditing often misses failed security events, which are critical for detecting brute-force or exploitation attempts. Furthermore, common redaction patterns often miss modern session/token keywords like 'jwt' or 'session'.
 **Prevention:** Implement explicit audit logging for CSRF failures, unauthorized access attempts, and failed token validations. Expand redaction keywords to include 'cookie', 'session', 'jwt', 'api', 'signature', and 'private' to ensure defense-in-depth against data leakage in audit trails.
+
+## 2026-07-05 - Audit Logging Resilience against Foreign Key Violations
+**Vulnerability:** Potential loss of security audit logs when the associated user is deleted or the session contains a stale user reference.
+**Learning:** Database constraints (like foreign keys) can cause audit logging to fail silently or crash the request if the referenced entity (e.g., user_id) is missing. This results in the loss of critical traceability exactly when it might be needed most (e.g., during an account deletion or takeover event).
+**Prevention:** Implement a fallback mechanism in the audit logging utility that catches IntegrityErrors, rolls back the session, and retries the log entry with a null reference while preserving the original ID in the metadata/details field.
