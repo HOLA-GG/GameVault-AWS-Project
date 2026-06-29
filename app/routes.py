@@ -7,7 +7,6 @@ import hashlib
 import math
 import os
 import uuid
-from collections import Counter
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import unquote, urljoin, urlparse
@@ -204,10 +203,8 @@ def require_admin(view):
     @wraps(view)
     @require_login
     def wrapped(*args, **kwargs):
-        # Use g.current_user cached by require_login to avoid redundant DB queries
-        user = getattr(g, 'current_user', None)
-        if not user:
-            user = obtener_usuario_por_id(session.get('user_id'))
+        # Bolt Optimization: g.current_user is already populated by @require_login.
+        user = g.current_user
 
         if not user or user.get('role') != 'admin':
             log_url = request.url
@@ -673,43 +670,43 @@ def filter_and_sort_games(juegos, filters):
     favoritos = filters.get('favoritos', '')
     sort_by = filters.get('sort', 'updated_desc')
 
-    # Short-circuit: if no filters and default sort, return as is (DB already sorted it).
-    if not any((query, plataforma, estado, categoria, favoritos)) and sort_by == 'updated_desc':
-        return juegos
-
-    filtered = []
-    for juego in juegos:
-        # Bolt Optimization: Fast bracket access for keys guaranteed by game_to_dict.
-        j_plataforma = juego['plataforma'] or ''
-        j_estado = juego['estado'] or ''
-        j_categoria = juego['categoria'] or ''
-        j_es_favorito = juego['es_favorito']
-
-        # Chequeos baratos primero para fallar rápido antes de construir el haystack
-        if plataforma and j_plataforma != plataforma:
-            continue
-        if estado and j_estado != estado:
-            continue
-        if categoria and j_categoria != categoria:
-            continue
-        if favoritos == 'solo' and not j_es_favorito:
-            continue
-
-        # La búsqueda por texto es la operación más costosa, optimizada con short-circuit.
-        # Bolt Optimization: Prioritize likely matches (title) and short strings before long descriptions.
-        if query:
-            if not (
-                query in (juego['titulo'] or '').lower() or
-                query in j_plataforma.lower() or
-                query in j_estado.lower() or
-                query in (juego['descripcion'] or '').lower()
-            ):
+    # Short-circuit: if no filters, avoid the O(N) loop and use list() for efficient shallow copy if sorting is needed.
+    if not any((query, plataforma, estado, categoria, favoritos)):
+        if sort_by == 'updated_desc':
+            # Already ordered by DB (updated_at desc, created_at desc)
+            return juegos
+        filtered = list(juegos)
+    else:
+        filtered = []
+        for juego in juegos:
+            # Chequeos baratos primero para fallar rápido antes de construir el haystack
+            # Bolt Optimization: Access properties only when needed to skip redundant assignments.
+            if plataforma and (juego['plataforma'] or '') != plataforma:
+                continue
+            if estado and (juego['estado'] or '') != estado:
+                continue
+            if categoria and (juego['categoria'] or '') != categoria:
+                continue
+            if favoritos == 'solo' and not juego['es_favorito']:
                 continue
 
-        filtered.append(juego)
+            # La búsqueda por texto es la operación más costosa, optimizada con short-circuit.
+            # Bolt Optimization: Prioritize likely matches (title) and short strings before long descriptions.
+            if query:
+                j_plataforma = juego['plataforma'] or ''
+                j_estado = juego['estado'] or ''
+                if not (
+                    query in (juego['titulo'] or '').lower() or
+                    query in j_plataforma.lower() or
+                    query in j_estado.lower() or
+                    query in (juego['descripcion'] or '').lower()
+                ):
+                    continue
+
+            filtered.append(juego)
 
     if sort_by == 'updated_desc':
-        # Already ordered by DB (updated_at desc, created_at desc)
+        # Already ordered by DB or no filters applied
         return filtered
 
     if sort_by == 'title_asc':

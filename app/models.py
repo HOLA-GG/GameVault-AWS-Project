@@ -944,6 +944,9 @@ def crear_log_audit(
     safe_resource = (resource or 'UNKNOWN')[:80]
     derived_name = AUDIT_ACTIONS.get(action, safe_action)[:120]
 
+    # Bolt Optimization: Redact sensitive details once to avoid redundant recursive calls in the retry block.
+    safe_details = redact_sensitive_details(details) or {}
+
     item = AuditLog(
         audit_id=str(uuid.uuid4()),
         user_id=user_id,
@@ -954,7 +957,7 @@ def crear_log_audit(
         # Ensure fields fit database constraints (Security hardening)
         ip_address=(ip_address or 'unknown')[:64],
         user_agent=(user_agent or 'unknown')[:500],
-        details=redact_sensitive_details(details),
+        details=safe_details,
         status=status[:20],
     )
     with session_factory() as session:
@@ -965,7 +968,7 @@ def crear_log_audit(
             # Fallback for deleted users (Security resilience)
             session.rollback()
             # item is expired after rollback, we must create a new one to retry safely
-            safe_details = redact_sensitive_details(details) or {}
+            # Bolt Optimization: Reuse already redacted details.
             safe_details['attempted_user_id'] = user_id
             item = AuditLog(
                 audit_id=str(uuid.uuid4()),

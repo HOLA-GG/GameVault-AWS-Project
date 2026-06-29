@@ -49,6 +49,10 @@
 **Learning:** Performing a standalone `COUNT` query followed by a `GROUP BY` query on the same table is often redundant if the grouped results cover all possible values. Summing the grouped counts in Python saves a database round-trip without compromising data accuracy.
 **Action:** Always check if a total count can be derived from existing grouped aggregations in the same transaction to reduce database latency.
 
+## 2025-05-23 - Short-circuiting Unfiltered Collections
+**Learning:** Even an optimized O(N) loop adds measurable overhead for large collections when no filtering is required. Short-circuiting to `list(items)` for a shallow copy before sorting is significantly faster than an iterative `append` loop. Additionally, deferring property extraction (like `juego['plataforma']`) to inside conditional blocks avoids thousands of redundant assignments in hot paths.
+**Action:** Implement explicit short-circuits for "all" views and use native constructors for shallow copies when only sorting is needed.
+
 ## 2026-06-15 - Missing Indexes on Frequently Queried Fields
 **Learning:** Tables like `users` and `games` that grow significantly over time cause query latency to increase linearly (O(N)) if fields used in `WHERE` or `ORDER BY` lack indexes.
 **Action:** Add `index=True` to core model fields (e.g., `visibility`, `created_at`, `updated_at`) and ensure `ensure_schema_compatibility` includes idempotent SQL (`CREATE INDEX IF NOT EXISTS`) to optimize existing production environments.
