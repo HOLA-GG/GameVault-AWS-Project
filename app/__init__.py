@@ -220,7 +220,8 @@ def create_app() -> Flask:
         sensitive_endpoints = {
             'main.dashboard', 'main.profile', 'main.admin_panel',
             'main.admin_collections', 'main.admin_logs', 'main.editar_juego_ruta',
-            'main.admin_logs_export', 'main.admin_logs_clear'
+            'main.admin_logs_export', 'main.admin_logs_clear',
+            'main.forgot_password', 'main.reset_password_with_email'
         }
         if request.endpoint in sensitive_endpoints:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
@@ -284,11 +285,16 @@ def create_app() -> Flask:
     def handle_csrf_error(error):
         from app.models import crear_log_audit
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
+
+        log_path = request.path
+        if request.endpoint == 'main.reset_password_with_email':
+            log_path = '/reset-password/[REDACTED]'
+
         crear_log_audit(
             user_id=session.get('user_id'),
             action='CSRF_FAILURE',
             resource='web',
-            details={'reason': error.description, 'path': request.path},
+            details={'reason': error.description, 'path': log_path},
             ip_address=request.remote_addr or 'unknown',
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
