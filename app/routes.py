@@ -154,11 +154,15 @@ def require_login(view):
         # Real-time database validation to prevent stale sessions (Security enhancement)
         user = obtener_usuario_por_id(user_id)
         if not user or user.get('status') != 'active':
+            log_url = request.url
+            if request.endpoint == 'main.reset_password_with_email':
+                log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
+
             crear_log_audit(
                 user_id=user_id,
                 action='UNAUTHORIZED_ACCESS',
                 resource='auth',
-                details={'reason': 'user_inactive_or_not_found', 'target_url': request.url},
+                details={'reason': 'user_inactive_or_not_found', 'target_url': log_url},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
@@ -171,11 +175,15 @@ def require_login(view):
         # We store a SHA256 of the password hash in the session to detect changes.
         current_pw_hash_gen = hashlib.sha256(user['password_hash'].encode('utf-8')).hexdigest()
         if session.get('_pw_hash') != current_pw_hash_gen:
+            log_url = request.url
+            if request.endpoint == 'main.reset_password_with_email':
+                log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
+
             crear_log_audit(
                 user_id=user_id,
                 action='UNAUTHORIZED_ACCESS',
                 resource='auth',
-                details={'reason': 'stale_password_hash', 'target_url': request.url},
+                details={'reason': 'stale_password_hash', 'target_url': log_url},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
@@ -202,11 +210,15 @@ def require_admin(view):
             user = obtener_usuario_por_id(session.get('user_id'))
 
         if not user or user.get('role') != 'admin':
+            log_url = request.url
+            if request.endpoint == 'main.reset_password_with_email':
+                log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
+
             crear_log_audit(
                 user_id=session.get('user_id'),
                 action='UNAUTHORIZED_ACCESS',
                 resource='admin_panel',
-                details={'target_url': request.url, 'email': session.get('email')},
+                details={'target_url': log_url, 'email': session.get('email')},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
