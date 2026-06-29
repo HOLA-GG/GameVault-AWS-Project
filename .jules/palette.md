@@ -57,3 +57,7 @@
 ## 2024-05-15 - [Semantic Color-coding for Scannability]
 **Learning:** Using semantic color-coding (mapped to existing theme variables like `--danger-color`) for priority-based metadata significantly improves visual scannability of dashboards and lists. Combining color with bold text (`font-weight: 700`) ensures the emphasis is clear even for users with moderate vision impairment.
 **Action:** Identify text-based metadata with inherent severity or importance (e.g., priority, status, urgency) and apply semantic coloring that aligns with the application's established theme.
+
+## 2025-02-13 - [Real-time Visual Feedback for Password Complexity]
+**Learning:** For security-sensitive inputs like passwords, providing real-time visual feedback (a strength meter) transforms a "blind" requirement into a helpful guide. Using a multi-point scoring system (length, variety) helps users set stronger passwords without frustration. Initializing the meter on page load is crucial for pre-filled or recovered forms to avoid a "stale" UI state.
+**Action:** Always implement a visual complexity meter for password creation/reset fields. Ensure the logic initializes on load to handle pre-filled values and uses `aria-live="polite"` for accessible textual feedback.
