@@ -298,6 +298,56 @@
             });
         }
 
+        function setupPasswordStrength() {
+            document.querySelectorAll('input[type="password"]').forEach(input => {
+                const group = input.closest('.form-group');
+                if (!group) return;
+                const meter = group.querySelector('.strength-meter');
+                const bar = group.querySelector('.strength-meter-bar');
+                const text = group.querySelector('.strength-text');
+
+                if (!meter || !bar || !text) return;
+
+                const update = () => {
+                    const val = input.value;
+                    if (!val) {
+                        meter.style.display = 'none';
+                        text.textContent = '';
+                        return;
+                    }
+
+                    meter.style.display = 'block';
+                    let score = 0;
+                    if (val.length >= 8) score++;
+                    if (/[A-Z]/.test(val)) score++;
+                    if (/[a-z]/.test(val)) score++;
+                    if (/[0-9]/.test(val)) score++;
+                    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+                    const width = Math.min(100, (score / 5) * 100);
+                    bar.style.width = `${width}%`;
+
+                    bar.classList.remove('is-weak', 'is-medium', 'is-strong');
+                    text.classList.remove('is-weak', 'is-medium', 'is-strong');
+                    if (score <= 2) {
+                        bar.classList.add('is-weak');
+                        text.classList.add('is-weak');
+                        text.textContent = 'Contraseña débil';
+                    } else if (score <= 4) {
+                        bar.classList.add('is-medium');
+                        text.classList.add('is-medium');
+                        text.textContent = 'Contraseña media';
+                    } else {
+                        bar.classList.add('is-strong');
+                        text.classList.add('is-strong');
+                        text.textContent = 'Contraseña fuerte';
+                    }
+                };
+                input.addEventListener('input', update);
+                update();
+            });
+        }
+
         function setupFlashMessages() {
             document.querySelectorAll('.flash').forEach(flash => {
                 const closeBtn = document.createElement('button');
@@ -400,6 +450,7 @@
 
             injectCsrfTokens();
             setupCharacterCounters();
+            setupPasswordStrength();
             setupAutoExpandingTextareas();
             setupRelativeTimes();
             setupFlashMessages();

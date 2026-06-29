@@ -2317,6 +2317,45 @@ kbd {
 .form-group input[type="password"] { padding-right: 44px; }
 
 /* ================================
+   PASSWORD STRENGTH METER
+   ================================ */
+.strength-meter {
+    height: 6px;
+    width: 100%;
+    background: var(--background-darker);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    margin-top: 10px;
+    overflow: hidden;
+    display: none;
+}
+
+.strength-meter-bar {
+    height: 100%;
+    width: 0;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.strength-meter-bar.is-weak { background-color: #ff4757; }
+.strength-meter-bar.is-medium { background-color: #ffa502; }
+.strength-meter-bar.is-strong { background-color: #2ed573; }
+
+.strength-text {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.strength-text.is-weak { color: #d63031; }
+.strength-text.is-medium { color: #e67e22; }
+.strength-text.is-strong { color: #27ae60; }
+
+[data-theme="dark"] .strength-text.is-weak { color: #ff6b81; }
+[data-theme="dark"] .strength-text.is-medium { color: #eccc68; }
+[data-theme="dark"] .strength-text.is-strong { color: #7bed9f; }
+
+/* ================================
    COPY UTILITY
    ================================ */
 .btn-copy{background:none;border:none;padding:0;font:inherit;color:inherit;cursor:pointer;position:relative;display:inline-flex;align-items:center;transition:color .2s}
