@@ -102,3 +102,8 @@
 **Vulnerability:** Potential loss of security audit logs when the associated user is deleted or the session contains a stale user reference.
 **Learning:** Database constraints (like foreign keys) can cause audit logging to fail silently or crash the request if the referenced entity (e.g., user_id) is missing. This results in the loss of critical traceability exactly when it might be needed most (e.g., during an account deletion or takeover event).
 **Prevention:** Implement a fallback mechanism in the audit logging utility that catches IntegrityErrors, rolls back the session, and retries the log entry with a null reference while preserving the original ID in the metadata/details field.
+
+## 2026-06-30 - Audit Trail Persistence and SQLite Integrity
+**Vulnerability:** Audit logs were purged upon user deletion due to SQLAlchemy cascade settings, and SQLite foreign key constraints were not enforced by default.
+**Learning:** Default SQLAlchemy relationships with `cascade='all, delete-orphan'` will override database-level `SET NULL` behaviors during session-based deletions. Furthermore, SQLite requires an explicit `PRAGMA foreign_keys=ON` to honor `ON DELETE` constraints.
+**Prevention:** Remove delete cascades from historical/audit relationships. Implement a global `connect` event listener for the SQLAlchemy Engine to ensure SQLite integrity is always active in dev/test environments.
