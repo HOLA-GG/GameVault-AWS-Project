@@ -29,11 +29,13 @@ from sqlalchemy import (
     case,
     create_engine,
     delete,
+    event,
     func,
     inspect,
     select,
     text,
 )
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -115,7 +117,7 @@ class User(Base):
 
     games: Mapped[List['Game']] = relationship(cascade='all, delete-orphan', back_populates='user')
     reset_tokens: Mapped[List['PasswordResetToken']] = relationship(cascade='all, delete-orphan', back_populates='user')
-    audit_logs: Mapped[List['AuditLog']] = relationship(cascade='all, delete-orphan', back_populates='user')
+    audit_logs: Mapped[List['AuditLog']] = relationship(back_populates='user')
 
 
 class Game(Base):
@@ -202,6 +204,15 @@ AUDIT_ACTIONS = {
     'CSRF_FAILURE': 'Fallo de validación CSRF',
     'TOKEN_VALIDATION_FAILED': 'Fallo de validación de token',
 }
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Habilita claves foráneas en SQLite para asegurar la integridad referencial (Seguridad)."""
+    if DATABASE_URL.startswith('sqlite'):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 def get_engine():
