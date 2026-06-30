@@ -48,6 +48,15 @@ STORAGE_BACKEND = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
 LOCAL_UPLOAD_DIR = os.environ.get('LOCAL_UPLOAD_DIR', os.path.join(os.path.dirname(__file__), 'static', 'uploads'))
 LOCAL_UPLOAD_URL_PATH = os.environ.get('LOCAL_UPLOAD_URL_PATH', '/static/uploads').rstrip('/')
 
+# Bolt Optimization: Pre-compiled regex and constants to reduce hot-path allocations.
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+_SENSITIVE_PATTERNS = {
+    'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential',
+    'cookie', 'session', 'jwt', 'api', 'signature', 'private',
+    'salt', 'otp', 'mfa', '2fa', 'certificate', 'nonce'
+}
+_RISKY_CSV_CHARS = ('=', '+', '-', '@', '|')
+
 
 def hash_token(token: str) -> str:
     """Genera un hash seguro para tokens de un solo uso (SHA-256)."""
@@ -562,8 +571,8 @@ def validar_email(email):
     """Valida el formato y longitud del email (max 255)."""
     if not email or len(email) > 255:
         return False
-    patron = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(patron, email) is not None
+    # Bolt Optimization: Use pre-compiled regex.
+    return _EMAIL_RE.match(email) is not None
 
 
 def validar_telefono(telefono):
@@ -915,17 +924,11 @@ def redact_sensitive_details(data: Any) -> Any:
     if not data:
         return data
 
-    sensitive_patterns = {
-        'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential',
-        'cookie', 'session', 'jwt', 'api', 'signature', 'private',
-        'salt', 'otp', 'mfa', '2fa', 'certificate', 'nonce'
-    }
-
     if isinstance(data, dict):
         redacted_dict = {}
         for k, v in data.items():
             key_lower = str(k).lower()
-            if any(pattern in key_lower for pattern in sensitive_patterns):
+            if any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS):
                 redacted_dict[k] = '[REDACTED]'
             else:
                 redacted_dict[k] = redact_sensitive_details(v)
@@ -1103,19 +1106,18 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
 
-    risky_chars = ('=', '+', '-', '@', '|')
-
     for log in logs:
         row = {}
         for key in fieldnames[:-1]:
             val = str(log.get(key, '') or '')
             # Strip leading whitespace before checking for risky characters to prevent formula bypasses (CSV Injection)
-            if val.lstrip().startswith(risky_chars):
+            # Bolt Optimization: Use module-level constant.
+            if val.lstrip().startswith(_RISKY_CSV_CHARS):
                 val = "'" + val
             row[key] = val
 
         details_val = str(log.get('details', {}) or '{}')
-        if details_val.lstrip().startswith(risky_chars):
+        if details_val.lstrip().startswith(_RISKY_CSV_CHARS):
             details_val = "'" + details_val
         row['details'] = details_val
 
