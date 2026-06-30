@@ -994,7 +994,8 @@ header p {
     transition: all var(--transition-normal), background 0.3s ease, border-color 0.3s ease;
 }
 
-.game-card:hover {
+.game-card:hover,
+.game-card:focus-within {
     transform: translateY(-8px);
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
     border-color: rgba(255, 255, 255, 0.18);
@@ -1028,7 +1029,8 @@ header p {
     align-items: flex-start;
 }
 
-.game-card:hover .game-image {
+.game-card:hover .game-image,
+.game-card:focus-within .game-image {
     transform: scale(1.05);
 }
 
@@ -1981,7 +1983,8 @@ kbd {
     transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
 }
 
-.log-account-card:hover {
+.log-account-card:hover,
+.log-account-card:focus-within {
     border-color: rgba(255, 255, 255, 0.16);
     background: rgba(255, 255, 255, 0.05);
     transform: translateY(-1px);

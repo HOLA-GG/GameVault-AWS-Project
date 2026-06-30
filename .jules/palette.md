@@ -61,3 +61,7 @@
 ## 2025-02-13 - [Real-time Visual Feedback for Password Complexity]
 **Learning:** For security-sensitive inputs like passwords, providing real-time visual feedback (a strength meter) transforms a "blind" requirement into a helpful guide. Using a multi-point scoring system (length, variety) helps users set stronger passwords without frustration. Initializing the meter on page load is crucial for pre-filled or recovered forms to avoid a "stale" UI state.
 **Action:** Always implement a visual complexity meter for password creation/reset fields. Ensure the logic initializes on load to handle pre-filled values and uses `aria-live="polite"` for accessible textual feedback.
+
+## 2026-06-30 - [Parity for Keyboard Focus in Interactive Containers]
+**Learning:** Interactive "cards" or containers that provide visual feedback on hover (like lifts or shadows) should mirror this behavior when internal elements receive focus. Using `:focus-within` ensures that keyboard users navigating via Tab receive the same "lift" and orientation signals as mouse users, creating a more cohesive and accessible experience.
+**Action:** For all interactive container components, always pair `:hover` styles with `:focus-within` to provide consistent visual feedback for keyboard navigation.
