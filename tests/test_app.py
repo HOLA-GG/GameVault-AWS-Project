@@ -348,7 +348,7 @@ def test_forgot_password_shows_recovery_token_when_email_delivery_fails_in_non_p
 
 def test_forgot_password_manual_token_requires_email_and_phone(client):
     response = client.post(
-        '/forgot-password/manual-token',
+        '/forgot-password/manual',
         data={'email': 'ana@example.com', 'telefono': ''},
         follow_redirects=True,
     )
@@ -379,7 +379,7 @@ def test_forgot_password_manual_token_shows_token_when_email_phone_match(monkeyp
     monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
 
     response = client.post(
-        '/forgot-password/manual-token',
+        '/forgot-password/manual',
         data={'email': 'ana@example.com', 'telefono': '5551234567'},
     )
 
@@ -410,7 +410,7 @@ def test_forgot_password_manual_token_redirects_in_production(monkeypatch, clien
     monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
 
     response = client.post(
-        '/forgot-password/manual-token',
+        '/forgot-password/manual',
         data={'email': 'ana@example.com', 'telefono': '5551234567'},
     )
 

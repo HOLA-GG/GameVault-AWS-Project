@@ -100,7 +100,7 @@ def test_forgot_password_manual_token_enumeration(client):
     app.config['SHOW_RESET_DEBUG_TOKEN'] = False
 
     # Attempt recovery with non-existent data
-    response = client.post('/forgot-password/manual-token', data={
+    response = client.post('/forgot-password/manual', data={
         'email': 'nonexistent@example.com',
         'telefono': '000000000'
     }, follow_redirects=True)
@@ -119,7 +119,7 @@ def test_forgot_password_manual_token_enumeration(client):
     })
     client.post('/logout')
 
-    response = client.post('/forgot-password/manual-token', data={
+    response = client.post('/forgot-password/manual', data={
         'email': 'enum@example.com',
         'telefono': '999999999'
     }, follow_redirects=True)
