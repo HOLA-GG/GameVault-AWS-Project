@@ -624,8 +624,9 @@ def get_action_badge_class(action: str) -> str:
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
     """Agrupa logs por cuenta (optimizado: asume logs ya ordenados por timestamp desc)."""
     # Pre-fetch de todos los usuarios únicos para evitar N+1 queries.
+    # Bolt Optimization: Fetch users with raw datetimes as they are not rendered in admin_logs.html.
     unique_user_ids = {log.get('user_id') for log in logs if log.get('user_id')}
-    users_data = obtener_usuarios_por_ids(list(unique_user_ids))
+    users_data = obtener_usuarios_por_ids(list(unique_user_ids), format_dates=False)
     user_cache = {u['user_id']: u for u in users_data}
 
     grouped: dict[str, dict] = {}
@@ -1791,7 +1792,8 @@ def admin_panel():
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
     offset = (page - 1) * per_page
 
-    usuarios = obtener_todos_usuarios(limit=per_page, offset=offset)
+    # Bolt Optimization: Fetch users with raw datetimes as they are not rendered in admin.html.
+    usuarios = obtener_todos_usuarios(limit=per_page, offset=offset, format_dates=False)
     total_usuarios = contar_usuarios()
 
     # Construcción manual de metadatos de paginación para mantener compatibilidad con la plantilla
