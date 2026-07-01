@@ -503,7 +503,7 @@ def test_admin_logs_groups_entries_by_account(monkeypatch, client):
     monkeypatch.setattr(
         routes,
         'obtener_usuarios_por_ids',
-        lambda user_ids: [
+        lambda user_ids, **kwargs: [
             {
                 'user_id': uid,
                 'nombre': 'Ana' if uid == 'user-1' else 'Luis',

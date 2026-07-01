@@ -351,9 +351,20 @@ def as_iso(value: datetime | None) -> str | None:
     return value.isoformat()
 
 
-def user_to_dict(user: User | None) -> Optional[Dict[str, Any]]:
+def user_to_dict(user: User | None, format_dates: bool = True) -> Optional[Dict[str, Any]]:
+    """Convierte un usuario en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if user is None:
         return None
+
+    if format_dates:
+        cre, upd = as_iso(user.created_at), as_iso(user.updated_at)
+    else:
+        # Centralized normalization to UTC-aware datetimes for consistency.
+        cre = user.created_at or MIN_DATE
+        upd = user.updated_at or MIN_DATE
+        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+
     return {
         'user_id': user.user_id,
         'email': user.email,
@@ -366,8 +377,8 @@ def user_to_dict(user: User | None) -> Optional[Dict[str, Any]]:
         'status': user.status,
         'collection_visibility': user.collection_visibility,
         'homepage_showcase_opt_in': user.homepage_showcase_opt_in,
-        'created_at': as_iso(user.created_at),
-        'updated_at': as_iso(user.updated_at),
+        'created_at': cre,
+        'updated_at': upd,
     }
 
 
@@ -775,8 +786,9 @@ def verificar_credenciales(email, password):
     return obtener_usuario_por_email(email)
 
 
-def obtener_todos_usuarios(limit: int | None = None, offset: int | None = None) -> List[Dict[str, Any]]:
-    """Obtiene todos los usuarios (ahora con soporte para paginación en DB)."""
+def obtener_todos_usuarios(limit: int | None = None, offset: int | None = None, **kwargs) -> List[Dict[str, Any]]:
+    """Obtiene todos los usuarios (con soporte para paginación y optimización Bolt)."""
+    format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     query = select(User).order_by(User.created_at.desc())
@@ -787,7 +799,7 @@ def obtener_todos_usuarios(limit: int | None = None, offset: int | None = None) 
 
     with session_factory() as session:
         items = session.scalars(query).all()
-        return [user_to_dict(item) for item in items]
+        return [user_to_dict(item, format_dates=format_dates) for item in items]
 
 
 def contar_usuarios() -> int:
@@ -1140,17 +1152,18 @@ def obtener_usuario_por_id(user_id: str) -> Optional[Dict[str, Any]]:
         return user_to_dict(user)
 
 
-def obtener_usuarios_por_ids(user_ids: List[str]) -> List[Dict[str, Any]]:
-    """Obtiene múltiples usuarios por sus IDs en una sola consulta."""
+def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, Any]]:
+    """Obtiene múltiples usuarios por sus IDs en una sola consulta (Optimización Bolt: Deferir fechas)."""
     if not user_ids:
         return []
+    format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
         items = session.scalars(
             select(User).where(User.user_id.in_(user_ids))
         ).all()
-        return [user_to_dict(item) for item in items]
+        return [user_to_dict(item, format_dates=format_dates) for item in items]
 
 
 def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str, Any]:
