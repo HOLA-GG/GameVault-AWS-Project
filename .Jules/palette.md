@@ -17,3 +17,7 @@
 ## 2026-06-12 - Hardcoded Transparency vs. Thematic Consistency
 **Learning:** Hardcoded semi-transparent colors (e.g., `rgba(255, 255, 255, 0.08)`) are "invisible bugs" in light themes if they were designed primarily for dark backgrounds. They fail to provide necessary contrast for borders and surfaces. Additionally, contrast-sensitive elements like badges require theme-specific overrides to maintain readability (WCAG compliance) across different background luminosities.
 **Action:** Avoid hardcoded transparency for structural elements. Use CSS variables for borders and background tints. When implementing a light theme override, explicitly verify contrast ratios for text-on-badge combinations and darken colors as needed.
+
+## 2026-07-01 - Global Accessibility Parity for Transient and Static Feedback
+**Learning:** Transient visual feedback (like copy-to-clipboard notifications) and static constraints (like character counters or required fields) create a "hidden" experience for assistive technology users if not programmatically announced or linked. A centralized `aria-live` announcer and the consistent use of `aria-describedby` ensure that non-visual users receive the same real-time context as visual users.
+**Action:** Implement a global announcer for all non-standard UI feedback. Link character counters and required indicators to their inputs using ARIA attributes to maintain a single source of truth for form constraints across all modalities.

@@ -80,6 +80,8 @@
         </aside>
     </div>
 
+    <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
     <div class="container">
         <header>
             <h1>
@@ -229,10 +231,13 @@
         }
 
         function setupCharacterCounters() {
-            document.querySelectorAll('textarea[maxlength], input[maxlength]').forEach(el => {
+            document.querySelectorAll('textarea[maxlength], input[maxlength]').forEach((el, index) => {
                 if (el.type === 'password' || el.type === 'checkbox' || el.type === 'radio') return;
                 const maxLength = el.getAttribute('maxlength');
+                const counterId = `char-counter-${index}`;
+
                 const counter = document.createElement('small');
+                counter.id = counterId;
                 counter.style.display = 'block';
                 counter.style.textAlign = 'right';
                 counter.style.marginTop = '4px';
@@ -244,6 +249,11 @@
                     counter.textContent = `${currentLength} / ${maxLength} caracteres`;
                     counter.style.color = currentLength >= maxLength ? 'var(--danger-color)' : 'var(--text-secondary)';
                 };
+
+                const existingDescribedBy = el.getAttribute('aria-describedby') || '';
+                if (!existingDescribedBy.includes(counterId)) {
+                    el.setAttribute('aria-describedby', `${existingDescribedBy} ${counterId}`.trim());
+                }
 
                 el.parentNode.insertBefore(counter, el.nextSibling);
                 updateCounter();
@@ -431,6 +441,28 @@
                 }
             });
 
+            function announceToScreenReader(message) {
+                const announcer = document.getElementById('announcer');
+                if (announcer) {
+                    announcer.textContent = message;
+                    setTimeout(() => {
+                        if (announcer.textContent === message) announcer.textContent = '';
+                    }, 3000);
+                }
+            }
+
+            function setupRequiredFields() {
+                document.querySelectorAll('[required]').forEach(el => {
+                    const label = document.querySelector(`label[for="${el.id}"]`) || el.closest('.form-group')?.querySelector('label');
+                    if (label && !label.querySelector('.sr-only-required')) {
+                        const span = document.createElement('span');
+                        span.className = 'sr-only sr-only-required';
+                        span.textContent = ' (obligatorio)';
+                        label.appendChild(span);
+                    }
+                });
+            }
+
             document.addEventListener('click', function(event) {
                 const copyBtn = event.target.closest('[data-copy]');
                 if (!copyBtn) return;
@@ -440,6 +472,7 @@
 
                 navigator.clipboard.writeText(textToCopy).then(() => {
                     copyBtn.classList.add('is-copied');
+                    announceToScreenReader('Copiado al portapapeles');
                     setTimeout(() => {
                         copyBtn.classList.remove('is-copied');
                     }, 2000);
@@ -450,6 +483,7 @@
 
             injectCsrfTokens();
             setupCharacterCounters();
+            setupRequiredFields();
             setupPasswordStrength();
             setupAutoExpandingTextareas();
             setupRelativeTimes();
