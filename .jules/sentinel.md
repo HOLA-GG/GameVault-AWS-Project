@@ -107,3 +107,8 @@
 **Vulnerability:** Audit logs were purged upon user deletion due to SQLAlchemy cascade settings, and SQLite foreign key constraints were not enforced by default.
 **Learning:** Default SQLAlchemy relationships with `cascade='all, delete-orphan'` will override database-level `SET NULL` behaviors during session-based deletions. Furthermore, SQLite requires an explicit `PRAGMA foreign_keys=ON` to honor `ON DELETE` constraints.
 **Prevention:** Remove delete cascades from historical/audit relationships. Implement a global `connect` event listener for the SQLAlchemy Engine to ensure SQLite integrity is always active in dev/test environments.
+
+## 2026-07-01 - Log Hardening with Redaction and Truncation
+**Vulnerability:** Potential PII leakage in logs and storage-based DoS via unbounded metadata strings.
+**Learning:** Even with redaction, logs can be abused by sending extremely large payloads that consume database space or impact performance. Redaction logic should handle both data privacy and resource constraints.
+**Prevention:** Implement deep recursive redaction for sensitive keys and enforce strict length limits on all logged string values at the processing layer.

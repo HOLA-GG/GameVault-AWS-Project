@@ -53,7 +53,9 @@ _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 _SENSITIVE_PATTERNS = {
     'password', 'token', 'secret', 'key', 'hash', 'auth', 'credential',
     'cookie', 'session', 'jwt', 'api', 'signature', 'private',
-    'salt', 'otp', 'mfa', '2fa', 'certificate', 'nonce'
+    'salt', 'otp', 'mfa', '2fa', 'certificate', 'nonce',
+    'cvv', 'cvc', 'credit', 'card', 'ssn', 'dni', 'passport', 'iban',
+    'account_number', 'tax_id'
 }
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|')
 
@@ -920,7 +922,7 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
 
 
 def redact_sensitive_details(data: Any) -> Any:
-    """Máscara valores sensibles en diccionarios y listas de logs (Seguridad)."""
+    """Máscara valores sensibles y trunca strings largos en logs (Seguridad)."""
     if not data:
         return data
 
@@ -936,6 +938,10 @@ def redact_sensitive_details(data: Any) -> Any:
 
     if isinstance(data, list):
         return [redact_sensitive_details(item) for item in data]
+
+    if isinstance(data, str):
+        # Defensive truncation to prevent storage-based DoS (Security hardening)
+        return data[:1024]
 
     return data
 
