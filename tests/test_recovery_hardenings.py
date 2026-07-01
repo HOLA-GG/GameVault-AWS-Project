@@ -73,7 +73,7 @@ def test_inactive_user_cannot_initiate_recovery_manual_token(client, app):
         db_session.commit()
 
     app.config['SHOW_RESET_DEBUG_TOKEN'] = True
-    response = client.post('/forgot-password/manual-token', data={'email': email, 'telefono': telefono})
+    response = client.post('/forgot-password/manual', data={'email': email, 'telefono': telefono})
     assert response.status_code == 302
     assert response.headers['Location'].endswith('/forgot-password')
 

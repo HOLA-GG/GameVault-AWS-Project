@@ -1608,13 +1608,15 @@ def forgot_password():
     return redirect(url_for('main.forgot_password'))
 
 
-@main_bp.route('/forgot-password/manual-token', methods=['POST'])
+@main_bp.route("/forgot-password/manual", methods=["GET", "POST"])
 @limiter.limit('3 per hour', methods=['POST'])
-def forgot_password_manual_token():
+def forgot_password_manual():
     """Permite recuperar token desde la web validando email + teléfono registrado."""
-    if session.get('user_id'):
-        return redirect(url_for('main.dashboard'))
+    if session.get("user_id"):
+        return redirect(url_for("main.dashboard"))
 
+    if request.method == "GET":
+        return render_template("forgot_password_manual.html")
     email = request.form.get('email', '').strip().lower()
     telefono = request.form.get('telefono', '').strip()
     if not email or not telefono:
@@ -1713,7 +1715,7 @@ def verify_token():
         flash('No se encontró el usuario asociado.', 'error')
         return redirect(url_for('main.validate_token_page'))
 
-    return redirect(url_for('main.reset_password_with_email', token=token))
+    return redirect(url_for('main.reset_password_with_email', token=token, _external=True))
 
 
 @main_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
