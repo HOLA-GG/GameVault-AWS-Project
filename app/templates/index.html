@@ -262,14 +262,18 @@
                                 <span style="font-size: 0.85rem; opacity: 0.6;">Portada pendiente</span>
                             </div>
                         {% endif %}
-                        <div class="game-badges">
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=juego.plataforma, page=None)) }}" class="badge plataforma" aria-label="Filtrar por plataforma {{ juego.plataforma or 'PC' }}">{{ juego.plataforma or 'PC' }}</a>
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(estado=juego.estado, page=None)) }}" class="badge estado" aria-label="Filtrar por estado {{ juego.estado or 'N/A' }}">{{ juego.estado or 'N/A' }}</a>
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=juego.categoria, page=None)) }}" class="badge categoria" aria-label="Filtrar por categoría {{ juego.categoria or 'Biblioteca' }}">{{ juego.categoria or 'Biblioteca' }}</a>
-                            {% if juego.es_favorito %}
-                                <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="badge favorito" aria-label="Ver solo favoritos">Favorito</a>
-                            {% endif %}
-                        </div>
+                    <div class="game-badges">
+                        {% set plat_active = filters.plataforma and filters.plataforma == juego.plataforma %}
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="Filtrar por plataforma {{ juego.plataforma or 'PC' }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}</a>
+                        {% set status_active = filters.estado and filters.estado == juego.estado %}
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(estado=juego.estado, page=None)) }}" class="badge estado {{ 'is-active' if status_active }}" aria-label="Filtrar por estado {{ juego.estado or 'N/A' }}" {{ 'aria-current="true"'|safe if status_active }}>{{ juego.estado or 'N/A' }}</a>
+                        {% set cat_active = filters.categoria and filters.categoria == juego.categoria %}
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=juego.categoria, page=None)) }}" class="badge categoria {{ 'is-active' if cat_active }}" aria-label="Filtrar por categoría {{ juego.categoria or 'Biblioteca' }}" {{ 'aria-current="true"'|safe if cat_active }}>{{ juego.categoria or 'Biblioteca' }}</a>
+                        {% if juego.es_favorito %}
+                            {% set fav_active = filters.favoritos == 'solo' %}
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="Ver solo favoritos" {{ 'aria-current="true"'|safe if fav_active }}>Favorito</a>
+                        {% endif %}
+                    </div>
                     </div>
                     <div class="game-info">
                         <h3>{{ juego.titulo }}</h3>
