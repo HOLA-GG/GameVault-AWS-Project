@@ -661,16 +661,50 @@ def crear_juego(
 
 
 def obtener_juegos_por_usuario(user_id):
-    """Obtiene todos los juegos de un usuario (Optimización Bolt: raw datetimes)."""
+    """Obtiene todos los juegos de un usuario (Optimización Bolt: bypass ORM hydration)."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        items = session.scalars(
-            select(Game).where(Game.user_id == user_id).order_by(Game.updated_at.desc(), Game.created_at.desc())
+        # Fetching specific columns directly instead of full ORM objects to bypass hydration overhead.
+        results = session.execute(
+            select(
+                Game.game_id, Game.user_id, Game.titulo, Game.descripcion,
+                Game.imagen_url, Game.plataforma, Game.estado, Game.categoria,
+                Game.prioridad, Game.calificacion, Game.es_favorito,
+                Game.created_at, Game.updated_at
+            )
+            .where(Game.user_id == user_id)
+            .order_by(Game.updated_at.desc(), Game.created_at.desc())
         ).all()
-        # Deferimos el formateo de fechas a ISO para evitar miles de formateos innecesarios
-        # en colecciones grandes durante el filtrado e insights.
-        return [game_to_dict(item, format_dates=False) for item in items]
+
+        juegos = []
+        _MIN_DATE = MIN_DATE
+        for row in results:
+            # Inline date normalization for maximum performance in the hot loop
+            cre = row.created_at or _MIN_DATE
+            if cre.tzinfo is None:
+                cre = cre.replace(tzinfo=timezone.utc)
+
+            upd = row.updated_at or _MIN_DATE
+            if upd.tzinfo is None:
+                upd = upd.replace(tzinfo=timezone.utc)
+
+            juegos.append({
+                'game_id': row.game_id,
+                'user_id': row.user_id,
+                'titulo': row.titulo,
+                'descripcion': row.descripcion,
+                'imagen_url': row.imagen_url,
+                'plataforma': row.plataforma,
+                'estado': row.estado,
+                'categoria': row.categoria,
+                'prioridad': row.prioridad,
+                'calificacion': row.calificacion,
+                'es_favorito': row.es_favorito,
+                'created_at': cre,
+                'updated_at': upd,
+            })
+        return juegos
 
 
 def obtener_juego_por_id(user_id, game_id):
