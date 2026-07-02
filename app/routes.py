@@ -154,7 +154,7 @@ def require_login(view):
         user = obtener_usuario_por_id(user_id)
         if not user or user.get('status') != 'active':
             log_url = request.url
-            if request.endpoint == 'main.reset_password_with_email':
+            if request.path.startswith('/reset-password/'):
                 log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
 
             crear_log_audit(
@@ -175,7 +175,7 @@ def require_login(view):
         current_pw_hash_gen = hashlib.sha256(user['password_hash'].encode('utf-8')).hexdigest()
         if session.get('_pw_hash') != current_pw_hash_gen:
             log_url = request.url
-            if request.endpoint == 'main.reset_password_with_email':
+            if request.path.startswith('/reset-password/'):
                 log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
 
             crear_log_audit(
@@ -208,7 +208,7 @@ def require_admin(view):
 
         if not user or user.get('role') != 'admin':
             log_url = request.url
-            if request.endpoint == 'main.reset_password_with_email':
+            if request.path.startswith('/reset-password/'):
                 log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
 
             crear_log_audit(

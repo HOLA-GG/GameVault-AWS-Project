@@ -194,7 +194,7 @@ def create_app() -> Flask:
         request_id = getattr(g, 'request_id', str(uuid.uuid4()))
         log_path = request.path
         # Avoid leaking sensitive tokens in audit logs (defense-in-depth)
-        if request.endpoint == 'main.reset_password_with_email':
+        if log_path.startswith('/reset-password/'):
             log_path = '/reset-password/[REDACTED]'
 
         app.logger.info(
@@ -221,7 +221,9 @@ def create_app() -> Flask:
             'main.dashboard', 'main.profile', 'main.admin_panel',
             'main.admin_collections', 'main.admin_logs', 'main.editar_juego_ruta',
             'main.admin_logs_export', 'main.admin_logs_clear',
-            'main.forgot_password', 'main.reset_password_with_email'
+            'main.forgot_password', 'main.forgot_password_manual',
+            'main.validate_token_page', 'main.verify_token',
+            'main.reset_password_with_email'
         }
         if request.endpoint in sensitive_endpoints:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
@@ -287,7 +289,7 @@ def create_app() -> Flask:
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
 
         log_path = request.path
-        if request.endpoint == 'main.reset_password_with_email':
+        if log_path.startswith('/reset-password/'):
             log_path = '/reset-password/[REDACTED]'
 
         crear_log_audit(
