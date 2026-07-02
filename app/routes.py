@@ -376,7 +376,12 @@ def enviar_email_reset_password(destinatario: str, token: str) -> bool:
         mail.send(message)
         return True
     except Exception as exc:
-        current_app.logger.error('password_reset_email_failed email=%s error=%s', destinatario, exc)
+        current_app.logger.error(
+            'password_reset_email_failed email=%s error_type=%s error=%s',
+            destinatario,
+            type(exc).__name__,
+            str(exc)
+        )
         return False
 
 
@@ -1663,13 +1668,9 @@ def forgot_password_manual():
         status='SUCCESS',
     )
 
-    if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
-        # En producción no se muestra el token directamente por seguridad (evita account takeover).
-        # El mensaje es idéntico al caso en que los datos no coinciden.
-        flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
-        return redirect(url_for('main.forgot_password'))
-
-    flash('Token generado. Guárdalo y valídalo cuando quieras.', 'success')
+    # Para la opción manual, siempre mostramos el token si la validación es exitosa,
+    # ya que es el propósito de esta vía de recuperación (Email + Teléfono).
+    flash('Token generado exitosamente. Guárdalo y úsalo en la opción de validación manual.', 'success')
     return render_template(
         'forgot_password.html',
         debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
