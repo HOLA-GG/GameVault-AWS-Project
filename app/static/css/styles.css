@@ -1875,6 +1875,17 @@ kbd {
     filter: brightness(0.9);
 }
 
+.badge.is-active {
+    border-color: var(--primary-color) !important;
+    background: rgba(var(--primary-color-rgb), 0.15) !important;
+    color: var(--primary-color) !important;
+    box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+[data-theme="light"] .badge.is-active {
+    background: rgba(var(--primary-color-rgb), 0.1) !important;
+}
+
 .badge.plataforma {
     background: rgba(59, 130, 246, 0.18);
     color: #93c5fd;
