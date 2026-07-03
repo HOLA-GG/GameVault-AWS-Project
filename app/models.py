@@ -55,7 +55,8 @@ _SENSITIVE_PATTERNS = {
     'cookie', 'session', 'jwt', 'api', 'signature', 'private',
     'salt', 'otp', 'mfa', '2fa', 'certificate', 'nonce',
     'cvv', 'cvc', 'credit', 'card', 'ssn', 'dni', 'passport', 'iban',
-    'account_number', 'tax_id'
+    'account_number', 'tax_id', 'phone', 'telefono', 'celular', 'mobile',
+    'address', 'direccion', 'birth', 'nacimiento', 'pin', 'apikey'
 }
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|')
 
@@ -967,8 +968,11 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
         return {'deleted': deleted, 'error': None}
 
 
-def redact_sensitive_details(data: Any) -> Any:
+def redact_sensitive_details(data: Any, depth: int = 0) -> Any:
     """Máscara valores sensibles y trunca strings largos en logs (Seguridad)."""
+    if depth > 10:
+        return '[MAX_DEPTH_REACHED]'
+
     if not data:
         return data
 
@@ -979,11 +983,11 @@ def redact_sensitive_details(data: Any) -> Any:
             if any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS):
                 redacted_dict[k] = '[REDACTED]'
             else:
-                redacted_dict[k] = redact_sensitive_details(v)
+                redacted_dict[k] = redact_sensitive_details(v, depth + 1)
         return redacted_dict
 
     if isinstance(data, list):
-        return [redact_sensitive_details(item) for item in data]
+        return [redact_sensitive_details(item, depth + 1) for item in data]
 
     if isinstance(data, str):
         # Defensive truncation to prevent storage-based DoS (Security hardening)
