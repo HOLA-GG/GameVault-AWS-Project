@@ -1439,6 +1439,8 @@ def profile():
     # This reduces database roundtrips from 10 to 1 for this route.
     profile_insights = obtener_metricas_coleccion(user_id, full=False)
     recent_activity_logs = obtener_logs_por_usuario(user_id, limit=8)
+    for log in recent_activity_logs:
+        enrich_log_metadata(log)
 
     if request.method == 'GET':
         return render_template(
