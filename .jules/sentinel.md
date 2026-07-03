@@ -112,3 +112,8 @@
 **Vulnerability:** Potential PII leakage in logs and storage-based DoS via unbounded metadata strings.
 **Learning:** Even with redaction, logs can be abused by sending extremely large payloads that consume database space or impact performance. Redaction logic should handle both data privacy and resource constraints.
 **Prevention:** Implement deep recursive redaction for sensitive keys and enforce strict length limits on all logged string values at the processing layer.
+
+## 2026-07-03 - Prevent DoS and PII Leakage in Audit Logs
+**Vulnerability:** Potential RecursionError DoS and PII exposure in audit log redaction.
+**Learning:** Even defensive redaction logic can become a DoS vector if it doesn't limit recursion depth when processing arbitrary JSON metadata. Additionally, redaction lists should proactively include regional PII (like 'telefono', 'direccion') in multilingual apps.
+**Prevention:** Always implement a recursion depth limit in data processing utilities. Expand redaction keywords to cover both standard security tokens and PII relevant to the application's locale.
