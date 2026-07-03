@@ -172,19 +172,25 @@
         'PASSWORD_RESET': '🔄',
         'FAILED_LOGIN': '⚠️',
         'ADMIN_ACTION': '🛡️',
-        'RATE_SHOWCASE': '⭐'
+        'RATE_SHOWCASE': '⭐',
+        'UNAUTHORIZED_ACCESS': '🚫',
+        'CSRF_FAILURE': '🛡️',
+        'TOKEN_VALIDATION_FAILED': '❌'
     } %}
     <div class="activity-feed-grid">
         {% for log in recent_activity_logs %}
             <article class="activity-feed-card">
                 <div class="activity-feed-card__header">
-                    <strong>
+                    <span class="badge badge-log-action {{ log.action_badge_class }}">
                         <span aria-hidden="true">{{ action_emojis.get(log.action, '🔔') }}</span>
                         {{ log.action_name }}
-                    </strong>
+                    </span>
                     <span data-timestamp="{{ log.timestamp }}">{{ (log.timestamp or '')[:16]|replace('T', ' ') }}</span>
                 </div>
-                <p>{{ log.resource|replace('_', ' ')|title }}</p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <span class="badge badge-log-resource">{{ log.resource|replace('_', ' ')|title }}</span>
+                    <span class="badge {{ log.status_badge_class }}">{{ log.status }}</span>
+                </div>
                 {% if log.details and log.details.title %}
                     {% if log.details.game_id and log.action != 'DELETE_GAME' %}
                         <small>

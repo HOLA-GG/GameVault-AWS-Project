@@ -65,3 +65,11 @@
 ## 2026-06-30 - [Parity for Keyboard Focus in Interactive Containers]
 **Learning:** Interactive "cards" or containers that provide visual feedback on hover (like lifts or shadows) should mirror this behavior when internal elements receive focus. Using `:focus-within` ensures that keyboard users navigating via Tab receive the same "lift" and orientation signals as mouse users, creating a more cohesive and accessible experience.
 **Action:** For all interactive container components, always pair `:hover` styles with `:focus-within` to provide consistent visual feedback for keyboard navigation.
+
+## 2025-05-20 - [Constraint Alignment in Micro-UX]
+**Learning:** Micro-UX improvements must strictly adhere to the "no custom CSS" and "line count" constraints. Even a standard feature like "Back to Top" can be rejected if it introduces a large block of custom styles or breaks language consistency within the UI.
+**Action:** Prioritize enhancements that leverage existing Design System classes (like `.badge-log-*`) over creating new components that require significant custom CSS.
+
+## 2025-05-20 - [Route-Template Logic Synchronization]
+**Learning:** In projects with complex data enrichment (like audit logs), simply updating the template is often insufficient. Ensuring the route logic utilizes the same enrichment helpers as other pages (e.g., `enrich_log_metadata`) is critical for maintaining visual and functional parity across the application.
+**Action:** When improving a component that exists in multiple views, verify that the backend data preparation is synchronized to support the enhanced UI features (badges, formatting, etc.) consistently.
