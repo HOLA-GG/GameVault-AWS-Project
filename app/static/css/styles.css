@@ -822,6 +822,16 @@ header p {
     color: var(--danger-color);
 }
 
+.pw-field-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.pw-field-wrapper input {
+    width: 100%;
+}
+
 .form-group input[type="text"],
 .form-group input[type="search"],
 .form-group input[type="email"],
@@ -2322,7 +2332,7 @@ kbd {
 
 .form-group { position: relative; }
 .pw-toggle {
-    position: absolute; right: 12px; bottom: 12px;
+    position: absolute; right: 12px;
     background: none; border: none; color: var(--text-secondary);
     cursor: pointer; padding: 4px; display: flex; z-index: 5;
 }
