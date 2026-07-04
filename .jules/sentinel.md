@@ -117,3 +117,8 @@
 **Vulnerability:** Potential RecursionError DoS and PII exposure in audit log redaction.
 **Learning:** Even defensive redaction logic can become a DoS vector if it doesn't limit recursion depth when processing arbitrary JSON metadata. Additionally, redaction lists should proactively include regional PII (like 'telefono', 'direccion') in multilingual apps.
 **Prevention:** Always implement a recursion depth limit in data processing utilities. Expand redaction keywords to cover both standard security tokens and PII relevant to the application's locale.
+
+## 2026-07-10 - Enhanced Audit Trail for IDOR and Validation Failures
+**Vulnerability:** Visibility gap in security monitoring for internal resource authorization (IDOR) and systematic validation failures.
+**Learning:** While authentication events were well-audited, attempts by authenticated users to manipulate resources they didn't own (IDOR) or repeated validation failures (which can indicate automated fuzzing or exploit attempts) were silent in the logs. Visibility into *intent* and *failed attempts* is as crucial as auditing successful actions.
+**Prevention:** Always log UNAUTHORIZED_ACCESS attempts when resource ownership checks fail, and record FAILED status for critical resource creation/update actions when validation constraints are not met, including truncated metadata for forensic context.

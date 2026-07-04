@@ -1074,6 +1074,15 @@ def agregar_juego():
     if errores:
         for error in errores:
             flash(error, 'error')
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='CREATE_GAME',
+            resource='games',
+            details={'errors': errores, 'attempted_title': (titulo or '')[:100]},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.dashboard'))
 
     if not imagen_url and imagen and imagen.filename:
@@ -1128,6 +1137,15 @@ def eliminar_juego_ruta(game_id):
     user_id = session['user_id']
     juego = obtener_juego_por_id(user_id, game_id)
     if juego is None:
+        crear_log_audit(
+            user_id=user_id,
+            action='UNAUTHORIZED_ACCESS',
+            resource='games',
+            details={'game_id': game_id, 'operation': 'delete_game'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Juego no encontrado o sin permisos.', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1157,6 +1175,15 @@ def editar_juego_ruta(game_id):
     user_id = session['user_id']
     juego = obtener_juego_por_id(user_id, game_id)
     if juego is None:
+        crear_log_audit(
+            user_id=user_id,
+            action='UNAUTHORIZED_ACCESS',
+            resource='games',
+            details={'game_id': game_id, 'operation': 'edit_game'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Juego no encontrado o sin permisos.', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1207,6 +1234,15 @@ def editar_juego_ruta(game_id):
     if errores:
         for error in errores:
             flash(error, 'error')
+        crear_log_audit(
+            user_id=user_id,
+            action='UPDATE_GAME',
+            resource='games',
+            details={'game_id': game_id, 'errors': errores, 'attempted_title': (titulo or '')[:100]},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.editar_juego_ruta', game_id=game_id))
 
     resultado = actualizar_juego(
@@ -1394,8 +1430,19 @@ def login():
     )
 
     next_url = request.args.get('next')
-    if next_url and is_safe_url(next_url):
-        return redirect(next_url)
+    if next_url:
+        if is_safe_url(next_url):
+            return redirect(next_url)
+        else:
+            crear_log_audit(
+                user_id=usuario.get('user_id'),
+                action='UNAUTHORIZED_ACCESS',
+                resource='auth',
+                details={'reason': 'unsafe_redirect_intercepted', 'next_url': next_url[:200]},
+                ip_address=request.remote_addr or 'unknown',
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
     if session.get('role') == 'admin':
         return redirect(url_for('main.admin_panel'))
     return redirect(url_for('main.dashboard'))
