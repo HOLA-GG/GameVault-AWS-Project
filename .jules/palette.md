@@ -66,6 +66,10 @@
 **Learning:** Interactive "cards" or containers that provide visual feedback on hover (like lifts or shadows) should mirror this behavior when internal elements receive focus. Using `:focus-within` ensures that keyboard users navigating via Tab receive the same "lift" and orientation signals as mouse users, creating a more cohesive and accessible experience.
 **Action:** For all interactive container components, always pair `:hover` styles with `:focus-within` to provide consistent visual feedback for keyboard navigation.
 
+## 2025-02-14 - [Robust Positioning for Password Visibility Toggles]
+**Learning:** Positioning a password visibility toggle with absolute coordinates (e.g., `bottom: 12px`) relative to a generic container like `.form-group` is fragile and prone to misalignment when the group contains variable-height elements like strength meters or help text. Wrapping the input and its toggle in a dedicated `.pw-field-wrapper` with `display: flex; align-items: center; position: relative;` provides a robust, vertically centered alignment that is independent of other elements in the form group.
+**Action:** Always wrap password inputs and their respective visibility toggles in a scoped wrapper to ensure consistent, stable positioning.
+
 ## 2025-05-20 - [Constraint Alignment in Micro-UX]
 **Learning:** Micro-UX improvements must strictly adhere to the "no custom CSS" and "line count" constraints. Even a standard feature like "Back to Top" can be rejected if it introduces a large block of custom styles or breaks language consistency within the UI.
 **Action:** Prioritize enhancements that leverage existing Design System classes (like `.badge-log-*`) over creating new components that require significant custom CSS.
