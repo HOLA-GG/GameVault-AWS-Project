@@ -119,3 +119,7 @@
 ## 2026-06-21 - Bypassing ORM Hydration in Large Collections
 **Learning:** For read-only hot paths that return large collections (like a user's entire game library), fetching specific columns directly via `session.execute(select(...))` is significantly faster than fetching full ORM entities. This avoids the overhead of SQLAlchemy's Identity Map and the instantiation of full model objects (hydration).
 **Action:** Use Core-style selects and manual dictionary mapping for frequently accessed list views where full ORM functionality (like relationship lazy-loading or dirty tracking) is not required.
+
+## 2026-07-04 - Schema-Resilient ORM Hydration Bypass
+**Learning:** Bypassing ORM hydration by selecting specific columns improves performance but can lead to code duplication and fragility if columns are hardcoded in multiple fetchers. Using `select(Model.__table__)` via `session.execute()` provides the same performance benefit (returning raw Row objects) while remaining resilient to schema changes.
+**Action:** Pair `select(Model.__table__)` with a centralized private mapping helper to achieve hydration-free performance without sacrificing DRY principles or schema robustness.

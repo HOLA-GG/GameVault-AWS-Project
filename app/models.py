@@ -356,28 +356,33 @@ def user_to_dict(user: User | None, format_dates: bool = True) -> Optional[Dict[
     """Convierte un usuario en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if user is None:
         return None
+    return _user_row_to_dict(user, format_dates=format_dates)
+
+
+def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
+    """Mapea una fila de DB o instancia de User a un diccionario (Optimización Bolt)."""
+    # Centralized normalization to UTC-aware datetimes for consistency.
+    _MIN_DATE = MIN_DATE
+    cre = row.created_at or _MIN_DATE
+    if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+    upd = row.updated_at or _MIN_DATE
+    if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
 
     if format_dates:
-        cre, upd = as_iso(user.created_at), as_iso(user.updated_at)
-    else:
-        # Centralized normalization to UTC-aware datetimes for consistency.
-        cre = user.created_at or MIN_DATE
-        upd = user.updated_at or MIN_DATE
-        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
-        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+        cre, upd = cre.isoformat(), upd.isoformat()
 
     return {
-        'user_id': user.user_id,
-        'email': user.email,
-        'nombre': user.nombre,
-        'apellido': user.apellido,
-        'prefijo_pais': user.prefijo_pais,
-        'telefono': user.telefono,
-        'password_hash': user.password_hash,
-        'role': user.role,
-        'status': user.status,
-        'collection_visibility': user.collection_visibility,
-        'homepage_showcase_opt_in': user.homepage_showcase_opt_in,
+        'user_id': row.user_id,
+        'email': row.email,
+        'nombre': row.nombre,
+        'apellido': row.apellido,
+        'prefijo_pais': row.prefijo_pais,
+        'telefono': row.telefono,
+        'password_hash': row.password_hash,
+        'role': row.role,
+        'status': row.status,
+        'collection_visibility': row.collection_visibility,
+        'homepage_showcase_opt_in': row.homepage_showcase_opt_in,
         'created_at': cre,
         'updated_at': upd,
     }
@@ -822,19 +827,23 @@ def verificar_credenciales(email, password):
 
 
 def obtener_todos_usuarios(limit: int | None = None, offset: int | None = None, **kwargs) -> List[Dict[str, Any]]:
-    """Obtiene todos los usuarios (con soporte para paginación y optimización Bolt)."""
+    """Obtiene todos los usuarios (Optimización Bolt: bypass ORM hydration)."""
     format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
-    query = select(User).order_by(User.created_at.desc())
+
+    # Fetching the full table via select(User.__table__) bypasses ORM hydration
+    # but ensures we get all columns even if the schema changes.
+    query = select(User.__table__).order_by(User.created_at.desc())
+
     if limit is not None:
         query = query.limit(limit)
     if offset is not None:
         query = query.offset(offset)
 
     with session_factory() as session:
-        items = session.scalars(query).all()
-        return [user_to_dict(item, format_dates=format_dates) for item in items]
+        results = session.execute(query).all()
+        return [_user_row_to_dict(row, format_dates=format_dates) for row in results]
 
 
 def contar_usuarios() -> int:
@@ -1191,17 +1200,19 @@ def obtener_usuario_por_id(user_id: str) -> Optional[Dict[str, Any]]:
 
 
 def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, Any]]:
-    """Obtiene múltiples usuarios por sus IDs en una sola consulta (Optimización Bolt: Deferir fechas)."""
+    """Obtiene múltiples usuarios por IDs (Optimización Bolt: bypass ORM hydration)."""
     if not user_ids:
         return []
     format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        items = session.scalars(
-            select(User).where(User.user_id.in_(user_ids))
+        # Fetching the full table via select(User.__table__) bypasses ORM hydration
+        # while keeping the data layer robust against schema changes.
+        results = session.execute(
+            select(User.__table__).where(User.user_id.in_(user_ids))
         ).all()
-        return [user_to_dict(item, format_dates=format_dates) for item in items]
+        return [_user_row_to_dict(row, format_dates=format_dates) for row in results]
 
 
 def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str, Any]:
