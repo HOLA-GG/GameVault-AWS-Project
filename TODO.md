@@ -11,7 +11,7 @@
 - [x] Separar `/demo` de `/dashboard`
 - [x] Agregar `healthz`
 - [x] Configurar logging estructurado y Sentry opcional
-- [x] Preparar uploads firmados a S3
+- [x] Preparar uploads firmados a S3 (Compatible con Cloudflare R2)
 
 ## Fase 2 - Beta publica
 
@@ -37,5 +37,6 @@
 
 ## Hosting actual recomendado
 
-- `PythonAnywhere Developer` para la app Flask
-- `DynamoDB + S3 + SES` como servicios administrados en AWS
+- `Render` para la app Flask (Web Service)
+- `Neon` para PostgreSQL administrado
+- `Cloudflare R2` para storage compatible con S3
