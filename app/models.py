@@ -549,25 +549,29 @@ def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optio
     """Convierte un log en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if item is None:
         return None
+    return _audit_log_row_to_dict(item, format_dates=format_dates)
+
+
+def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
+    """Mapea una fila de DB o instancia de AuditLog a un diccionario (Optimización Bolt)."""
+    ts = row.timestamp or MIN_DATE
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
 
     if format_dates:
-        ts = as_iso(item.timestamp)
-    else:
-        # Centralized normalization to UTC-aware datetimes for hot-loop efficiency.
-        ts = item.timestamp or MIN_DATE
-        if ts.tzinfo is None: ts = ts.replace(tzinfo=timezone.utc)
+        ts = ts.isoformat()
 
     return {
-        'audit_id': item.audit_id,
-        'user_id': item.user_id,
-        'action': item.action,
-        'action_name': item.action_name,
-        'resource': item.resource,
+        'audit_id': row.audit_id,
+        'user_id': row.user_id,
+        'action': row.action,
+        'action_name': row.action_name,
+        'resource': row.resource,
         'timestamp': ts,
-        'ip_address': item.ip_address,
-        'user_agent': item.user_agent,
-        'details': item.details or {},
-        'status': item.status,
+        'ip_address': row.ip_address,
+        'user_agent': row.user_agent,
+        'details': row.details or {},
+        'status': row.status,
     }
 
 
@@ -1067,25 +1071,30 @@ def crear_log_audit(
 
 
 def obtener_logs_por_usuario(user_id: str, limit: int = 50, **kwargs) -> List[Dict[str, Any]]:
-    """Obtiene logs recientes de un usuario (Optimización Bolt: Deferir formateo de fechas)."""
+    """Obtiene logs recientes de un usuario (Optimización Bolt: bypass ORM hydration)."""
     format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        items = session.scalars(
-            select(AuditLog).where(AuditLog.user_id == user_id).order_by(AuditLog.timestamp.desc()).limit(limit)
+        # Use select(AuditLog.__table__) to bypass ORM hydration
+        results = session.execute(
+            select(AuditLog.__table__)
+            .where(AuditLog.user_id == user_id)
+            .order_by(AuditLog.timestamp.desc())
+            .limit(limit)
         ).all()
-        return [audit_log_to_dict(item, format_dates=format_dates) for item in items]
+        return [_audit_log_row_to_dict(row, format_dates=format_dates) for row in results]
 
 
 def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwargs) -> List[Dict[str, Any]]:
-    """Obtiene logs de auditoría con filtros opcionales (Optimización Bolt: Deferir formateo de fechas)."""
+    """Obtiene logs de auditoría con filtros opcionales (Optimización Bolt: bypass ORM hydration)."""
     format_dates = kwargs.get('format_dates', True)
     ensure_tables()
     session_factory = get_session_factory()
     filters = filters or {}
 
-    query = select(AuditLog)
+    # Use select(AuditLog.__table__) to bypass ORM hydration
+    query = select(AuditLog.__table__)
     if filters.get('user_id'):
         query = query.where(AuditLog.user_id == filters['user_id'])
     if filters.get('action'):
@@ -1103,8 +1112,8 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwarg
     query = query.order_by(AuditLog.timestamp.desc()).limit(limit)
 
     with session_factory() as session:
-        items = session.scalars(query).all()
-        return [audit_log_to_dict(item, format_dates=format_dates) for item in items]
+        results = session.execute(query).all()
+        return [_audit_log_row_to_dict(row, format_dates=format_dates) for row in results]
 
 
 def obtener_estadisticas_logs() -> Dict[str, Any]:
