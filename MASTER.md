@@ -2,7 +2,7 @@
 
 ## Vision
 
-GameVault es un SaaS B2C para coleccionistas de videojuegos. La aplicacion web corre en Flask y usa AWS para persistencia, imagenes, correos y auditoria. El objetivo de esta version es dejarla lista para una beta publica profesional sin seguir dependiendo de EC2.
+GameVault es un SaaS B2C para coleccionistas de videojuegos. La aplicacion web corre en Flask y utiliza una infraestructura moderna basada en Render (Hosting), Neon (PostgreSQL) y Cloudflare R2 (Storage compatible con S3). El objetivo de esta version es dejarla lista para una beta publica profesional con alta escalabilidad y facilidad de despliegue.
 
 ## Arquitectura objetivo
 
@@ -10,13 +10,13 @@ GameVault es un SaaS B2C para coleccionistas de videojuegos. La aplicacion web c
 Usuario
   |
   v
-PythonAnywhere (Flask / WSGI)
+Render (Flask / Gunicorn / WSGI)
   | \
-  |  \__ SES SMTP
+  |  \__ Resend / SMTP
   |
-  +---- DynamoDB
+  +---- Neon (PostgreSQL)
   |
-  +---- S3 (uploads firmados + lectura temporal)
+  +---- Cloudflare R2 (Storage S3-compatible)
 ```
 
 ## Componentes
@@ -36,26 +36,29 @@ Las claves obligatorias en produccion son:
 
 - `APP_ENV=production`
 - `SECRET_KEY`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
-- `S3_BUCKET_NAME`
-- `DYNAMODB_TABLE`
-- `DYNAMODB_USERS_TABLE`
-- `DYNAMODB_RESET_TABLE`
-- `DYNAMODB_AUDIT_TABLE`
+- `DATABASE_URL` (Neon PostgreSQL)
 - `MAIL_SERVER`
 - `MAIL_USERNAME`
 - `MAIL_PASSWORD`
 - `MAIL_DEFAULT_SENDER`
 
-Variables recomendadas:
+Variables opcionales o de almacenamiento (R2):
 
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET_NAME`
+- `R2_ENDPOINT_URL`
 - `SENTRY_DSN`
-- `S3_ALLOWED_ORIGINS`
 - `RESET_TOKEN_EXPIRY_MINUTES`
 - `AUDIT_LOG_RETENTION_DAYS`
 - `RATELIMIT_STORAGE_URI`
+
+Variables Legacy (AWS):
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `DYNAMODB_TABLE`
 
 ## Flujos importantes
 
@@ -93,15 +96,12 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-export $(grep -v '^#' .env | xargs)
+# Configura las variables en tu entorno local
 ```
 
-### 3. Infraestructura AWS
+### 3. Base de Datos (Neon)
 
-```bash
-python3 setup_dynamodb.py
-python3 setup_s3.py
-```
+Neon aprovisiona la base de datos automáticamente al conectar. La aplicación inicializa las tablas en el primer arranque mediante SQLAlchemy.
 
 ### 4. Ejecucion local
 
@@ -109,19 +109,14 @@ python3 setup_s3.py
 python3 run.py
 ```
 
-### 5. Produccion en PythonAnywhere
+### 5. Produccion en Render
 
-```python
-from wsgi import application
-```
+Render detecta automáticamente el archivo `render.yaml` o puedes configurar un `Web Service` manual:
 
-En el panel de PythonAnywhere:
-
-- configura el virtualenv,
-- define las variables de entorno,
-- apunta al proyecto,
-- recarga la web app,
-- prueba `https://tu-dominio/healthz`.
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `gunicorn wsgi:application --bind 0.0.0.0:$PORT`
+- **Environment**: Define las variables de entorno de `.env.example` en el panel de Render.
+- **Healthcheck**: Apunta a `/healthz`.
 
 ## Modelo de seguridad de esta version
 

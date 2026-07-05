@@ -24,21 +24,12 @@ GameVault es una aplicación Flask para coleccionistas de videojuegos. Esta vers
 
 ## Despliegue en Render
 
-1. Crea un `Web Service` conectado a este repo.
-2. Usa como `Build Command`:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Usa como `Start Command`:
-
-```bash
-gunicorn wsgi:application --bind 0.0.0.0:$PORT
-```
-
-4. Carga las variables de entorno desde [.env.example](./.env.example).
-5. Verifica el despliegue en `/healthz`.
+1. Crea un `Web Service` conectado a este repo en Render.
+2. Render detectará el archivo `render.yaml` automáticamente.
+3. Si lo haces manual, usa como `Build Command`: `pip install -r requirements.txt`.
+4. Usa como `Start Command`: `gunicorn wsgi:application --bind 0.0.0.0:$PORT`.
+5. Carga las variables de entorno desde [.env.example](./.env.example), especialmente `DATABASE_URL` de Neon.
+6. Verifica el despliegue en `/healthz`.
 
 ## Variables importantes
 
