@@ -127,7 +127,7 @@
     </form>
 </section>
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         const profileForm = document.getElementById('profileForm');
         const profileSubmitButton = document.getElementById('profileSubmitButton');

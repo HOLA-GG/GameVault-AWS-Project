@@ -52,7 +52,7 @@
         <button type="submit" class="btn-submit" id="registerSubmitButton" style="width:100%;" data-loading-text="Creando cuenta...">Crear cuenta</button>
     </form>
 
-    <script>
+    <script nonce="{{ g.csp_nonce }}">
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('registerForm');
             const button = document.getElementById('registerSubmitButton');

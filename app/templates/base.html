@@ -118,7 +118,7 @@
         </footer>
     </div>
 
-    <script>
+    <script nonce="{{ g.csp_nonce }}">
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const rootElement = document.documentElement;
 
@@ -515,6 +515,14 @@
             document.addEventListener('submit', function(event) {
                 const form = event.target;
                 if (event.defaultPrevented || !form || (form.checkValidity && !form.checkValidity())) return;
+
+                // Handle data-confirm attributes (CSP hardening)
+                const confirmMessage = form.getAttribute('data-confirm');
+                if (confirmMessage && !confirm(confirmMessage)) {
+                    event.preventDefault();
+                    return;
+                }
+
                 const button = form.querySelector('button[type="submit"]:not([disabled])');
                 if (!button) return;
 

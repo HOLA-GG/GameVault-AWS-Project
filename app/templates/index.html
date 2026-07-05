@@ -285,7 +285,7 @@
                         </div>
                         <div class="game-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
                             <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="btn btn-secondary btn-small" aria-label="Editar {{ juego.titulo }}">Editar</a>
-                            <form action="{{ url_for('main.eliminar_juego_ruta', game_id=juego.game_id) }}" method="POST" onsubmit="return confirm('¿Eliminar {{ juego.titulo }}? Esta acción no se puede deshacer.');" style="display:inline;">
+                            <form action="{{ url_for('main.eliminar_juego_ruta', game_id=juego.game_id) }}" method="POST" data-confirm="¿Eliminar {{ juego.titulo }}? Esta acción no se puede deshacer." style="display:inline;">
                                 <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar {{ juego.titulo }}">Eliminar</button>
                             </form>
                         </div>
@@ -328,7 +328,7 @@
 </section>
 {% endif %}
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         const addFirstGameBtn = document.getElementById('addFirstGameBtn');
         if (addFirstGameBtn) {
