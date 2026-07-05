@@ -110,7 +110,7 @@
     </form>
 </section>
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('editGameForm');
         const fileInput = document.getElementById('nueva_imagen');

@@ -232,7 +232,7 @@
 </section>
 {% endif %}
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('clearLogsForm');
         const button = document.getElementById('clearLogsSubmitButton');

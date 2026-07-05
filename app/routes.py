@@ -1285,6 +1285,7 @@ def editar_juego_ruta(game_id):
 
 
 @main_bp.route('/registro', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['GET'])
 @limiter.limit('5 per hour', methods=['POST'])
 def registro():
     """Registro simplificado para coleccionistas."""
@@ -1366,6 +1367,7 @@ def registro():
 
 
 @main_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['GET'])
 @limiter.limit('5 per minute', methods=['POST'])
 def login():
     """Inicio de sesión con rate limiting."""
@@ -1598,6 +1600,7 @@ def profile():
 
 
 @main_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['GET'])
 @limiter.limit('3 per hour', methods=['POST'])
 def forgot_password():
     """Solicita recuperación de contraseña sin revelar existencia del usuario."""

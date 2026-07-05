@@ -205,7 +205,7 @@
     <a href="{{ url_for('main.registro') }}" class="btn">Crear cuenta gratis</a>
 </section>
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.collection-rating-demo').forEach(function (card) {
             const stars = card.querySelectorAll('.star-chip');

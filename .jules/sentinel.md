@@ -122,3 +122,8 @@
 **Vulnerability:** Visibility gap in security monitoring for internal resource authorization (IDOR) and systematic validation failures.
 **Learning:** While authentication events were well-audited, attempts by authenticated users to manipulate resources they didn't own (IDOR) or repeated validation failures (which can indicate automated fuzzing or exploit attempts) were silent in the logs. Visibility into *intent* and *failed attempts* is as crucial as auditing successful actions.
 **Prevention:** Always log UNAUTHORIZED_ACCESS attempts when resource ownership checks fail, and record FAILED status for critical resource creation/update actions when validation constraints are not met, including truncated metadata for forensic context.
+
+## 2026-07-05 - Harden CSP with Nonces and Event Delegation
+**Vulnerability:** Use of 'unsafe-inline' in Content Security Policy (CSP) and reliance on inline HTML event handlers (e.g., onsubmit).
+**Learning:** Permissive CSPs that allow 'unsafe-inline' provide minimal protection against XSS. Moving to a nonce-based system requires refactoring legacy inline JS, which can be elegantly handled using centralized event delegation and data attributes.
+**Prevention:** Implement a per-request cryptographic nonce, enforce it in the CSP header, and migrate all inline scripts and event handlers to use the nonce or non-inline listeners.

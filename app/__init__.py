@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import uuid
@@ -188,6 +189,8 @@ def create_app() -> Flask:
     @app.before_request
     def assign_request_context() -> None:
         g.request_id = request.headers.get('X-Request-Id') or str(uuid.uuid4())
+        # Generate cryptographic nonce for CSP (Security hardening)
+        g.csp_nonce = base64.b64encode(os.urandom(16)).decode('utf-8')
 
     @app.after_request
     def log_request(response):
@@ -251,9 +254,10 @@ def create_app() -> Flask:
                 connect_sources.append(s3_host)
 
         # Content-Security-Policy: defense-in-depth against XSS and injection
+        csp_nonce = getattr(g, 'csp_nonce', '')
         csp_parts = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",
+            f"script-src 'self' 'nonce-{csp_nonce}' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline'",
             f"img-src {' '.join(img_sources)}",
             f"connect-src {' '.join(connect_sources)}",
