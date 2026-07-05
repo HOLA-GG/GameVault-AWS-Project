@@ -2382,10 +2382,70 @@ kbd {
 /* ================================
    COPY UTILITY
    ================================ */
-.btn-copy{background:none;border:none;padding:0;font:inherit;color:inherit;cursor:pointer;position:relative;display:inline-flex;align-items:center;transition:color .2s}
-.btn-copy:hover{color:var(--primary-color)}
-.btn-copy::after{content:"¡Copiado!";position:absolute;bottom:100%;left:50%;transform:translateX(-50%) translateY(-5px);background:var(--primary-color);color:#fff;padding:4px 8px;border-radius:4px;font-size:.75rem;opacity:0;visibility:hidden;transition:all .2s;white-space:nowrap;z-index:10}
-.btn-copy.is-copied::after{opacity:1;visibility:visible;transform:translateX(-50%) translateY(-10px)}
+.btn-copy {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: color var(--transition-fast), transform var(--transition-fast);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+}
+
+.btn-copy::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    background-color: currentColor;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'%3E%3C/path%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'%3E%3C/path%3E%3C/svg%3E");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+
+.btn-copy:hover,
+.btn-copy:focus-visible {
+    color: var(--primary-color);
+    transform: translateY(-1px);
+    text-decoration-style: solid;
+}
+
+.btn-copy::after {
+    content: "¡Copiado!";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-5px);
+    background: var(--primary-color);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.75rem;
+    font-weight: 700;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-copy.is-copied::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-12px);
+}
 
 /* ================================
    PRIORITY COLORS
