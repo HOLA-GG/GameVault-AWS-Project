@@ -151,7 +151,8 @@ def require_login(view):
             return redirect(url_for('main.login', next=request.full_path.rstrip('?')))
 
         # Real-time database validation to prevent stale sessions (Security enhancement)
-        user = obtener_usuario_por_id(user_id)
+        # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+        user = obtener_usuario_por_id(user_id, format_dates=False)
         if not user or user.get('status') != 'active':
             log_url = request.url
             if request.path.startswith('/reset-password/'):
@@ -1324,7 +1325,8 @@ def registro():
         errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
-    if obtener_usuario_por_email(email):
+    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+    if obtener_usuario_por_email(email, format_dates=False):
         errores.append('Ese correo ya está registrado.')
 
     if errores:
@@ -1390,7 +1392,8 @@ def login():
         flash('Email o contraseña demasiado largos.', 'error')
         return redirect(url_for('main.login'))
 
-    usuario = verificar_credenciales(email, password)
+    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+    usuario = verificar_credenciales(email, password, format_dates=False)
 
     # Use a dummy hash for missing users to mitigate timing attacks (Security enhancement)
     # This prevents attackers from discovering valid emails by measuring response times.
@@ -1622,7 +1625,8 @@ def forgot_password():
         flash('Email demasiado largo.', 'error')
         return redirect(url_for('main.forgot_password'))
 
-    user = obtener_usuario_por_email(email)
+    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+    user = obtener_usuario_por_email(email, format_dates=False)
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
 
     if not user or user.get('status') != 'active':
@@ -1688,7 +1692,8 @@ def forgot_password_manual():
         flash('Email o teléfono demasiado largos.', 'error')
         return redirect(url_for('main.forgot_password'))
 
-    user = obtener_usuario_por_email(email)
+    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+    user = obtener_usuario_por_email(email, format_dates=False)
     # Validar si el usuario existe y el teléfono coincide
     if not user or str(user.get('telefono', '')).strip() != telefono or user.get('status') != 'active':
         crear_log_audit(
@@ -1767,7 +1772,8 @@ def verify_token():
         flash(token_validation['error'], 'error')
         return redirect(url_for('main.validate_token_page'))
 
-    user = obtener_usuario_por_id(token_validation['user_id'])
+    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+    user = obtener_usuario_por_id(token_validation['user_id'], format_dates=False)
     if user is None:
         flash('No se encontró el usuario asociado.', 'error')
         return redirect(url_for('main.validate_token_page'))
@@ -1796,7 +1802,8 @@ def reset_password_with_email(token):
         flash(token_validation['error'], 'error')
         return redirect(url_for('main.forgot_password'))
 
-    user = obtener_usuario_por_id(token_validation['user_id'])
+    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+    user = obtener_usuario_por_id(token_validation['user_id'], format_dates=False)
     if not user or user.get('status') != 'active':
         flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
         return redirect(url_for('main.forgot_password'))

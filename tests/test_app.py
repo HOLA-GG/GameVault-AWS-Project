@@ -204,7 +204,7 @@ def test_dashboard_renders_games(monkeypatch, client):
 def test_registration_redirects_to_dashboard(monkeypatch, client):
     import app.routes as routes
 
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: None)
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email, **kwargs: None)
     monkeypatch.setattr(
         routes,
         'crear_usuario',
@@ -235,7 +235,7 @@ def test_registration_persists_phone_fields(monkeypatch, client):
     import app.routes as routes
 
     captured = {}
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: None)
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email, **kwargs: None)
 
     def fake_crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash):
         captured['prefijo_pais'] = prefijo_pais
@@ -271,7 +271,7 @@ def test_registration_persists_phone_fields(monkeypatch, client):
 def test_forgot_password_never_exposes_token(monkeypatch, client):
     import app.routes as routes
 
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1', 'status': 'active'})
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email, **kwargs: {'user_id': 'user-1', 'status': 'active'})
     monkeypatch.setattr(
         routes,
         'crear_reset_token',
@@ -299,7 +299,7 @@ def test_forgot_password_can_show_debug_token_locally(monkeypatch, client):
     import app.routes as routes
 
     client.application.config['SHOW_RESET_DEBUG_TOKEN'] = True
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1', 'status': 'active'})
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email, **kwargs: {'user_id': 'user-1', 'status': 'active'})
     monkeypatch.setattr(
         routes,
         'crear_reset_token',
@@ -325,7 +325,7 @@ def test_forgot_password_shows_recovery_token_when_email_delivery_fails_in_non_p
 
     client.application.config['SHOW_RESET_DEBUG_TOKEN'] = False
     client.application.config['APP_ENV'] = 'testing'
-    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email: {'user_id': 'user-1', 'status': 'active'})
+    monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email, **kwargs: {'user_id': 'user-1', 'status': 'active'})
     monkeypatch.setattr(
         routes,
         'crear_reset_token',
@@ -364,7 +364,7 @@ def test_forgot_password_manual_token_shows_token_when_email_phone_match(monkeyp
     monkeypatch.setattr(
         routes,
         'obtener_usuario_por_email',
-        lambda _email: {'user_id': 'user-1', 'telefono': '5551234567', 'status': 'active'},
+        lambda _email, **kwargs: {'user_id': 'user-1', 'telefono': '5551234567', 'status': 'active'},
     )
     monkeypatch.setattr(
         routes,
@@ -395,7 +395,7 @@ def test_forgot_password_manual_token_redirects_in_production(monkeypatch, clien
     monkeypatch.setattr(
         routes,
         'obtener_usuario_por_email',
-        lambda _email: {'user_id': 'user-1', 'telefono': '5551234567'},
+        lambda _email, **kwargs: {'user_id': 'user-1', 'telefono': '5551234567'},
     )
     monkeypatch.setattr(
         routes,
