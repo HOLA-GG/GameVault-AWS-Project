@@ -158,10 +158,10 @@ def require_login(view):
                 log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
 
             crear_log_audit(
-                user_id=user_id,
+                user_id=user_id if user else None,
                 action='UNAUTHORIZED_ACCESS',
                 resource='auth',
-                details={'reason': 'user_inactive_or_not_found', 'target_url': log_url},
+                details={'reason': 'user_inactive_or_not_found', 'target_url': log_url, 'attempted_user_id': user_id},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
@@ -211,11 +211,12 @@ def require_admin(view):
             if request.path.startswith('/reset-password/'):
                 log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
 
+            actual_user_id = session.get('user_id')
             crear_log_audit(
-                user_id=session.get('user_id'),
+                user_id=actual_user_id if user else None,
                 action='UNAUTHORIZED_ACCESS',
                 resource='admin_panel',
-                details={'target_url': log_url, 'email': session.get('email')},
+                details={'target_url': log_url, 'email': session.get('email'), 'attempted_user_id': actual_user_id},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
