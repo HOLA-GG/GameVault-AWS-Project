@@ -1010,11 +1010,13 @@ def presign_upload():
     if not isinstance(json_data, dict):
         json_data = {}
 
-    filename = request.form.get('filename', '').strip() or json_data.get('filename', '').strip()
-    content_type = request.form.get('content_type', '').strip() or json_data.get('content_type', '').strip()
+    # Safe extraction with type enforcement to prevent crashes on malformed JSON (Security hardening)
+    filename = str(request.form.get('filename') or json_data.get('filename') or '').strip()
+    content_type = str(request.form.get('content_type') or json_data.get('content_type') or '').strip()
 
-    if not filename or not content_type:
-        return jsonify({'error': 'filename y content_type son obligatorios'}), 400
+    # Basic length checks to prevent storage-based DoS or memory issues (Security hardening)
+    if not filename or not content_type or len(filename) > 255 or len(content_type) > 128:
+        return jsonify({'error': 'filename y content_type son obligatorios y deben ser válidos'}), 400
 
     extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
     if extension not in ALLOWED_IMAGE_EXTENSIONS or content_type not in ALLOWED_IMAGE_MIME_TYPES:

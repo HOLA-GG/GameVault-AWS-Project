@@ -127,3 +127,8 @@
 **Vulnerability:** Use of 'unsafe-inline' in Content Security Policy (CSP) and reliance on inline HTML event handlers (e.g., onsubmit).
 **Learning:** Permissive CSPs that allow 'unsafe-inline' provide minimal protection against XSS. Moving to a nonce-based system requires refactoring legacy inline JS, which can be elegantly handled using centralized event delegation and data attributes.
 **Prevention:** Implement a per-request cryptographic nonce, enforce it in the CSP header, and migrate all inline scripts and event handlers to use the nonce or non-inline listeners.
+
+## 2026-07-06 - Defensive Type Enforcement for JSON Inputs
+**Vulnerability:** Application crash (500 error) in JSON endpoints due to unexpected data types (e.g., int instead of string) causing AttributeErrors on string operations.
+**Learning:** Relying on 'request.get_json()' without explicit type validation or conversion can lead to unhandled exceptions when attackers send non-standard types.
+**Prevention:** Always cast JSON-derived values to the expected type (e.g., 'str()') or use 'isinstance' checks before performing type-specific operations like '.strip()'. Additionally, enforce length limits on all user-provided strings to prevent memory-based DoS.
