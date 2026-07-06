@@ -392,29 +392,33 @@ def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[
     """Convierte un juego en diccionario. Optimización Bolt: Deferir formateo de fechas."""
     if game is None:
         return None
+    return _game_row_to_dict(game, format_dates=format_dates)
+
+
+def _game_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
+    """Mapea una fila de DB o instancia de Game a un diccionario (Optimización Bolt)."""
+    # Centralized normalization to UTC-aware datetimes for consistency.
+    _MIN_DATE = MIN_DATE
+    cre = row.created_at or _MIN_DATE
+    if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+    upd = row.updated_at or _MIN_DATE
+    if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
 
     if format_dates:
-        cre, upd = as_iso(game.created_at), as_iso(game.updated_at)
-    else:
-        # Centralized normalization to UTC-aware datetimes for hot-loop efficiency.
-        # Fallback to MIN_DATE for safe comparisons in routes.
-        cre = game.created_at or MIN_DATE
-        upd = game.updated_at or MIN_DATE
-        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
-        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+        cre, upd = cre.isoformat(), upd.isoformat()
 
     return {
-        'game_id': game.game_id,
-        'user_id': game.user_id,
-        'titulo': game.titulo,
-        'descripcion': game.descripcion,
-        'imagen_url': game.imagen_url,
-        'plataforma': game.plataforma,
-        'estado': game.estado,
-        'categoria': game.categoria,
-        'prioridad': game.prioridad,
-        'calificacion': game.calificacion,
-        'es_favorito': game.es_favorito,
+        'game_id': row.game_id,
+        'user_id': row.user_id,
+        'titulo': row.titulo,
+        'descripcion': row.descripcion,
+        'imagen_url': row.imagen_url,
+        'plataforma': row.plataforma,
+        'estado': row.estado,
+        'categoria': row.categoria,
+        'prioridad': row.prioridad,
+        'calificacion': row.calificacion,
+        'es_favorito': row.es_favorito,
         'created_at': cre,
         'updated_at': upd,
     }
@@ -717,13 +721,15 @@ def obtener_juegos_por_usuario(user_id):
         return juegos
 
 
-def obtener_juego_por_id(user_id, game_id):
-    """Obtiene un juego por ID y usuario."""
+def obtener_juego_por_id(user_id, game_id, format_dates: bool = True):
+    """Obtiene un juego por ID y usuario (Optimización Bolt: bypass ORM hydration)."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        item = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
-        return game_to_dict(item)
+        row = session.execute(
+            select(Game.__table__).where(Game.user_id == user_id, Game.game_id == game_id)
+        ).first()
+        return _game_row_to_dict(row, format_dates=format_dates) if row else None
 
 
 def eliminar_juego(user_id, game_id):
@@ -816,18 +822,20 @@ def crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash
         return None
 
 
-def obtener_usuario_por_email(email):
-    """Obtiene un usuario por email."""
+def obtener_usuario_por_email(email, format_dates: bool = True):
+    """Obtiene un usuario por email (Optimización Bolt: bypass ORM hydration)."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        user = session.scalar(select(User).where(User.email == email.lower().strip()))
-        return user_to_dict(user)
+        row = session.execute(
+            select(User.__table__).where(User.email == email.lower().strip())
+        ).first()
+        return _user_row_to_dict(row, format_dates=format_dates) if row else None
 
 
-def verificar_credenciales(email, password):
+def verificar_credenciales(email, password, format_dates: bool = True):
     """Compatibilidad con la interfaz previa."""
-    return obtener_usuario_por_email(email)
+    return obtener_usuario_por_email(email, format_dates=format_dates)
 
 
 def obtener_todos_usuarios(limit: int | None = None, offset: int | None = None, **kwargs) -> List[Dict[str, Any]]:
@@ -1199,13 +1207,15 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
     return output.getvalue()
 
 
-def obtener_usuario_por_id(user_id: str) -> Optional[Dict[str, Any]]:
-    """Obtiene un usuario por ID."""
+def obtener_usuario_por_id(user_id: str, format_dates: bool = True) -> Optional[Dict[str, Any]]:
+    """Obtiene un usuario por ID (Optimización Bolt: bypass ORM hydration)."""
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        user = session.get(User, user_id)
-        return user_to_dict(user)
+        row = session.execute(
+            select(User.__table__).where(User.user_id == user_id)
+        ).first()
+        return _user_row_to_dict(row, format_dates=format_dates) if row else None
 
 
 def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, Any]]:
