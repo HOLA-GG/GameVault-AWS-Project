@@ -158,10 +158,10 @@ def require_login(view):
                 log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
 
             crear_log_audit(
-                user_id=user_id,
+                user_id=user_id if user else None,
                 action='UNAUTHORIZED_ACCESS',
                 resource='auth',
-                details={'reason': 'user_inactive_or_not_found', 'target_url': log_url},
+                details={'reason': 'user_inactive_or_not_found', 'target_url': log_url, 'attempted_user_id': user_id},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
@@ -211,11 +211,12 @@ def require_admin(view):
             if request.path.startswith('/reset-password/'):
                 log_url = url_for('main.reset_password_with_email', token='[REDACTED]', _external=True)
 
+            actual_user_id = session.get('user_id')
             crear_log_audit(
-                user_id=session.get('user_id'),
+                user_id=actual_user_id if user else None,
                 action='UNAUTHORIZED_ACCESS',
                 resource='admin_panel',
-                details={'target_url': log_url, 'email': session.get('email')},
+                details={'target_url': log_url, 'email': session.get('email'), 'attempted_user_id': actual_user_id},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
@@ -1010,11 +1011,13 @@ def presign_upload():
     if not isinstance(json_data, dict):
         json_data = {}
 
-    filename = request.form.get('filename', '').strip() or json_data.get('filename', '').strip()
-    content_type = request.form.get('content_type', '').strip() or json_data.get('content_type', '').strip()
+    # Safe extraction with type enforcement to prevent crashes on malformed JSON (Security hardening)
+    filename = str(request.form.get('filename') or json_data.get('filename') or '').strip()
+    content_type = str(request.form.get('content_type') or json_data.get('content_type') or '').strip()
 
-    if not filename or not content_type:
-        return jsonify({'error': 'filename y content_type son obligatorios'}), 400
+    # Basic length checks to prevent storage-based DoS or memory issues (Security hardening)
+    if not filename or not content_type or len(filename) > 255 or len(content_type) > 128:
+        return jsonify({'error': 'filename y content_type son obligatorios y deben ser válidos'}), 400
 
     extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
     if extension not in ALLOWED_IMAGE_EXTENSIONS or content_type not in ALLOWED_IMAGE_MIME_TYPES:
