@@ -503,10 +503,10 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
     _MIN_DATE = MIN_DATE
 
     for juego in juegos:
-        # Bolt Optimization: Fast bracket access for keys guaranteed by game_to_dict.
-        plataforma = juego['plataforma'] or 'Sin plataforma'
-        estado = juego['estado'] or 'N/A'
-        cat = juego['categoria'] or 'Biblioteca'
+        # Bolt Optimization: Fast bracket access for keys guaranteed by game_to_dict and data normalization.
+        plataforma = juego['plataforma']
+        estado = juego['estado']
+        cat = juego['categoria']
         prioridad = juego['prioridad']
 
         # Bolt Optimization: Direct increments avoid .get() or Counter overhead.
@@ -605,8 +605,8 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
         'last_updated_game': last_updated_game,
         'next_focus': next_focus,
         'filter_options': {
-            'plataformas': sorted(p for p in platform_counts if p != 'Sin plataforma'),
-            'estados': sorted(s for s in status_counts if s != 'N/A'),
+            'plataformas': sorted(platform_counts),
+            'estados': sorted(status_counts),
             'categorias': sorted(category_counts),
         }
     }
@@ -687,27 +687,26 @@ def filter_and_sort_games(juegos, filters):
     else:
         filtered = []
         for juego in juegos:
-            # Chequeos baratos primero para fallar rápido antes de construir el haystack
-            # Bolt Optimization: Access properties only when needed to skip redundant assignments.
-            if plataforma and (juego['plataforma'] or '') != plataforma:
+            # Chequeos baratos primero para fallar rápido before constructing the haystack.
+            # Bolt Optimization: Rely on normalized fields to skip fallback logic.
+            if plataforma and juego['plataforma'] != plataforma:
                 continue
-            if estado and (juego['estado'] or '') != estado:
+            if estado and juego['estado'] != estado:
                 continue
-            if categoria and (juego['categoria'] or '') != categoria:
+            if categoria and juego['categoria'] != categoria:
                 continue
             if favoritos == 'solo' and not juego['es_favorito']:
                 continue
 
             # La búsqueda por texto es la operación más costosa, optimizada con short-circuit.
-            # Bolt Optimization: Prioritize likely matches (title) and short strings before long descriptions.
+            # Bolt Optimization: Prioritize likely matches and short categorical fields before long descriptions.
+            # Normalized titulo and descripcion in data layer ensure null-safe .lower() calls.
             if query:
-                j_plataforma = juego['plataforma'] or ''
-                j_estado = juego['estado'] or ''
                 if not (
-                    query in (juego['titulo'] or '').lower() or
-                    query in j_plataforma.lower() or
-                    query in j_estado.lower() or
-                    query in (juego['descripcion'] or '').lower()
+                    query in juego['plataforma'].lower() or
+                    query in juego['estado'].lower() or
+                    query in juego['titulo'].lower() or
+                    query in juego['descripcion'].lower()
                 ):
                     continue
 
@@ -737,15 +736,17 @@ def enrich_game_metadata(game: dict | None) -> dict | None:
     if game is None:
         return None
 
-    game['imagen_url'] = crear_url_firmada_lectura(game.get('imagen_url', ''))
+    # Bolt Optimization: Access key directly to avoid .get() overhead.
+    # restore fallback safety for crear_url_firmada_lectura.
+    game['imagen_url'] = crear_url_firmada_lectura(game['imagen_url'] or '')
 
     # Bolt Optimization: Convert raw datetimes to ISO strings only when needed for templates.
-    # Unroll loop to avoid iterator overhead in this hot path.
-    upd = game.get('updated_at')
+    # Use bracket access for guaranteed keys and centralized as_iso for UTC consistency.
+    upd = game['updated_at']
     if isinstance(upd, datetime):
         game['updated_at'] = as_iso(upd)
 
-    cre = game.get('created_at')
+    cre = game['created_at']
     if isinstance(cre, datetime):
         game['created_at'] = as_iso(cre)
 
@@ -758,16 +759,18 @@ def enrich_log_metadata(log: dict | None) -> dict | None:
         return None
 
     # Bolt Optimization: Assign badge classes and serialize timestamp only when needed for rendering.
-    log['action_badge_class'] = get_action_badge_class(log.get('action', ''))
+    # Use bracket access for keys guaranteed by the data layer to avoid .get() overhead.
+    status = log['status']
+    log['action_badge_class'] = get_action_badge_class(log['action'])
     log['status_badge_class'] = (
         'badge-log-success'
-        if log.get('status') == 'SUCCESS'
+        if status == 'SUCCESS'
         else 'badge-log-error'
-        if log.get('status') in {'FAILED', 'ERROR'}
+        if status in {'FAILED', 'ERROR'}
         else 'badge-log-neutral'
     )
 
-    ts = log.get('timestamp')
+    ts = log['timestamp']
     if isinstance(ts, datetime):
         log['timestamp'] = as_iso(ts)
 

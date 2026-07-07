@@ -410,13 +410,15 @@ def _game_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     return {
         'game_id': row.game_id,
         'user_id': row.user_id,
-        'titulo': row.titulo,
-        'descripcion': row.descripcion,
+        # Bolt Optimization: Normalize strings to empty strings for null-safe .lower() in routes.
+        'titulo': row.titulo or '',
+        'descripcion': row.descripcion or '',
         'imagen_url': row.imagen_url,
-        'plataforma': row.plataforma,
-        'estado': row.estado,
-        'categoria': row.categoria,
-        'prioridad': row.prioridad,
+        # Bolt Optimization: Normalize categorical fields to model defaults if null.
+        'plataforma': row.plataforma or 'PC',
+        'estado': row.estado or 'N/A',
+        'categoria': row.categoria or 'Biblioteca',
+        'prioridad': row.prioridad or 'Media',
         'calificacion': row.calificacion,
         'es_favorito': row.es_favorito,
         'created_at': cre,
@@ -691,34 +693,8 @@ def obtener_juegos_por_usuario(user_id):
             .order_by(Game.updated_at.desc(), Game.created_at.desc())
         ).all()
 
-        juegos = []
-        _MIN_DATE = MIN_DATE
-        for row in results:
-            # Inline date normalization for maximum performance in the hot loop
-            cre = row.created_at or _MIN_DATE
-            if cre.tzinfo is None:
-                cre = cre.replace(tzinfo=timezone.utc)
-
-            upd = row.updated_at or _MIN_DATE
-            if upd.tzinfo is None:
-                upd = upd.replace(tzinfo=timezone.utc)
-
-            juegos.append({
-                'game_id': row.game_id,
-                'user_id': row.user_id,
-                'titulo': row.titulo,
-                'descripcion': row.descripcion,
-                'imagen_url': row.imagen_url,
-                'plataforma': row.plataforma,
-                'estado': row.estado,
-                'categoria': row.categoria,
-                'prioridad': row.prioridad,
-                'calificacion': row.calificacion,
-                'es_favorito': row.es_favorito,
-                'created_at': cre,
-                'updated_at': upd,
-            })
-        return juegos
+        # Bolt Optimization: Reuse _game_row_to_dict for consistent normalization and performance.
+        return [_game_row_to_dict(row, format_dates=False) for row in results]
 
 
 def obtener_juego_por_id(user_id, game_id, format_dates: bool = True):
