@@ -1654,10 +1654,8 @@ def forgot_password():
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='SUCCESS',
             )
-            should_show_debug = current_app.config.get('SHOW_RESET_DEBUG_TOKEN') or (
-                current_app.config.get('APP_ENV') != 'production' and not email_sent
-            )
-            if should_show_debug:
+            # Strictly respect the debug token flag to prevent exposure in production (Security hardening)
+            if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
                 if email_sent:
                     flash('Entorno de prueba: se muestra el acceso de recuperación para validar el flujo end-to-end.', 'warning')
                 else:
@@ -1728,14 +1726,18 @@ def forgot_password_manual():
         status='SUCCESS',
     )
 
-    # Para la opción manual, siempre mostramos el token si la validación es exitosa,
-    # ya que es el propósito de esta vía de recuperación (Email + Teléfono).
-    flash('Token generado exitosamente. Guárdalo y úsalo en la opción de validación manual.', 'success')
-    return render_template(
-        'forgot_password.html',
-        debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
-        email_sent=False,
-    )
+    # Para la opción manual, solo mostramos el token si el flag de debug está activo.
+    # En producción, esta vía debe ser gestionada por soporte o flujos alternativos seguros.
+    if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
+        flash('Token generado exitosamente. Guárdalo y úsalo en la opción de validación manual.', 'success')
+        return render_template(
+            'forgot_password.html',
+            debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
+            email_sent=False,
+        )
+
+    flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
+    return redirect(url_for('main.forgot_password'))
 
 
 @main_bp.route('/validate-token')
