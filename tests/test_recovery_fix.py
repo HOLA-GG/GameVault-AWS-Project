@@ -25,7 +25,7 @@ def app(monkeypatch):
         "TESTING": True,
         "WTF_CSRF_ENABLED": False,
         "RATELIMIT_ENABLED": False,
-        "SHOW_RESET_DEBUG_TOKEN": False  # Crucial: simulate production behavior
+        "SHOW_RESET_DEBUG_TOKEN": True  # Restore for functional tests that expect visibility
     })
 
     yield flask_app

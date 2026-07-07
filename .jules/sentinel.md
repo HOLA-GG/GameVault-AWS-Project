@@ -123,6 +123,11 @@
 **Learning:** While authentication events were well-audited, attempts by authenticated users to manipulate resources they didn't own (IDOR) or repeated validation failures (which can indicate automated fuzzing or exploit attempts) were silent in the logs. Visibility into *intent* and *failed attempts* is as crucial as auditing successful actions.
 **Prevention:** Always log UNAUTHORIZED_ACCESS attempts when resource ownership checks fail, and record FAILED status for critical resource creation/update actions when validation constraints are not met, including truncated metadata for forensic context.
 
+## 2026-07-12 - Eliminate Reset Token Leakage in All Recovery Flows
+**Vulnerability:** Reset tokens were exposed in the UI in `forgot_password` (based on environment) and `forgot_password_manual` (unconditionally).
+**Learning:** A previous "functional hardening" intentionally bypassed security flags to ensure the manual recovery path worked when email failed. This prioritizes availability over confidentiality and creates an account takeover vector. Additionally, environment-based branching (`if not is_prod`) often leads to accidental leaks if the environment is misconfigured or if "testing" environments handle real data.
+**Prevention:** Enforce a single, explicit source of truth (`SHOW_RESET_DEBUG_TOKEN`) for sensitive data exposure. Never bypass security gates for "manual" or "alternate" paths. Always use generic success messages and redirects in production recovery flows to prevent both token leakage and account enumeration.
+
 ## 2026-07-05 - Harden CSP with Nonces and Event Delegation
 **Vulnerability:** Use of 'unsafe-inline' in Content Security Policy (CSP) and reliance on inline HTML event handlers (e.g., onsubmit).
 **Learning:** Permissive CSPs that allow 'unsafe-inline' provide minimal protection against XSS. Moving to a nonce-based system requires refactoring legacy inline JS, which can be elegantly handled using centralized event delegation and data attributes.

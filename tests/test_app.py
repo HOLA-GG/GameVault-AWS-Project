@@ -323,7 +323,7 @@ def test_forgot_password_can_show_debug_token_locally(monkeypatch, client):
 def test_forgot_password_shows_recovery_token_when_email_delivery_fails_in_non_production(monkeypatch, client):
     import app.routes as routes
 
-    client.application.config['SHOW_RESET_DEBUG_TOKEN'] = False
+    client.application.config['SHOW_RESET_DEBUG_TOKEN'] = True
     client.application.config['APP_ENV'] = 'testing'
     monkeypatch.setattr(routes, 'obtener_usuario_por_email', lambda _email, **kwargs: {'user_id': 'user-1', 'status': 'active'})
     monkeypatch.setattr(
