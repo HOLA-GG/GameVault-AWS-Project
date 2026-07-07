@@ -233,21 +233,33 @@
         function setupCharacterCounters() {
             document.querySelectorAll('textarea[maxlength], input[maxlength]').forEach((el, index) => {
                 if (el.type === 'password' || el.type === 'checkbox' || el.type === 'radio') return;
-                const maxLength = el.getAttribute('maxlength');
-                const counterId = `char-counter-${index}`;
+                const maxLength = parseInt(el.getAttribute('maxlength'), 10);
+                if (isNaN(maxLength) || maxLength < 30) return;
 
+                const counterId = `char-counter-${index}`;
                 const counter = document.createElement('small');
                 counter.id = counterId;
                 counter.style.display = 'block';
                 counter.style.textAlign = 'right';
                 counter.style.marginTop = '4px';
-                counter.style.color = 'var(--text-secondary)';
+                counter.style.transition = 'color 0.2s ease, font-weight 0.2s ease';
                 counter.setAttribute('aria-live', 'polite');
 
                 const updateCounter = () => {
                     const currentLength = el.value.length;
                     counter.textContent = `${currentLength} / ${maxLength} caracteres`;
-                    counter.style.color = currentLength >= maxLength ? 'var(--danger-color)' : 'var(--text-secondary)';
+
+                    const ratio = currentLength / maxLength;
+                    if (ratio >= 1) {
+                        counter.style.color = 'var(--danger-color)';
+                        counter.style.fontWeight = '700';
+                    } else if (ratio >= 0.85) {
+                        counter.style.color = 'var(--warning-color)';
+                        counter.style.fontWeight = '600';
+                    } else {
+                        counter.style.color = 'var(--text-secondary)';
+                        counter.style.fontWeight = '400';
+                    }
                 };
 
                 const existingDescribedBy = el.getAttribute('aria-describedby') || '';
@@ -309,7 +321,7 @@
         }
 
         function setupPasswordStrength() {
-            document.querySelectorAll('input[type="password"]').forEach(input => {
+            document.querySelectorAll('input[type="password"]').forEach((input, index) => {
                 const group = input.closest('.form-group');
                 if (!group) return;
                 const meter = group.querySelector('.strength-meter');
@@ -318,10 +330,18 @@
 
                 if (!meter || !bar || !text) return;
 
+                const textId = `pw-strength-text-${index}`;
+                text.id = textId;
+                meter.setAttribute('role', 'progressbar');
+                meter.setAttribute('aria-valuemin', '0');
+                meter.setAttribute('aria-valuemax', '100');
+                meter.setAttribute('aria-labelledby', textId);
+
                 const update = () => {
                     const val = input.value;
                     if (!val) {
                         meter.style.display = 'none';
+                        meter.setAttribute('aria-valuenow', '0');
                         text.textContent = '';
                         return;
                     }
@@ -336,6 +356,7 @@
 
                     const width = Math.min(100, (score / 5) * 100);
                     bar.style.width = `${width}%`;
+                    meter.setAttribute('aria-valuenow', Math.round(width));
 
                     bar.classList.remove('is-weak', 'is-medium', 'is-strong');
                     text.classList.remove('is-weak', 'is-medium', 'is-strong');

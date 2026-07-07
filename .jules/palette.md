@@ -77,3 +77,7 @@
 ## 2025-05-20 - [Route-Template Logic Synchronization]
 **Learning:** In projects with complex data enrichment (like audit logs), simply updating the template is often insufficient. Ensuring the route logic utilizes the same enrichment helpers as other pages (e.g., `enrich_log_metadata`) is critical for maintaining visual and functional parity across the application.
 **Action:** When improving a component that exists in multiple views, verify that the backend data preparation is synchronized to support the enhanced UI features (badges, formatting, etc.) consistently.
+
+## 2025-05-23 - [Threshold-based Form Feedback and Accessible Progress Meters]
+**Learning:** Providing multi-state visual feedback for character counters (e.g., warning at 85%, danger at 100%) gives users better "peripheral" awareness of constraints without forcing them to read the exact number. Additionally, custom visual components like strength meters must explicitly use `role="progressbar"` and link to their labels via `aria-labelledby` to be perceivable by assistive technologies.
+**Action:** Always implement tiered visual states for input constraints and ensure custom meters are fully annotated with ARIA progressbar attributes.
