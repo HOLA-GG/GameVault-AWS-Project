@@ -68,3 +68,16 @@ def test_base_html_contains_nonce_on_all_scripts(client):
     scripts = re.findall(r'<script[^>]*>', html)
     for script in scripts:
         assert 'nonce="' in script
+
+
+def test_csp_no_unsafe_inline_in_script_src(client):
+    """Verifica que 'unsafe-inline' haya sido removido de script-src."""
+    response = client.get('/')
+    csp_header = response.headers.get('Content-Security-Policy', '')
+
+    # Encontrar la directiva script-src
+    parts = [p.strip() for p in csp_header.split(';')]
+    script_src = next((p for p in parts if p.startswith('script-src')), None)
+
+    assert script_src is not None
+    assert "'unsafe-inline'" not in script_src
