@@ -630,26 +630,22 @@ def get_action_badge_class(action: str) -> str:
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
     """Agrupa logs por cuenta (optimizado: asume logs ya ordenados por timestamp desc)."""
-    # Pre-fetch de todos los usuarios únicos para evitar N+1 queries.
-    # Bolt Optimization: Fetch users with raw datetimes as they are not rendered in admin_logs.html.
-    unique_user_ids = {log.get('user_id') for log in logs if log.get('user_id')}
-    users_data = obtener_usuarios_por_ids(list(unique_user_ids), format_dates=False)
-    user_cache = {u['user_id']: u for u in users_data}
-
+    # Bolt Optimization: Defer user metadata lookup to the route layer after pagination.
     grouped: dict[str, dict] = {}
 
     for log in logs:
-        user_id = log.get('user_id') or 'system'
+        # Bolt Optimization: Use bracket access for keys guaranteed by the data layer.
+        user_id = log['user_id'] or 'system'
         if user_id not in grouped:
-            user = user_cache.get(user_id)
             grouped[user_id] = {
                 'user_id': user_id,
-                'email': (user or {}).get('email', '') if user_id != 'system' else 'sistema@local',
-                'nombre': (user or {}).get('nombre', '') if user_id != 'system' else 'Sistema',
+                # Placeholders to be filled only for the visible page in the route.
+                'email': 'sistema@local' if user_id == 'system' else '',
+                'nombre': 'Sistema' if user_id == 'system' else '',
                 'items': [],
                 'events_count': 0,
-                'latest_timestamp': log.get('timestamp'),
-                'latest_action': log.get('action_name') or log.get('action') or 'Actividad',
+                'latest_timestamp': log['timestamp'],
+                'latest_action': log['action_name'] or log['action'] or 'Actividad',
             }
         bucket = grouped[user_id]
         bucket['items'].append(log)
@@ -2017,8 +2013,18 @@ def admin_logs():
     grouped_logs = build_admin_log_groups(logs)
     pagination = paginate_items(grouped_logs, page, current_app.config['ADMIN_USERS_PER_PAGE'])
 
-    # Bolt Optimization: Enrich only logs belonging to the current page view.
-    for group in pagination['items']:
+    # Bolt Optimization: Enrich only groups and logs belonging to the current page view.
+    page_groups = pagination['items']
+    page_user_ids = {g['user_id'] for g in page_groups if g['user_id'] != 'system'}
+    user_map = {u['user_id']: u for u in obtener_usuarios_por_ids(list(page_user_ids), format_dates=False)} if page_user_ids else {}
+
+    for group in page_groups:
+        uid = group['user_id']
+        if uid != 'system' and uid in user_map:
+            u = user_map[uid]
+            group['email'] = u.get('email', '')
+            group['nombre'] = u.get('nombre', '')
+
         # Enrich the first log of each group for the sidebar (latest_action, latest_timestamp)
         if group['items']:
             enrich_log_metadata(group['items'][0])

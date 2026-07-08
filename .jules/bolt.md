@@ -123,3 +123,7 @@
 ## 2026-07-04 - Schema-Resilient ORM Hydration Bypass
 **Learning:** Bypassing ORM hydration by selecting specific columns improves performance but can lead to code duplication and fragility if columns are hardcoded in multiple fetchers. Using `select(Model.__table__)` via `session.execute()` provides the same performance benefit (returning raw Row objects) while remaining resilient to schema changes.
 **Action:** Pair `select(Model.__table__)` with a centralized private mapping helper to achieve hydration-free performance without sacrificing DRY principles or schema robustness.
+
+## 2026-07-15 - Deferred User Enrichment in Grouped Collections
+**Learning:** Eagerly fetching user metadata (names, emails) for all unique accounts in a large collection (e.g., 500 audit logs) before pagination introduces significant database and hydration overhead. Since most accounts won't be visible on the first page, this work is mostly wasted.
+**Action:** Defer metadata lookups until after pagination. Calculate the set of unique identifiers present only on the current page and fetch their metadata in a single batch query.
