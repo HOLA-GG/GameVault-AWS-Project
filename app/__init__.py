@@ -257,7 +257,7 @@ def create_app() -> Flask:
         csp_nonce = getattr(g, 'csp_nonce', '')
         csp_parts = [
             "default-src 'self'",
-            f"script-src 'self' 'nonce-{csp_nonce}' 'unsafe-inline'",
+            f"script-src 'self' 'nonce-{csp_nonce}'",
             "style-src 'self' 'unsafe-inline'",
             f"img-src {' '.join(img_sources)}",
             f"connect-src {' '.join(connect_sources)}",
