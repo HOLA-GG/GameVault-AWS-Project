@@ -64,9 +64,10 @@
                                 <button type="button" class="btn-copy" data-copy="{{ collection.owner_email }}" aria-label="Copiar email">{{ collection.owner_email }}</button>
                             </td>
                             <td>
-                                <span class="badge {{ 'badge-public' if collection.collection_visibility == 'public' else 'badge-private' }}">
+                                {% set visibility_active = visibility == collection.collection_visibility %}
+                                <a href="{{ url_for('main.admin_collections', **query_args_builder(visibility=collection.collection_visibility, page=None)) }}" class="badge {{ 'badge-public' if collection.collection_visibility == 'public' else 'badge-private' }} {{ 'is-active' if visibility_active }}" aria-label="Filtrar por visibilidad {{ 'pública' if collection.collection_visibility == 'public' else 'privada' }}" {{ 'aria-current="true"'|safe if visibility_active }}>
                                     {{ 'Pública' if collection.collection_visibility == 'public' else 'Privada' }}
-                                </span>
+                                </a>
                             </td>
                             <td>{{ collection.total_games }}</td>
                             <td>{{ collection.favorites_count }}</td>
