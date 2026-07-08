@@ -176,10 +176,11 @@
                                     <tr>
                                         <td data-timestamp="{{ log.timestamp }}">{{ log.timestamp[:19].replace('T', ' ') }}</td>
                                         <td>
-                                            <span class="badge badge-log-action {{ log.action_badge_class }}">
+                                            {% set action_active = filters.action == log.action %}
+                                            <a href="{{ url_for('main.admin_logs', **query_args_builder(action=log.action, page=None)) }}" class="badge badge-log-action {{ log.action_badge_class }} {{ 'is-active' if action_active }}" aria-label="Filtrar por acción {{ log.action_name or log.action }}" {{ 'aria-current="true"'|safe if action_active }}>
                                                 <span aria-hidden="true">{{ action_emojis.get(log.action, '🔔') }}</span>
                                                 {{ log.action_name or log.action }}
-                                            </span>
+                                            </a>
                                         </td>
                                         <td>
                                             <span class="badge badge-log-resource">{{ log.resource|replace('_', ' ')|title }}</span>
@@ -200,7 +201,10 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <span class="badge {{ log.status_badge_class }}">{{ log.status }}</span>
+                                            {% set status_active = filters.status == log.status %}
+                                            <a href="{{ url_for('main.admin_logs', **query_args_builder(status=log.status, page=None)) }}" class="badge {{ log.status_badge_class }} {{ 'is-active' if status_active }}" aria-label="Filtrar por estado {{ log.status }}" {{ 'aria-current="true"'|safe if status_active }}>
+                                                {{ log.status }}
+                                            </a>
                                         </td>
                                         <td><button type="button" class="btn-copy" data-copy="{{ log.ip_address }}" aria-label="Copiar IP">{{ log.ip_address }}</button></td>
                                     </tr>
