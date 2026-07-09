@@ -1279,6 +1279,18 @@ def obtener_resumenes_colecciones(
         average_rating_expr = func.avg(Game.calificacion)
         last_updated_expr = func.max(func.coalesce(Game.updated_at, Game.created_at))
 
+        # Bolt Optimization: Correlated subquery to fetch the dominant platform in a single round-trip.
+        # This avoids the overhead of a separate batch query and Python-side dictionary merging.
+        dominant_platform_expr = (
+            select(Game.plataforma)
+            .where(Game.user_id == User.user_id)
+            .group_by(Game.plataforma)
+            .order_by(func.count(Game.game_id).desc())
+            .limit(1)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
         query = select(
             User.user_id,
             User.nombre,
@@ -1289,6 +1301,7 @@ def obtener_resumenes_colecciones(
             favorites_count_expr.label('favorites_count'),
             average_rating_expr.label('average_rating'),
             last_updated_expr.label('last_updated_at'),
+            func.coalesce(dominant_platform_expr, 'Sin juegos').label('dominant_platform'),
         )
 
         if homepage_only:
@@ -1322,22 +1335,6 @@ def obtener_resumenes_colecciones(
         if not results:
             return []
 
-        user_ids = [r.user_id for r in results]
-
-        # Batch query para plataformas dominantes (evita N+1 y cargar todos los juegos en memoria)
-        platform_query = (
-            select(Game.user_id, Game.plataforma, func.count(Game.plataforma))
-            .where(Game.user_id.in_(user_ids))
-            .group_by(Game.user_id, Game.plataforma)
-            .order_by(Game.user_id, func.count(Game.plataforma).desc())
-        )
-        platform_results = session.execute(platform_query).all()
-
-        dominant_platforms = {}
-        for row in platform_results:
-            if row[0] not in dominant_platforms:
-                dominant_platforms[row[0]] = row[1] or 'Sin plataforma'
-
         return [
             {
                 'user_id': r.user_id,
@@ -1348,7 +1345,7 @@ def obtener_resumenes_colecciones(
                 'total_games': int(r.total_games),
                 'favorites_count': int(r.favorites_count),
                 'average_rating': round(float(r.average_rating), 1) if r.average_rating is not None else None,
-                'dominant_platform': dominant_platforms.get(r.user_id, 'Sin juegos'),
+                'dominant_platform': r.dominant_platform,
                 'last_updated_at': as_iso(r.last_updated_at) or '',
             }
             for r in results
