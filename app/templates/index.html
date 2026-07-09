@@ -30,13 +30,13 @@
             <p>Tu biblioteca actual ya cubre {{ dashboard_insights.platforms_count }} plataformas.</p>
         </a>
         {% set favs_active = filters.favoritos == 'solo' %}
-        <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="feature-card {{ 'is-active' if favs_active }}" aria-label="Ver juegos favoritos" {{ 'aria-current="true"'|safe if favs_active }}>
+        <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None if favs_active else 'solo', page=None)) }}" class="feature-card {{ 'is-active' if favs_active }}" aria-label="{{ 'Quitar filtro de favoritos' if favs_active else 'Ver juegos favoritos' }}" {{ 'aria-current="true"'|safe if favs_active }}>
             <span class="feature-icon" aria-hidden="true">⭐</span>
             <h4>{{ dashboard_insights.favorites_count }} favoritos</h4>
             <p>{{ dashboard_insights.high_priority_count }} juegos están marcados con prioridad alta.</p>
         </a>
         {% set cat_active = filters.categoria == dashboard_insights.dominant_category.label %}
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=dashboard_insights.dominant_category.label, page=None)) }}" class="feature-card {{ 'is-active' if cat_active }}" aria-label="Ver juegos de la categoría {{ dashboard_insights.dominant_category.label }}" {{ 'aria-current="true"'|safe if cat_active }}>
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if cat_active else dashboard_insights.dominant_category.label, page=None)) }}" class="feature-card {{ 'is-active' if cat_active }}" aria-label="{{ 'Quitar filtro de categoría ' ~ dashboard_insights.dominant_category.label if cat_active else 'Ver juegos de la categoría ' ~ dashboard_insights.dominant_category.label }}" {{ 'aria-current="true"'|safe if cat_active }}>
             <span class="feature-icon" aria-hidden="true">🗂️</span>
             <h4>{{ dashboard_insights.dominant_category.label }}</h4>
             <p>Es la categoría dominante con {{ dashboard_insights.dominant_category.count }} juegos.</p>
@@ -49,17 +49,17 @@
     </div>
     <div class="insight-strip">
         {% set wishlist_active = filters.categoria == 'Wishlist' %}
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Wishlist', page=None)) }}" class="insight-tile {{ 'is-active' if wishlist_active }}" aria-label="Ver wishlist" {{ 'aria-current="true"'|safe if wishlist_active }}>
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if wishlist_active else 'Wishlist', page=None)) }}" class="insight-tile {{ 'is-active' if wishlist_active }}" aria-label="{{ 'Quitar filtro de wishlist' if wishlist_active else 'Ver wishlist' }}" {{ 'aria-current="true"'|safe if wishlist_active }}>
             <strong>{{ dashboard_insights.wishlist_count }}</strong>
             <span>en wishlist</span>
         </a>
         {% set backlog_active = filters.categoria == 'Backlog' %}
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Backlog', page=None)) }}" class="insight-tile {{ 'is-active' if backlog_active }}" aria-label="Ver backlog" {{ 'aria-current="true"'|safe if backlog_active }}>
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if backlog_active else 'Backlog', page=None)) }}" class="insight-tile {{ 'is-active' if backlog_active }}" aria-label="{{ 'Quitar filtro de backlog' if backlog_active else 'Ver backlog' }}" {{ 'aria-current="true"'|safe if backlog_active }}>
             <strong>{{ dashboard_insights.backlog_count }}</strong>
             <span>en backlog</span>
         </a>
         {% set playing_active = filters.categoria == 'Jugando' %}
-        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria='Jugando', page=None)) }}" class="insight-tile {{ 'is-active' if playing_active }}" aria-label="Ver juegos que estoy jugando ahora" {{ 'aria-current="true"'|safe if playing_active }}>
+        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if playing_active else 'Jugando', page=None)) }}" class="insight-tile {{ 'is-active' if playing_active }}" aria-label="{{ 'Quitar filtro de juegos que estoy jugando' if playing_active else 'Ver juegos que estoy jugando ahora' }}" {{ 'aria-current="true"'|safe if playing_active }}>
             <strong>{{ dashboard_insights.currently_playing_count }}</strong>
             <span>jugando ahora</span>
         </a>
@@ -264,14 +264,14 @@
                         {% endif %}
                     <div class="game-badges">
                         {% set plat_active = filters.plataforma and filters.plataforma == juego.plataforma %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="Filtrar por plataforma {{ juego.plataforma or 'PC' }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None if plat_active else juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}</a>
                         {% set status_active = filters.estado and filters.estado == juego.estado %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(estado=juego.estado, page=None)) }}" class="badge estado {{ 'is-active' if status_active }}" aria-label="Filtrar por estado {{ juego.estado or 'N/A' }}" {{ 'aria-current="true"'|safe if status_active }}>{{ juego.estado or 'N/A' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None if status_active else juego.estado, page=None)) }}" class="badge estado {{ 'is-active' if status_active }}" aria-label="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" {{ 'aria-current="true"'|safe if status_active }}>{{ juego.estado or 'N/A' }}</a>
                         {% set cat_active = filters.categoria and filters.categoria == juego.categoria %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=juego.categoria, page=None)) }}" class="badge categoria {{ 'is-active' if cat_active }}" aria-label="Filtrar por categoría {{ juego.categoria or 'Biblioteca' }}" {{ 'aria-current="true"'|safe if cat_active }}>{{ juego.categoria or 'Biblioteca' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if cat_active else juego.categoria, page=None)) }}" class="badge categoria {{ 'is-active' if cat_active }}" aria-label="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" {{ 'aria-current="true"'|safe if cat_active }}>{{ juego.categoria or 'Biblioteca' }}</a>
                         {% if juego.es_favorito %}
                             {% set fav_active = filters.favoritos == 'solo' %}
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos='solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="Ver solo favoritos" {{ 'aria-current="true"'|safe if fav_active }}>Favorito</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None if fav_active else 'solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" {{ 'aria-current="true"'|safe if fav_active }}>Favorito</a>
                         {% endif %}
                     </div>
                     </div>

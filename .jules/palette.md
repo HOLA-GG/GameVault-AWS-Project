@@ -81,3 +81,7 @@
 ## 2025-05-23 - [Threshold-based Form Feedback and Accessible Progress Meters]
 **Learning:** Providing multi-state visual feedback for character counters (e.g., warning at 85%, danger at 100%) gives users better "peripheral" awareness of constraints without forcing them to read the exact number. Additionally, custom visual components like strength meters must explicitly use `role="progressbar"` and link to their labels via `aria-labelledby` to be perceivable by assistive technologies.
 **Action:** Always implement tiered visual states for input constraints and ensure custom meters are fully annotated with ARIA progressbar attributes.
+
+## 2026-07-09 - [Bidirectional Dashboard Filtering via Toggles]
+**Learning:** Dashboard summary elements (cards, tiles) and metadata badges that act as filter triggers should support bidirectional interaction. When a filter is already active, clicking the same element should toggle it off (remove the filter). This reduces navigation friction by allowing users to undo a filter selection without searching for a "Clear" button or navigating back, making the exploratory experience more fluid and intuitive.
+**Action:** Implement toggle logic for all filter-triggering elements. When the current state matches the element's filter value, the link should lead to a state where that filter is removed (e.g., passing None to the query builder). Update aria-label dynamically to reflect the "Remove filter" action for accessibility.
