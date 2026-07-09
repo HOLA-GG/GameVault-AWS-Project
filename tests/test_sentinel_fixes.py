@@ -52,8 +52,8 @@ def test_registration_clears_session(client):
     response = client.post('/registro', data={
         'nombre': 'Sentinel User',
         'email': unique_email,
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
     assert response.status_code == 302
 
@@ -69,8 +69,8 @@ def test_password_change_failure_logs_audit(client, app):
     response = client.post('/registro', data={
         'nombre': 'Audit User',
         'email': unique_email,
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
     assert response.status_code == 302
 
@@ -78,8 +78,8 @@ def test_password_change_failure_logs_audit(client, app):
     client.post('/perfil', data={
         'form_name': 'password',
         'current_password': 'wrong_password',
-        'password': 'newpassword123',
-        'confirm_password': 'newpassword123'
+        'password': 'newSecurePass123!',
+        'confirm_password': 'newSecurePass123!'
     })
 
     session_factory = get_session_factory()
@@ -101,8 +101,8 @@ def test_password_change_success_clears_session_and_redirects(client):
     response = client.post('/registro', data={
         'nombre': 'Success User',
         'email': unique_email,
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
     assert response.status_code == 302
 
@@ -113,9 +113,9 @@ def test_password_change_success_clears_session_and_redirects(client):
     # Successful password change
     response = client.post('/perfil', data={
         'form_name': 'password',
-        'current_password': 'password123',
-        'password': 'newpassword123',
-        'confirm_password': 'newpassword123'
+        'current_password': 'SecurePass123!',
+        'password': 'newSecurePass123!',
+        'confirm_password': 'newSecurePass123!'
     })
 
     # Check redirect to login
@@ -135,8 +135,8 @@ def test_stale_admin_session(client, app):
     client.post('/registro', data={
         'nombre': 'Stale Admin',
         'email': unique_email,
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
 
     # 2. Upgrade to admin in DB
@@ -148,7 +148,7 @@ def test_stale_admin_session(client, app):
 
     # Refresh session data (re-login or manual sync) - re-login is cleaner
     client.post('/logout')
-    client.post('/login', data={'email': unique_email, 'password': 'password123'})
+    client.post('/login', data={'email': unique_email, 'password': 'SecurePass123!'})
 
     # Verify admin access
     response = client.get('/admin')
@@ -173,8 +173,8 @@ def test_deactivated_while_logged_in(client, app):
     client.post('/registro', data={
         'nombre': 'Active User',
         'email': unique_email,
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
 
     # Verify access

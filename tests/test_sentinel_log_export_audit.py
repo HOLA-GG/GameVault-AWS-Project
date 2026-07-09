@@ -46,7 +46,7 @@ def test_admin_logs_export_audit_and_robots_tag(client, app):
     from app.models import get_session_factory, User, AuditLog, generate_password_hash
 
     # 1. Crear un admin
-    pw_hash = generate_password_hash('password123')
+    pw_hash = generate_password_hash('SecurePass123!')
     admin_id = str(uuid.uuid4())
     session_factory = get_session_factory()
     with session_factory() as db_session:
@@ -90,7 +90,7 @@ def test_dashboard_has_robots_tag(client, app):
     from app.models import get_session_factory, User, generate_password_hash
 
     # 1. Crear usuario
-    pw_hash = generate_password_hash('password123')
+    pw_hash = generate_password_hash('SecurePass123!')
     user_id = str(uuid.uuid4())
     session_factory = get_session_factory()
     with session_factory() as db_session:

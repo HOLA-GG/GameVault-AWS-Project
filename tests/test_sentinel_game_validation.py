@@ -51,7 +51,7 @@ def login_session(client):
 
     user_id = 'val-user-1'
     email = 'val@example.com'
-    pw_hash = generate_password_hash('password123')
+    pw_hash = generate_password_hash('SecurePass123!')
 
     session_factory = get_session_factory()
     with session_factory() as db_session:

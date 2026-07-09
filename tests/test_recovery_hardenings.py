@@ -112,8 +112,8 @@ def test_reset_password_post_fails_for_inactive_user(client, app):
         db_session.commit()
 
     response = client.post(f'/reset-password/{token}', data={
-        'password': 'newpassword123',
-        'confirm_password': 'newpassword123'
+        'password': 'newSecurePass123!',
+        'confirm_password': 'newSecurePass123!'
     })
     assert response.status_code == 302
     assert response.headers['Location'].endswith('/forgot-password')
@@ -129,8 +129,8 @@ def test_session_cleared_after_password_reset(client, app):
         sess['junk_data'] = 'to_be_cleared'
 
     response = client.post(f'/reset-password/{token}', data={
-        'password': 'newpassword123',
-        'confirm_password': 'newpassword123'
+        'password': 'newSecurePass123!',
+        'confirm_password': 'newSecurePass123!'
     })
 
     assert response.status_code == 302

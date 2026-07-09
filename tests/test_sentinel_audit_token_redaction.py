@@ -47,7 +47,7 @@ def test_csrf_error_path_redaction(client, app):
     """Verifica que el path se redacta en logs de auditoría cuando falla CSRF en reset password."""
     # Intentamos un POST sin token CSRF en una ruta sensible
     token = "test-token-123"
-    response = client.post(f'/reset-password/{token}', data={'password': 'newpassword123'})
+    response = client.post(f'/reset-password/{token}', data={'password': 'newSecurePass123!'})
 
     assert response.status_code == 400
     assert b'no paso la validacion de seguridad' in response.data
@@ -72,7 +72,7 @@ def test_unauthorized_access_url_redaction(client, app):
     # Crear usuario inactivo
     user_id = 'inactive-user'
     email = 'inactive@example.com'
-    pw_hash = generate_password_hash('password123')
+    pw_hash = generate_password_hash('SecurePass123!')
 
     session_factory = get_session_factory()
     with session_factory() as db_session:

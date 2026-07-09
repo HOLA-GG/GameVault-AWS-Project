@@ -59,7 +59,7 @@ def login_session(client, *, role='user'):
 
     user_id = 'user-1'
     email = 'user@example.com'
-    pw_hash = generate_password_hash('password123')
+    pw_hash = generate_password_hash('SecurePass123!')
 
     # Ensure user exists in DB because decorators now validate in real-time
     session_factory = get_session_factory()
@@ -222,8 +222,8 @@ def test_registration_redirects_to_dashboard(monkeypatch, client):
         data={
             'nombre': 'Ana',
             'email': 'ana@example.com',
-            'password': 'password123',
-            'confirm_password': 'password123',
+            'password': 'SecurePass123!',
+            'confirm_password': 'SecurePass123!',
         },
     )
 
@@ -257,8 +257,8 @@ def test_registration_persists_phone_fields(monkeypatch, client):
             'email': 'ana@example.com',
             'prefijo_pais': '+1',
             'telefono': '5551234567',
-            'password': 'password123',
-            'confirm_password': 'password123',
+            'password': 'SecurePass123!',
+            'confirm_password': 'SecurePass123!',
         },
     )
 

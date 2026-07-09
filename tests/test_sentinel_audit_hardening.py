@@ -46,7 +46,7 @@ def test_unauthorized_access_audit_log(client, app):
     from app.models import obtener_todos_logs, crear_usuario, generate_password_hash
 
     # 1. Crear un usuario regular
-    pw_hash = generate_password_hash('password123')
+    pw_hash = generate_password_hash('SecurePass123!')
     user = crear_usuario('Regular User', '', 'regular@example.com', '', '', pw_hash)
 
     # 2. Iniciar sesión como usuario regular

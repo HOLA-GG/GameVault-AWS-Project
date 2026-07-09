@@ -56,9 +56,15 @@ _SENSITIVE_PATTERNS = {
     'salt', 'otp', 'mfa', '2fa', 'certificate', 'nonce',
     'cvv', 'cvc', 'credit', 'card', 'ssn', 'dni', 'passport', 'iban',
     'account_number', 'tax_id', 'phone', 'telefono', 'celular', 'mobile',
-    'address', 'direccion', 'birth', 'nacimiento', 'pin', 'apikey'
+    'address', 'direccion', 'birth', 'nacimiento', 'pin', 'apikey',
+    'recovery', 'security', 'identity', 'national_id', 'personal_id',
+    'tarjeta', 'clave', 'cuenta', 'identidad', 'expiry', 'expiration'
 }
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|')
+_COMMON_WEAK_PASSWORDS = {
+    'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
+    'videogames123', 'qwerty123', '12345678a', 'password1234', 'welcome123'
+}
 
 
 def hash_token(token: str) -> str:
@@ -614,6 +620,11 @@ def validar_password(password):
     # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
     if not (8 <= len(password) <= 128):
         return False
+
+    # Bloquear contraseñas extremadamente comunes que pasan la validación de complejidad (Seguridad mejorada)
+    if password.lower() in _COMMON_WEAK_PASSWORDS:
+        return False
+
     # Requerir al menos una letra y un número (Seguridad mejorada)
     return any(c.isalpha() for c in password) and any(c.isdigit() for c in password)
 

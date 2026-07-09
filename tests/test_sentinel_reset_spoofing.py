@@ -52,8 +52,8 @@ def test_reset_password_email_spoofing(client, app):
     client.post('/registro', data={
         'nombre': 'Real User',
         'email': email_real,
-        'password': 'Password123',
-        'confirm_password': 'Password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
 
     # Logout because registro logs you in automatically

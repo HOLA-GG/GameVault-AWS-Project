@@ -137,3 +137,8 @@
 **Vulnerability:** Application crash (500 error) in JSON endpoints due to unexpected data types (e.g., int instead of string) causing AttributeErrors on string operations.
 **Learning:** Relying on 'request.get_json()' without explicit type validation or conversion can lead to unhandled exceptions when attackers send non-standard types.
 **Prevention:** Always cast JSON-derived values to the expected type (e.g., 'str()') or use 'isinstance' checks before performing type-specific operations like '.strip()'. Additionally, enforce length limits on all user-provided strings to prevent memory-based DoS.
+
+## 2026-07-09 - Harden Password Validation and Data Redaction
+**Vulnerability:** Potential choice of common weak passwords bypassing basic complexity checks, and incomplete redaction of regional PII/security keywords in audit logs.
+**Learning:** Security validation must go beyond structural checks (like length/composition) to block known-weak patterns. Additionally, redaction logic needs frequent updates to cover regional variations (e.g., Spanish 'tarjeta' or 'clave') and new PII fields to ensure defense-in-depth against data leakage.
+**Prevention:** Implement an explicit blocklist for common passwords. Regularly audit and expand sensitive keyword lists used in logging utilities to match the application's domain and locale.

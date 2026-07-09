@@ -51,7 +51,7 @@ def test_session_invalidation_logic(client):
 
     # 1. Crear usuario
     email = "session-test@example.com"
-    pw_old = "password123"
+    pw_old = "SecurePass123!"
     pw_hash_old = generate_password_hash(pw_old)
     user = crear_usuario("Session", "Tester", email, "", "123456789", pw_hash_old)
     user_id = user['user_id']
@@ -83,7 +83,7 @@ def test_admin_edit_user_name_length_validation(client):
 
     # Setup admin
     admin_email = "admin-val@gamevault"
-    admin_pw = "admin123"
+    admin_pw = "SecureAdmin123!"
     ensure_bootstrap_admin(admin_email, admin_pw)
 
     # Login as admin
