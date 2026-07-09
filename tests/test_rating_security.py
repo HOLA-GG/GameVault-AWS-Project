@@ -99,7 +99,7 @@ def test_presign_upload_malformed_json(client, app):
 
     user_id = 'test-user-id'
     email = 'test@example.com'
-    pw_hash = generate_password_hash('password123')
+    pw_hash = generate_password_hash('SecurePass123!')
 
     with app.app_context():
         session_factory = get_session_factory()

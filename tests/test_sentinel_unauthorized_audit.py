@@ -183,7 +183,7 @@ def test_audit_unsafe_redirect(client):
     from werkzeug.security import generate_password_hash
 
     # 1. Create user
-    pw = "password123"
+    pw = "SecurePass123!"
     pw_hash = generate_password_hash(pw)
     session_factory = get_session_factory()
     with session_factory() as db_session:

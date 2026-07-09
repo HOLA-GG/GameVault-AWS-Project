@@ -50,7 +50,7 @@ def test_presign_upload_json_int_no_crash(client, app):
     # 1. Create user directly in DB
     from app.models import User, get_session_factory, generate_password_hash
 
-    pw_hash = generate_password_hash('Password123')
+    pw_hash = generate_password_hash('SecurePass123!')
     user_id = str(uuid.uuid4())
     with app.app_context():
         session_factory = get_session_factory()

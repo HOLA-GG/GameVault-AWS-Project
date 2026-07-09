@@ -49,15 +49,15 @@ def test_open_redirect(client):
     client.post('/registro', data={
         'nombre': 'Test User',
         'email': 'test@example.com',
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
     client.post('/logout')
 
     # Try to login with a malicious next parameter
     response = client.post('/login?next=http://malicious.com', data={
         'email': 'test@example.com',
-        'password': 'password123'
+        'password': 'SecurePass123!'
     })
 
     # If it's secure, it should NOT redirect to an external malicious site
@@ -71,8 +71,8 @@ def test_open_redirect_bypass_attempts(client):
     client.post('/registro', data={
         'nombre': 'Test User',
         'email': 'bypass@example.com',
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
     client.post('/logout')
 
@@ -87,7 +87,7 @@ def test_open_redirect_bypass_attempts(client):
     for target in bypasses:
         response = client.post(f'/login?next={target}', data={
             'email': 'bypass@example.com',
-            'password': 'password123'
+            'password': 'SecurePass123!'
         })
         assert response.status_code == 302
         assert not response.headers['Location'].startswith('http://malicious.com')
@@ -114,8 +114,8 @@ def test_forgot_password_manual_token_enumeration(client):
         'nombre': 'Enum User',
         'email': 'enum@example.com',
         'telefono': '123456789',
-        'password': 'password123',
-        'confirm_password': 'password123'
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
     })
     client.post('/logout')
 
