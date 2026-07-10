@@ -234,6 +234,14 @@ def create_app() -> Flask:
             response.headers['Expires'] = '0'
             response.headers['X-Robots-Tag'] = 'noindex, nofollow'
 
+            # Harden Referrer-Policy for authentication routes containing tokens/PII (Security enhancement)
+            auth_sensitive_endpoints = {
+                'main.forgot_password', 'main.forgot_password_manual',
+                'main.validate_token_page', 'main.reset_password_with_email'
+            }
+            if request.endpoint in auth_sensitive_endpoints:
+                response.headers['Referrer-Policy'] = 'no-referrer'
+
         # Enforce HTTPS in production
         if app.config.get('APP_ENV') == 'production':
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'

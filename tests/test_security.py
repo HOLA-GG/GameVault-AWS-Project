@@ -267,3 +267,22 @@ def test_stale_session_role_change(client):
     response = client.get('/admin')
     assert response.status_code == 200
     assert b'Usuarios registrados' in response.data
+
+def test_strict_referrer_policy_on_sensitive_routes(client):
+    """Verifica que las rutas sensibles de autenticación tengan Referrer-Policy: no-referrer."""
+    # List of sensitive authentication routes
+    sensitive_auth_routes = [
+        '/forgot-password',
+        '/forgot-password/manual',
+        '/validate-token',
+        '/reset-password/dummy-token'
+    ]
+
+    for route in sensitive_auth_routes:
+        response = client.get(route)
+        # Check that the Referrer-Policy header is set to 'no-referrer'
+        assert response.headers.get('Referrer-Policy') == 'no-referrer', f"Failed for route: {route}"
+
+    # Verify that a normal route still has the default safe policy
+    response = client.get('/')
+    assert response.headers.get('Referrer-Policy') == 'strict-origin-when-cross-origin'
