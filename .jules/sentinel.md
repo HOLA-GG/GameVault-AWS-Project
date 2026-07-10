@@ -133,6 +133,11 @@
 **Learning:** Permissive CSPs that allow 'unsafe-inline' provide minimal protection against XSS. Moving to a nonce-based system requires refactoring legacy inline JS, which can be elegantly handled using centralized event delegation and data attributes.
 **Prevention:** Implement a per-request cryptographic nonce, enforce it in the CSP header, and migrate all inline scripts and event handlers to use the nonce or non-inline listeners.
 
+## 2026-07-15 - Prevent Token Leakage via Referer Header on Sensitive Routes
+**Vulnerability:** Sensitive password reset tokens or PII could be leaked to third-party domains (analytics, CDNs) via the `Referer` HTTP header when a user navigates away from authentication routes.
+**Learning:** Even with strict CSP and noindex tags, browsers by default might send the full URL in the Referer header to same-origin or same-site requests, and potentially origin-only to others. Routes with tokens in the path/query require the strictest `no-referrer` policy to ensure confidentiality.
+**Prevention:** In the global `after_request` handler, explicitly override the `Referrer-Policy` to `no-referrer` for any route handling recovery tokens or sensitive administrative data.
+
 ## 2026-07-06 - Defensive Type Enforcement for JSON Inputs
 **Vulnerability:** Application crash (500 error) in JSON endpoints due to unexpected data types (e.g., int instead of string) causing AttributeErrors on string operations.
 **Learning:** Relying on 'request.get_json()' without explicit type validation or conversion can lead to unhandled exceptions when attackers send non-standard types.
