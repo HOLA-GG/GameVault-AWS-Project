@@ -1382,6 +1382,23 @@ def obtener_colecciones_publicas(limit: int = 6) -> List[Dict[str, Any]]:
     return obtener_resumenes_colecciones(visibility='public', limit=limit, homepage_only=True)
 
 
+def verificar_coleccion_publica(user_id: str) -> bool:
+    """Verifica de forma eficiente si una colección es elegible para showcase.
+    Optimización Bolt: Evita cargar múltiples registros para una validación de existencia."""
+    ensure_tables()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        # Usamos exists() correlacionado para verificar contenido sin cargar filas.
+        has_games = select(1).where(Game.user_id == User.user_id).limit(1).exists()
+        stmt = select(User.user_id).where(
+            User.user_id == user_id,
+            User.collection_visibility == 'public',
+            User.homepage_showcase_opt_in.is_(True),
+            has_games,
+        )
+        return session.execute(stmt).first() is not None
+
+
 def obtener_rating_showcase(subject_type: str, subject_id: str) -> Dict[str, Any]:
     """Obtiene la valoración pública actual de un showcase mediante agregación en DB."""
     ensure_tables()
@@ -1502,6 +1519,8 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
     session_factory = get_session_factory()
     safe_ip = (ip_address or 'unknown')[:64]
     with session_factory() as session:
+        # Bolt Optimization: Maintain duplicate check as requested by review to preserve explicit logic,
+        # while keeping the IntegrityError fallback for race conditions.
         existing = session.scalar(
             select(ShowcaseRating).where(
                 ShowcaseRating.subject_type == subject_type,

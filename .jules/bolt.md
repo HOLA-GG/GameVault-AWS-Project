@@ -127,3 +127,7 @@
 ## 2026-07-15 - Deferred User Enrichment in Grouped Collections
 **Learning:** Eagerly fetching user metadata (names, emails) for all unique accounts in a large collection (e.g., 500 audit logs) before pagination introduces significant database and hydration overhead. Since most accounts won't be visible on the first page, this work is mostly wasted.
 **Action:** Defer metadata lookups until after pagination. Calculate the set of unique identifiers present only on the current page and fetch their metadata in a single batch query.
+
+## 2026-07-20 - Explicitness vs. Micro-optimization in Transactions
+**Learning:** Removing a manual duplicate check (SELECT before INSERT) to rely solely on database `IntegrityError` might seem like a performance win by reducing one query. However, in low-contention paths, this can be rejected if it makes business logic (like anti-spam) implicit or harder to trace. Functional correctness and explicitness often outweigh the gain of a single O(1) query in a non-hot path.
+**Action:** Preserve explicit validation logic in models unless the path is confirmed to be a high-contention bottleneck where every millisecond in the transaction critical.

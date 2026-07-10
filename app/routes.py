@@ -40,6 +40,7 @@ from app.models import (
     combinar_rating_showcase,
     contar_resumenes_colecciones,
     obtener_colecciones_publicas,
+    verificar_coleccion_publica,
     obtener_resumenes_colecciones,
     registrar_rating_showcase,
     crear_juego,
@@ -849,8 +850,9 @@ def rate_showcase():
         if subject_id not in valid_ids:
             return jsonify({'error': 'Colección de ejemplo no encontrada.'}), 404
     else:
-        visible_public_ids = {item['user_id'] for item in obtener_colecciones_publicas(limit=100)}
-        if subject_id not in visible_public_ids:
+        # Bolt Optimization: Use verification helper instead of fetching top 100 collections.
+        # This fixes a 404 bug for valid public collections beyond the first 100.
+        if not verificar_coleccion_publica(subject_id):
             return jsonify({'error': 'Colección pública no disponible para portada.'}), 404
 
     result = registrar_rating_showcase(subject_type, subject_id, rating, get_request_ip())
