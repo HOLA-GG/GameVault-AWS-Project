@@ -1283,26 +1283,58 @@ def obtener_resumenes_colecciones(
     offset: int | None = None,
     homepage_only: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Obtiene resúmenes de colecciones de usuarios (Optimización Bolt: Consolidar agregación)."""
+    """Obtiene resúmenes de colecciones de usuarios (Optimización Bolt: Scalar subqueries)."""
     ensure_tables()
     session_factory = get_session_factory()
 
     with session_factory() as session:
-        # Definimos las métricas directamente en la consulta principal para que el motor
-        # de la base de datos pueda filtrar usuarios antes de realizar agregaciones costosas.
-        total_games_expr = func.count(Game.game_id)
-        favorites_count_expr = func.coalesce(func.sum(case((Game.es_favorito.is_(True), 1), else_=0)), 0)
-        average_rating_expr = func.avg(Game.calificacion)
-        last_updated_expr = func.max(func.coalesce(Game.updated_at, Game.created_at))
-
-        # Bolt Optimization: Correlated subquery to fetch the dominant platform in a single round-trip.
-        # This avoids the overhead of a separate batch query and Python-side dictionary merging.
-        dominant_platform_expr = (
+        # Bolt Optimization: Correlated subqueries for games metrics.
+        # This avoids massive joins and group-bys on the main query, which is
+        # significantly more efficient for paginated admin and showcase views.
+        total_games_sub = (
+            select(func.count(Game.game_id))
+            .where(Game.user_id == User.user_id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+        favorites_count_sub = (
+            select(func.coalesce(func.sum(case((Game.es_favorito.is_(True), 1), else_=0)), 0))
+            .where(Game.user_id == User.user_id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+        average_rating_sub = (
+            select(func.avg(Game.calificacion))
+            .where(Game.user_id == User.user_id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+        last_updated_sub = (
+            select(func.max(func.coalesce(Game.updated_at, Game.created_at)))
+            .where(Game.user_id == User.user_id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+        dominant_platform_sub = (
             select(Game.plataforma)
             .where(Game.user_id == User.user_id)
             .group_by(Game.plataforma)
             .order_by(func.count(Game.game_id).desc())
             .limit(1)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
+        # Bolt Optimization: Eagerly fetch showcase ratings in the same round-trip.
+        showcase_avg_sub = (
+            select(func.avg(ShowcaseRating.rating))
+            .where(ShowcaseRating.subject_id == User.user_id, ShowcaseRating.subject_type == 'public')
+            .correlate(User)
+            .scalar_subquery()
+        )
+        showcase_votes_sub = (
+            select(func.count(ShowcaseRating.rating))
+            .where(ShowcaseRating.subject_id == User.user_id, ShowcaseRating.subject_type == 'public')
             .correlate(User)
             .scalar_subquery()
         )
@@ -1313,33 +1345,29 @@ def obtener_resumenes_colecciones(
             User.email,
             User.collection_visibility,
             User.homepage_showcase_opt_in,
-            total_games_expr.label('total_games'),
-            favorites_count_expr.label('favorites_count'),
-            average_rating_expr.label('average_rating'),
-            last_updated_expr.label('last_updated_at'),
-            func.coalesce(dominant_platform_expr, 'Sin juegos').label('dominant_platform'),
+            func.coalesce(total_games_sub, 0).label('total_games'),
+            func.coalesce(favorites_count_sub, 0).label('favorites_count'),
+            average_rating_sub.label('average_rating'),
+            last_updated_sub.label('last_updated_at'),
+            func.coalesce(dominant_platform_sub, 'Sin juegos').label('dominant_platform'),
+            showcase_avg_sub.label('showcase_rating_average'),
+            func.coalesce(showcase_votes_sub, 0).label('showcase_votes_count'),
         )
 
         if homepage_only:
-            # Join interno para la portada: solo usuarios con al menos un juego.
-            query = query.join(Game, User.user_id == Game.user_id)
-            query = query.where(User.homepage_showcase_opt_in.is_(True))
-        else:
-            # Outer join para administración: incluir usuarios sin juegos.
-            query = query.outerjoin(Game, User.user_id == Game.user_id)
+            # Bolt Optimization: Use exists() for efficient filtering of users with content.
+            has_games = select(1).where(Game.user_id == User.user_id).limit(1).exists()
+            query = query.where(User.homepage_showcase_opt_in.is_(True), has_games)
 
         if visibility:
             query = query.where(User.collection_visibility == visibility)
 
-        # Agrupamos por el usuario para calcular las métricas por colección.
-        query = query.group_by(User.user_id)
-
         # Ordenamiento en SQL: Rating desc, Favoritos desc, Total desc, Actualización desc.
         query = query.order_by(
-            func.coalesce(average_rating_expr, -1).desc(),
-            favorites_count_expr.desc(),
-            total_games_expr.desc(),
-            last_updated_expr.desc(),
+            func.coalesce(average_rating_sub, -1).desc(),
+            favorites_count_sub.desc(),
+            total_games_sub.desc(),
+            last_updated_sub.desc(),
         )
 
         if limit:
@@ -1363,6 +1391,8 @@ def obtener_resumenes_colecciones(
                 'average_rating': round(float(r.average_rating), 1) if r.average_rating is not None else None,
                 'dominant_platform': r.dominant_platform,
                 'last_updated_at': as_iso(r.last_updated_at) or '',
+                'showcase_rating_average': round(float(r.showcase_rating_average), 1) if r.showcase_rating_average is not None else None,
+                'showcase_votes_count': int(r.showcase_votes_count),
             }
             for r in results
         ]
