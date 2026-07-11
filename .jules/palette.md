@@ -85,3 +85,11 @@
 ## 2026-07-09 - [Bidirectional Dashboard Filtering via Toggles]
 **Learning:** Dashboard summary elements (cards, tiles) and metadata badges that act as filter triggers should support bidirectional interaction. When a filter is already active, clicking the same element should toggle it off (remove the filter). This reduces navigation friction by allowing users to undo a filter selection without searching for a "Clear" button or navigating back, making the exploratory experience more fluid and intuitive.
 **Action:** Implement toggle logic for all filter-triggering elements. When the current state matches the element's filter value, the link should lead to a state where that filter is removed (e.g., passing None to the query builder). Update aria-label dynamically to reflect the "Remove filter" action for accessibility.
+
+## 2026-07-10 - [Efficiency via Automatic Selection on Focus]
+**Learning:** For fields that users frequently edit or replace (like titles or search queries), requiring a manual "Select All" or multiple backspaces adds unnecessary friction. Implementing an automatic selection behavior on focus allows for immediate replacement, significantly speeding up data entry and search workflows while remaining accessible.
+**Action:** Identify pre-filled inputs that are targets for rapid modification and apply the `.select-on-focus` utility paired with a global JavaScript listener that triggers `this.select()`.
+
+## 2026-07-10 - [Visual Parity for ARIA-Labels via Tooltips]
+**Learning:** Functional elements that use `aria-label` for screen reader accessibility often leave mouse users without visual context for "what this does" if the label isn't reflected in the UI. Mirroring `aria-label` logic into the `title` attribute provides consistent visual tooltips that bridge the gap between accessibility and standard visual feedback.
+**Action:** For all interactive elements where the purpose is communicated via `aria-label` (like filter badges or icon-only buttons), always include a matching `title` attribute to provide visual tooltips.
