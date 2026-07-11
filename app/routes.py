@@ -777,11 +777,10 @@ def enrich_log_metadata(log: dict | None) -> dict | None:
 @main_bp.route('/')
 def landing():
     """Landing pública orientada a coleccionistas."""
-    public_collections = aplicar_ratings_showcase(
-        obtener_colecciones_publicas(limit=6),
-        subject_type='public',
-        subject_id_key='user_id',
-    )
+    # Bolt Optimization: Ratings are now eagerly fetched by obtener_colecciones_publicas,
+    # eliminating the redundant N+1 logic in aplicar_ratings_showcase for public collections.
+    public_collections = obtener_colecciones_publicas(limit=6)
+
     # Creamos copias de las colecciones de ejemplo para que la mutación in-place de
     # aplicar_ratings_showcase no afecte a la constante global entre peticiones.
     sample_collections = aplicar_ratings_showcase(
