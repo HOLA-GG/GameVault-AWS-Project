@@ -981,12 +981,16 @@ def redact_sensitive_details(data: Any, depth: int = 0) -> Any:
     if depth > 10:
         return '[MAX_DEPTH_REACHED]'
 
-    if not data:
-        return data
+    if data is None:
+        return None
 
     if isinstance(data, dict):
         redacted_dict = {}
-        for k, v in data.items():
+        # Breadth limit to prevent Log-DoS (Security hardening)
+        for i, (k, v) in enumerate(data.items()):
+            if i >= 100:
+                redacted_dict['[BREADTH_LIMIT_REACHED]'] = '...'
+                break
             key_lower = str(k).lower()
             if any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS):
                 redacted_dict[k] = '[REDACTED]'
@@ -994,14 +998,26 @@ def redact_sensitive_details(data: Any, depth: int = 0) -> Any:
                 redacted_dict[k] = redact_sensitive_details(v, depth + 1)
         return redacted_dict
 
-    if isinstance(data, list):
-        return [redact_sensitive_details(item, depth + 1) for item in data]
+    if isinstance(data, (list, tuple, set)):
+        redacted_list = []
+        # Breadth limit to prevent Log-DoS (Security hardening)
+        for i, item in enumerate(data):
+            if i >= 100:
+                redacted_list.append('[BREADTH_LIMIT_REACHED]')
+                break
+            redacted_list.append(redact_sensitive_details(item, depth + 1))
+        return redacted_list
 
-    if isinstance(data, str):
-        # Defensive truncation to prevent storage-based DoS (Security hardening)
-        return data[:1024]
+    if isinstance(data, (str, bytes)):
+        # Handle bytes safely and truncate strings to prevent storage-based DoS
+        val = data.decode('utf-8', errors='replace') if isinstance(data, bytes) else data
+        return val[:1024]
 
-    return data
+    if isinstance(data, (int, float, bool)):
+        return data
+
+    # Safe fallback for non-serializable types to prevent DB errors (Security resilience)
+    return str(data)[:1024]
 
 
 def crear_log_audit(
