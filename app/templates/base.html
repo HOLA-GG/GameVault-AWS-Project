@@ -379,6 +379,14 @@
             });
         }
 
+        function setupSelectOnFocus() {
+            document.querySelectorAll('.select-on-focus').forEach(el => {
+                el.addEventListener('focus', function() {
+                    this.select();
+                });
+            });
+        }
+
         function setupFlashMessages() {
             document.querySelectorAll('.flash').forEach(flash => {
                 const closeBtn = document.createElement('button');
@@ -510,6 +518,7 @@
             setupAutoExpandingTextareas();
             setupRelativeTimes();
             setupFlashMessages();
+            setupSelectOnFocus();
             document.querySelectorAll('input[type="password"]').forEach(i => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'pw-field-wrapper';
