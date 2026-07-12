@@ -16,7 +16,10 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote, unquote, urlparse
 
+from flask import current_app
+from werkzeug.utils import secure_filename
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -117,6 +120,16 @@ DATABASE_URL = normalize_database_url(os.environ.get('DATABASE_URL'))
 _engine = None
 _session_factory = None
 _database_initialized = False
+
+# Bolt Optimization: Module-level constants and singletons for hot-path efficiency.
+_S3_CLIENT = None
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+ALLOWED_IMAGE_MIME_TYPES = {
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+}
 
 
 class Base(DeclarativeBase):
@@ -266,6 +279,42 @@ def get_session_factory():
         sessionmaker(bind=get_engine(), autoflush=False, autocommit=False, expire_on_commit=False)
     )
     return _session_factory
+
+
+def _get_s3_client():
+    """Obtiene el cliente S3/R2 compartido (Optimización Bolt: singleton)."""
+    global _S3_CLIENT
+    if _S3_CLIENT is not None:
+        return _S3_CLIENT
+
+    try:
+        import boto3
+        from botocore.config import Config
+
+        r2_account_id = os.environ.get('R2_ACCOUNT_ID')
+        r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
+        r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+        r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+
+        if not r2_endpoint_url and r2_account_id:
+            r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+
+        _S3_CLIENT = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint_url,
+            aws_access_key_id=r2_access_key_id,
+            aws_secret_access_key=r2_secret_access_key,
+            config=Config(signature_version='s3v4'),
+            region_name='auto'
+        )
+        return _S3_CLIENT
+    except Exception as exc:
+        # Avoid circular dependencies or runtime errors if accessed outside Flask context.
+        try:
+            current_app.logger.error('s3_client_initialization_failed error=%s', exc)
+        except RuntimeError:
+            pass
+        return None
 
 
 def init_database() -> None:
@@ -622,6 +671,84 @@ def validar_telefono(telefono):
     return telefono.isdigit() and 7 <= len(telefono) <= 20
 
 
+def is_valid_image_file(file_storage) -> tuple[bool, str | None]:
+    """Valida extensión y MIME de una imagen subida por formulario."""
+    if file_storage is None or file_storage.filename == '':
+        return False, 'Debes seleccionar una imagen.'
+
+    filename = secure_filename(file_storage.filename)
+    extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if extension not in ALLOWED_IMAGE_EXTENSIONS:
+        return False, 'Formato de imagen no permitido.'
+
+    if file_storage.content_type not in ALLOWED_IMAGE_MIME_TYPES:
+        return False, 'Tipo MIME no permitido para la portada.'
+
+    return True, None
+
+
+def subir_imagen_a_s3(archivo):
+    """Sube una portada usando el backend de storage disponible."""
+    try:
+        storage_backend = current_app.config.get('STORAGE_BACKEND', STORAGE_BACKEND)
+    except RuntimeError:
+        storage_backend = STORAGE_BACKEND
+
+    if storage_backend == 'none':
+        try:
+            current_app.logger.info('image_upload_skipped storage_backend=none')
+        except RuntimeError:
+            pass
+        return None
+
+    valid, error = is_valid_image_file(archivo)
+    if not valid:
+        try:
+            current_app.logger.warning('image_validation_failed reason=%s', error)
+        except RuntimeError:
+            pass
+        return None
+
+    try:
+        extension = os.path.splitext(secure_filename(archivo.filename))[1].lower()
+        nombre_unico = f"covers/{uuid.uuid4()}{extension}"
+
+        if storage_backend == 'local':
+            local_upload_dir = current_app.config.get('LOCAL_UPLOAD_DIR', LOCAL_UPLOAD_DIR)
+            local_upload_url_path = current_app.config.get('LOCAL_UPLOAD_URL_PATH', LOCAL_UPLOAD_URL_PATH)
+            upload_dir = os.path.join(local_upload_dir, 'covers')
+            os.makedirs(upload_dir, exist_ok=True)
+            destination = os.path.join(upload_dir, os.path.basename(nombre_unico))
+            archivo.save(destination)
+            return f"{local_upload_url_path}/{nombre_unico}"
+
+        # Soporte para R2 / S3
+        s3_client = _get_s3_client()
+        r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
+        r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+        r2_account_id = os.environ.get('R2_ACCOUNT_ID')
+
+        if not r2_endpoint_url and r2_account_id:
+            r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+
+        s3_client.upload_fileobj(
+            archivo,
+            r2_bucket_name,
+            nombre_unico,
+            ExtraArgs={'ContentType': archivo.content_type}
+        )
+
+        if r2_endpoint_url:
+            return f"{r2_endpoint_url}/{r2_bucket_name}/{nombre_unico}"
+        return f"https://{r2_bucket_name}.s3.amazonaws.com/{nombre_unico}"
+    except Exception as exc:
+        try:
+            current_app.logger.error('image_upload_unexpected_error error=%s', exc)
+        except RuntimeError:
+            pass
+        return None
+
+
 def validar_password(password):
     """Valida que la contraseña tenga una longitud segura (8-128) y complejidad básica."""
     # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
@@ -641,12 +768,19 @@ def eliminar_imagen_s3(imagen_url):
     if not imagen_url:
         return True
 
-    storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
+    try:
+        storage_backend = current_app.config.get('STORAGE_BACKEND', STORAGE_BACKEND)
+        local_upload_url_path = current_app.config.get('LOCAL_UPLOAD_URL_PATH', LOCAL_UPLOAD_URL_PATH)
+        local_upload_dir = current_app.config.get('LOCAL_UPLOAD_DIR', LOCAL_UPLOAD_DIR)
+    except RuntimeError:
+        storage_backend = STORAGE_BACKEND
+        local_upload_url_path = LOCAL_UPLOAD_URL_PATH
+        local_upload_dir = LOCAL_UPLOAD_DIR
 
-    if storage_backend == 'local' and imagen_url.startswith(LOCAL_UPLOAD_URL_PATH + '/'):
-        relative_path = imagen_url.replace(LOCAL_UPLOAD_URL_PATH + '/', '', 1).lstrip('/')
-        destination = os.path.abspath(os.path.join(LOCAL_UPLOAD_DIR, relative_path))
-        upload_root = os.path.abspath(LOCAL_UPLOAD_DIR)
+    if storage_backend == 'local' and imagen_url.startswith(local_upload_url_path + '/'):
+        relative_path = imagen_url.replace(local_upload_url_path + '/', '', 1).lstrip('/')
+        destination = os.path.abspath(os.path.join(local_upload_dir, relative_path))
+        upload_root = os.path.abspath(local_upload_dir)
         if destination.startswith(upload_root) and os.path.exists(destination):
             try:
                 os.remove(destination)
@@ -656,29 +790,13 @@ def eliminar_imagen_s3(imagen_url):
 
     if storage_backend in {'r2', 's3'}:
         try:
-            import boto3
-            from botocore.config import Config
-
-            r2_account_id = os.environ.get('R2_ACCOUNT_ID')
-            r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
-            r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
             r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
-            r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
-
-            if not all([r2_access_key_id, r2_secret_access_key, r2_bucket_name]):
+            if not r2_bucket_name:
                 return False
 
-            if not r2_endpoint_url and r2_account_id:
-                r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
-
-            s3_client = boto3.client(
-                's3',
-                endpoint_url=r2_endpoint_url,
-                aws_access_key_id=r2_access_key_id,
-                aws_secret_access_key=r2_secret_access_key,
-                config=Config(signature_version='s3v4'),
-                region_name='auto'
-            )
+            s3_client = _get_s3_client()
+            if not s3_client:
+                return False
 
             key = obtener_key_desde_url(imagen_url)
             if not key:
@@ -697,7 +815,6 @@ def obtener_key_desde_url(imagen_url):
     if not imagen_url:
         return None
     try:
-        from urllib.parse import unquote, urlparse
         parsed = urlparse(imagen_url)
         path = unquote(parsed.path).lstrip('/')
         # Si la URL es tipo http://endpoint/bucket/key
@@ -718,34 +835,21 @@ def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
     if not imagen_url or not imagen_url.startswith('http'):
         return imagen_url or ''
 
-    storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
+    try:
+        storage_backend = current_app.config.get('STORAGE_BACKEND', STORAGE_BACKEND)
+    except RuntimeError:
+        storage_backend = STORAGE_BACKEND
     if storage_backend not in {'r2', 's3'}:
         return imagen_url
 
     try:
-        import boto3
-        from botocore.config import Config
-
-        r2_account_id = os.environ.get('R2_ACCOUNT_ID')
-        r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
-        r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
         r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
-        r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
-
-        if not all([r2_access_key_id, r2_secret_access_key, r2_bucket_name]):
+        if not r2_bucket_name:
             return imagen_url
 
-        if not r2_endpoint_url and r2_account_id:
-            r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
-
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=r2_endpoint_url,
-            aws_access_key_id=r2_access_key_id,
-            aws_secret_access_key=r2_secret_access_key,
-            config=Config(signature_version='s3v4'),
-            region_name='auto'
-        )
+        s3_client = _get_s3_client()
+        if not s3_client:
+            return imagen_url
 
         key = obtener_key_desde_url(imagen_url)
         if not key:
@@ -876,8 +980,6 @@ def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
                 eliminar_imagen_s3(game.imagen_url)
             game.imagen_url = nueva_imagen.strip() or None
         elif nueva_imagen:
-            from app.routes import subir_imagen_a_s3
-
             uploaded_url = subir_imagen_a_s3(nueva_imagen)
             if uploaded_url is None:
                 return {'success': False, 'juego': None, 'error': 'Error al subir nueva imagen'}
@@ -1729,35 +1831,25 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
 
 def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_bytes: int) -> Dict[str, Any]:
     """Genera una URL firmada (Presigned POST) para subir archivos directamente a Cloudflare R2 / S3."""
-    import boto3
-    from botocore.config import Config
-
-    storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
+    storage_backend = STORAGE_BACKEND
     if storage_backend not in {'r2', 's3'}:
         raise RuntimeError(f'El backend de almacenamiento "{storage_backend}" no soporta cargas firmadas.')
 
     # Configuración de R2 / S3
-    r2_account_id = os.environ.get('R2_ACCOUNT_ID')
-    r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
-    r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
     r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
     r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+    r2_account_id = os.environ.get('R2_ACCOUNT_ID')
 
-    if not all([r2_access_key_id, r2_secret_access_key, r2_bucket_name]):
-        raise RuntimeError('Faltan credenciales de R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY o R2_BUCKET_NAME.')
+    if not r2_bucket_name:
+        raise RuntimeError('Falta configurar R2_BUCKET_NAME.')
 
     # Si es R2, el endpoint suele construirse con el Account ID si no se provee completo
     if not r2_endpoint_url and r2_account_id:
         r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
 
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=r2_endpoint_url,
-        aws_access_key_id=r2_access_key_id,
-        aws_secret_access_key=r2_secret_access_key,
-        config=Config(signature_version='s3v4'),
-        region_name='auto'
-    )
+    s3_client = _get_s3_client()
+    if not s3_client:
+        raise RuntimeError('No se pudo inicializar el cliente S3/R2.')
 
     object_name = f"covers/{uuid.uuid4()}-{nombre_archivo}"
 
