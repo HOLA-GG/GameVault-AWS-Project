@@ -131,3 +131,7 @@
 ## 2026-07-20 - Explicitness vs. Micro-optimization in Transactions
 **Learning:** Removing a manual duplicate check (SELECT before INSERT) to rely solely on database `IntegrityError` might seem like a performance win by reducing one query. However, in low-contention paths, this can be rejected if it makes business logic (like anti-spam) implicit or harder to trace. Functional correctness and explicitness often outweigh the gain of a single O(1) query in a non-hot path.
 **Action:** Preserve explicit validation logic in models unless the path is confirmed to be a high-contention bottleneck where every millisecond in the transaction critical.
+
+## 2026-07-12 - Singleton S3 Client and Storage Context Resilience
+**Learning:** Initializing a `boto3.client` on every request in a loop (e.g., for signed URLs in a dashboard) is a significant CPU bottleneck. Moving this to a singleton pattern solves the speed issue, but in a Flask app, storage utilities are often called both from request contexts and standalone scripts. Relying solely on `current_app.config` causes `RuntimeError` in non-request contexts.
+**Action:** Implement storage clients as singletons. Use a tiered configuration lookup: try `current_app.config` first for request-time overrides, and fall back to module-level constants (from `os.environ`) within a `try...except RuntimeError` block to maintain script compatibility.

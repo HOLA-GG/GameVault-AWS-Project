@@ -30,6 +30,8 @@ from werkzeug.utils import secure_filename
 
 from app.extensions import csrf, limiter, mail
 from app.models import (
+    ALLOWED_IMAGE_EXTENSIONS,
+    ALLOWED_IMAGE_MIME_TYPES,
     AUDIT_ACTIONS,
     aplicar_ratings_showcase,
     as_iso,
@@ -54,6 +56,7 @@ from app.models import (
     eliminar_juego,
     eliminar_usuario,
     exportar_logs_csv,
+    is_valid_image_file,
     limpiar_logs_antiguos,
     obtener_estadisticas_logs,
     obtener_juego_por_id,
@@ -65,6 +68,7 @@ from app.models import (
     obtener_usuario_por_email,
     obtener_usuario_por_id,
     obtener_usuarios_por_ids,
+    subir_imagen_a_s3,
     usar_token,
     validar_email,
     validar_password,
@@ -75,14 +79,6 @@ from app.models import (
 
 
 main_bp = Blueprint('main', __name__)
-
-ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
-ALLOWED_IMAGE_MIME_TYPES = {
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-}
 GAME_PLATFORM_OPTIONS = ['PC', 'PlayStation', 'Xbox', 'Nintendo', 'Mobile', 'Otro']
 GAME_CONDITION_OPTIONS = ['N/A', 'Nuevo', 'Como Nuevo', 'Bueno', 'Regular']
 GAME_CATEGORY_OPTIONS = ['Biblioteca', 'Jugando', 'Backlog', 'Completado', 'Wishlist']
@@ -230,20 +226,6 @@ def require_admin(view):
     return wrapped
 
 
-def is_valid_image_file(file_storage) -> tuple[bool, str | None]:
-    """Valida extensión y MIME de una imagen subida por formulario."""
-    if file_storage is None or file_storage.filename == '':
-        return False, 'Debes seleccionar una imagen.'
-
-    filename = secure_filename(file_storage.filename)
-    extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-    if extension not in ALLOWED_IMAGE_EXTENSIONS:
-        return False, 'Formato de imagen no permitido.'
-
-    if file_storage.content_type not in ALLOWED_IMAGE_MIME_TYPES:
-        return False, 'Tipo MIME no permitido para la portada.'
-
-    return True, None
 
 
 def is_valid_presigned_image_url(image_url: str) -> bool:
@@ -338,64 +320,6 @@ def procesar_imagen_base64(archivo):
         return None
 
 
-def subir_imagen_a_s3(archivo):
-    """Sube una portada usando el backend de storage disponible."""
-    storage_backend = current_app.config.get('STORAGE_BACKEND')
-    if storage_backend == 'none':
-        current_app.logger.info('image_upload_skipped storage_backend=none')
-        return None
-
-    valid, error = is_valid_image_file(archivo)
-    if not valid:
-        current_app.logger.warning('image_validation_failed reason=%s', error)
-        return None
-
-    try:
-        import boto3
-        from botocore.config import Config
-
-        extension = os.path.splitext(secure_filename(archivo.filename))[1].lower()
-        nombre_unico = f"covers/{uuid.uuid4()}{extension}"
-
-        if storage_backend == 'local':
-            upload_dir = os.path.join(current_app.config['LOCAL_UPLOAD_DIR'], 'covers')
-            os.makedirs(upload_dir, exist_ok=True)
-            destination = os.path.join(upload_dir, os.path.basename(nombre_unico))
-            archivo.save(destination)
-            return f"{current_app.config['LOCAL_UPLOAD_URL_PATH']}/{nombre_unico}"
-
-        # Soporte para R2 / S3
-        r2_account_id = os.environ.get('R2_ACCOUNT_ID')
-        r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
-        r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
-        r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
-        r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
-
-        if not r2_endpoint_url and r2_account_id:
-            r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
-
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=r2_endpoint_url,
-            aws_access_key_id=r2_access_key_id,
-            aws_secret_access_key=r2_secret_access_key,
-            config=Config(signature_version='s3v4'),
-            region_name='auto'
-        )
-
-        s3_client.upload_fileobj(
-            archivo,
-            r2_bucket_name,
-            nombre_unico,
-            ExtraArgs={'ContentType': archivo.content_type}
-        )
-
-        if r2_endpoint_url:
-            return f"{r2_endpoint_url}/{r2_bucket_name}/{nombre_unico}"
-        return f"https://{r2_bucket_name}.s3.amazonaws.com/{nombre_unico}"
-    except Exception as exc:
-        current_app.logger.error('image_upload_unexpected_error error=%s', exc)
-        return None
 
 
 def enviar_email_reset_password(destinatario: str, token: str) -> bool:
