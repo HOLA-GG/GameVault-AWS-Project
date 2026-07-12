@@ -693,18 +693,22 @@ def eliminar_imagen_s3(imagen_url):
 
 
 def obtener_key_desde_url(imagen_url):
-    """Extrae el Object Key de una URL de S3 o R2."""
+    """Extrae el Object Key de una URL de S3 o R2 con validación de prefijo."""
     if not imagen_url:
         return None
     try:
-        from urllib.parse import urlparse
+        from urllib.parse import unquote, urlparse
         parsed = urlparse(imagen_url)
-        path = parsed.path.lstrip('/')
+        path = unquote(parsed.path).lstrip('/')
         # Si la URL es tipo http://endpoint/bucket/key
         r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
         if r2_bucket_name and path.startswith(r2_bucket_name + '/'):
-            return path.replace(r2_bucket_name + '/', '', 1)
-        return path
+            path = path.replace(r2_bucket_name + '/', '', 1)
+
+        # Defensa en profundidad: solo permitir llaves dentro del prefijo de portadas
+        if path.startswith('covers/'):
+            return path
+        return None
     except Exception:
         return None
 
@@ -1769,11 +1773,13 @@ def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_by
             ExpiresIn=3600
         )
         # La URL final del objeto si la subida es exitosa
+        from urllib.parse import quote
+        quoted_object_name = quote(object_name)
         if r2_endpoint_url:
             # Para R2 o S3 con endpoint custom
-            object_url = f"{r2_endpoint_url}/{r2_bucket_name}/{object_name}"
+            object_url = f"{r2_endpoint_url.rstrip('/')}/{r2_bucket_name}/{quoted_object_name}"
         else:
-            object_url = f"https://{r2_bucket_name}.s3.amazonaws.com/{object_name}"
+            object_url = f"https://{r2_bucket_name}.s3.amazonaws.com/{quoted_object_name}"
 
         response['object_url'] = object_url
         return response
