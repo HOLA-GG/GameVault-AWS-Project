@@ -271,6 +271,8 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
         return norm_with_slash.startswith(prefix)
 
     parsed = urlparse(image_url)
+    path = unquote(parsed.path).lstrip('/')
+
     # Soporte para R2
     if storage_backend == 'r2':
         account_id = os.environ.get('R2_ACCOUNT_ID')
@@ -281,12 +283,19 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
             expected_netloc = f"{account_id}.r2.cloudflarestorage.com"
         else:
             return False
-        return parsed.scheme == 'https' and parsed.netloc == expected_netloc
+
+        if not (parsed.scheme == 'https' and parsed.netloc == expected_netloc):
+            return False
+
+        bucket_name = os.environ.get('R2_BUCKET_NAME')
+        if bucket_name and path.startswith(bucket_name + '/'):
+            path = path.replace(bucket_name + '/', '', 1)
+        return path.startswith('covers/')
 
     bucket_name = current_app.config['S3_BUCKET_NAME']
     region = current_app.config['S3_REGION']
     expected_host = f'{bucket_name}.s3.{region}.amazonaws.com'
-    return parsed.scheme == 'https' and parsed.netloc == expected_host
+    return parsed.scheme == 'https' and parsed.netloc == expected_host and path.startswith('covers/')
 
 
 def is_safe_url(target: str) -> bool:
@@ -1064,8 +1073,13 @@ def presign_upload():
         return jsonify({'error': 'Archivo no permitido'}), 400
 
     try:
+        # Sanitize filename before passing to storage (Security hardening)
+        safe_filename = secure_filename(filename)
+        if not safe_filename:
+            safe_filename = f"upload-{uuid.uuid4()}"
+
         payload = crear_presigned_upload(
-            filename,
+            safe_filename,
             content_type,
             current_app.config['MAX_IMAGE_UPLOAD_BYTES'],
         )

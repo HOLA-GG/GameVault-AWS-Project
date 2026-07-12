@@ -147,3 +147,8 @@
 **Vulnerability:** Potential choice of common weak passwords bypassing basic complexity checks, and incomplete redaction of regional PII/security keywords in audit logs.
 **Learning:** Security validation must go beyond structural checks (like length/composition) to block known-weak patterns. Additionally, redaction logic needs frequent updates to cover regional variations (e.g., Spanish 'tarjeta' or 'clave') and new PII fields to ensure defense-in-depth against data leakage.
 **Prevention:** Implement an explicit blocklist for common passwords. Regularly audit and expand sensitive keyword lists used in logging utilities to match the application's domain and locale.
+
+## 2025-07-20 - Enforce Prefix-Based S3/R2 Object Key Validation
+**Vulnerability:** IDOR/Path Traversal in S3/R2 storage allows unauthorized deletion or validation of arbitrary files in the bucket.
+**Learning:** Broad hostname validation for S3/R2 URLs is insufficient. Attackers can provide URLs for other objects in the same bucket (e.g., config files), and the application might attempt to delete them during game updates or deletions. URL encoding can also be used to bypass simple string prefix checks.
+**Prevention:** Strictly enforce a specific prefix (e.g., `covers/`) for all user-controlled object keys. Use `unquote` to normalize paths before validation and ensure `secure_filename` is applied to all uploaded filenames.
