@@ -1024,6 +1024,11 @@ header p {
     transition: transform var(--transition-normal);
 }
 
+.game-image-link {
+    display: block;
+    overflow: hidden;
+}
+
 .game-image-container {
     position: relative;
 }

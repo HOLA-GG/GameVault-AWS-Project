@@ -168,7 +168,7 @@
             <label for="descripcion">Descripción</label>
             <textarea id="descripcion" name="descripcion" rows="4" placeholder="Qué edición tienes, estado del empaque, notas..." required maxlength="5000"></textarea>
         </div>
-        <button type="submit" class="btn-submit" id="gameSubmitButton">Guardar juego</button>
+        <button type="submit" class="btn-submit" id="gameSubmitButton" data-loading-text="Guardando juego...">Guardar juego</button>
     </form>
 </section>
 
@@ -252,16 +252,18 @@
     {% if juegos %}
         <div class="games-grid">
             {% for juego in juegos %}
-                <article class="game-card">
+                <article class="game-card" aria-labelledby="game-title-{{ juego.game_id }}">
                     <div class="game-image-container">
-                        {% if juego.imagen_url %}
-                            <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" class="game-image" loading="lazy">
-                        {% else %}
-                            <div class="game-image flex flex-center flex-column text-center" style="background:rgba(255,255,255,0.03); gap: 8px;">
-                                <span style="font-size: 2rem; opacity: 0.3;" aria-hidden="true">🖼️</span>
-                                <span style="font-size: 0.85rem; opacity: 0.6;">Portada pendiente</span>
-                            </div>
-                        {% endif %}
+                        <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="game-image-link" tabindex="-1" aria-hidden="true">
+                            {% if juego.imagen_url %}
+                                <img src="{{ juego.imagen_url }}" alt="{{ juego.titulo }}" class="game-image" loading="lazy">
+                            {% else %}
+                                <div class="game-image flex flex-center flex-column text-center" style="background:rgba(255,255,255,0.03); gap: 8px;">
+                                    <span style="font-size: 2rem; opacity: 0.3;" aria-hidden="true">🖼️</span>
+                                    <span style="font-size: 0.85rem; opacity: 0.6;">Portada pendiente</span>
+                                </div>
+                            {% endif %}
+                        </a>
                     <div class="game-badges">
                         {% set plat_active = filters.plataforma and filters.plataforma == juego.plataforma %}
                         <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None if plat_active else juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" title="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}</a>
@@ -276,7 +278,11 @@
                     </div>
                     </div>
                     <div class="game-info">
-                        <h3>{{ juego.titulo }}</h3>
+                        <h3 id="game-title-{{ juego.game_id }}">
+                            <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="info-link">
+                                {{ juego.titulo }}{% if juego.es_favorito %} <span aria-hidden="true">⭐</span>{% endif %}
+                            </a>
+                        </h3>
                         <p class="game-description">{{ juego.descripcion }}</p>
                         <div class="game-meta">
                             <span class="meta-item">🎯 Prioridad: <strong class="priority-{{ (juego.prioridad or 'Media')|lower }}">{{ juego.prioridad or 'Media' }}</strong></span>
