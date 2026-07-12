@@ -94,10 +94,17 @@ def future_unix_timestamp(minutes: int = 0, days: int = 0) -> int:
 def normalize_database_url(raw_url: str | None) -> str:
     """Convierte URLs a un formato que SQLAlchemy pueda usar."""
     if raw_url:
-        if raw_url.startswith('postgresql://') and '+psycopg' not in raw_url:
-            return raw_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+        # Reemplazar postgres:// por postgresql+psycopg:// para compatibilidad con SQLAlchemy 2.0+
         if raw_url.startswith('postgres://'):
-            return raw_url.replace('postgres://', 'postgresql+psycopg://', 1)
+            raw_url = raw_url.replace('postgres://', 'postgresql+psycopg://', 1)
+        elif raw_url.startswith('postgresql://') and '+psycopg' not in raw_url:
+            raw_url = raw_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+
+        # Forzar sslmode=require para conexiones Neon/PostgreSQL si no se especifica
+        if 'postgresql' in raw_url and 'sslmode=' not in raw_url:
+            separator = '&' if '?' in raw_url else '?'
+            raw_url += f"{separator}sslmode=require"
+
         return raw_url
 
     app_env = os.environ.get('APP_ENV', 'development').strip().lower()
@@ -630,24 +637,124 @@ def validar_password(password):
 
 
 def eliminar_imagen_s3(imagen_url):
-    """Compatibilidad temporal mientras el storage nuevo queda pendiente."""
-    if STORAGE_BACKEND == 'local' and imagen_url and imagen_url.startswith(LOCAL_UPLOAD_URL_PATH + '/'):
+    """Elimina una imagen del backend de almacenamiento (Local o R2/S3)."""
+    if not imagen_url:
+        return True
+
+    storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
+
+    if storage_backend == 'local' and imagen_url.startswith(LOCAL_UPLOAD_URL_PATH + '/'):
         relative_path = imagen_url.replace(LOCAL_UPLOAD_URL_PATH + '/', '', 1).lstrip('/')
         destination = os.path.abspath(os.path.join(LOCAL_UPLOAD_DIR, relative_path))
         upload_root = os.path.abspath(LOCAL_UPLOAD_DIR)
         if destination.startswith(upload_root) and os.path.exists(destination):
-            os.remove(destination)
+            try:
+                os.remove(destination)
+            except OSError:
+                return False
+        return True
+
+    if storage_backend in {'r2', 's3'}:
+        try:
+            import boto3
+            from botocore.config import Config
+
+            r2_account_id = os.environ.get('R2_ACCOUNT_ID')
+            r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
+            r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+            r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
+            r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+
+            if not all([r2_access_key_id, r2_secret_access_key, r2_bucket_name]):
+                return False
+
+            if not r2_endpoint_url and r2_account_id:
+                r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+
+            s3_client = boto3.client(
+                's3',
+                endpoint_url=r2_endpoint_url,
+                aws_access_key_id=r2_access_key_id,
+                aws_secret_access_key=r2_secret_access_key,
+                config=Config(signature_version='s3v4'),
+                region_name='auto'
+            )
+
+            key = obtener_key_desde_url(imagen_url)
+            if not key:
+                return False
+
+            s3_client.delete_object(Bucket=r2_bucket_name, Key=key)
+            return True
+        except Exception:
+            return False
+
     return True
 
 
 def obtener_key_desde_url(imagen_url):
-    """Compatibilidad temporal para futuras integraciones de storage."""
-    return imagen_url
+    """Extrae el Object Key de una URL de S3 o R2."""
+    if not imagen_url:
+        return None
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(imagen_url)
+        path = parsed.path.lstrip('/')
+        # Si la URL es tipo http://endpoint/bucket/key
+        r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
+        if r2_bucket_name and path.startswith(r2_bucket_name + '/'):
+            return path.replace(r2_bucket_name + '/', '', 1)
+        return path
+    except Exception:
+        return None
 
 
 def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
-    """Por ahora devuelve la URL tal cual o vacío si no hay imagen."""
-    return imagen_url or ''
+    """Genera una URL firmada para lectura si el backend es R2/S3, o devuelve la URL original."""
+    if not imagen_url or not imagen_url.startswith('http'):
+        return imagen_url or ''
+
+    storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
+    if storage_backend not in {'r2', 's3'}:
+        return imagen_url
+
+    try:
+        import boto3
+        from botocore.config import Config
+
+        r2_account_id = os.environ.get('R2_ACCOUNT_ID')
+        r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
+        r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+        r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
+        r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+
+        if not all([r2_access_key_id, r2_secret_access_key, r2_bucket_name]):
+            return imagen_url
+
+        if not r2_endpoint_url and r2_account_id:
+            r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint_url,
+            aws_access_key_id=r2_access_key_id,
+            aws_secret_access_key=r2_secret_access_key,
+            config=Config(signature_version='s3v4'),
+            region_name='auto'
+        )
+
+        key = obtener_key_desde_url(imagen_url)
+        if not key:
+            return imagen_url
+
+        signed_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': r2_bucket_name, 'Key': key},
+            ExpiresIn=expires_in
+        )
+        return signed_url
+    except Exception:
+        return imagen_url
 
 
 def crear_juego(
@@ -1617,8 +1724,61 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
 
 
 def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_bytes: int) -> Dict[str, Any]:
-    """Storage nuevo pendiente: por ahora no se generan cargas firmadas."""
-    raise RuntimeError('El almacenamiento de imágenes aún no está configurado.')
+    """Genera una URL firmada (Presigned POST) para subir archivos directamente a Cloudflare R2 / S3."""
+    import boto3
+    from botocore.config import Config
+
+    storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower()
+    if storage_backend not in {'r2', 's3'}:
+        raise RuntimeError(f'El backend de almacenamiento "{storage_backend}" no soporta cargas firmadas.')
+
+    # Configuración de R2 / S3
+    r2_account_id = os.environ.get('R2_ACCOUNT_ID')
+    r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
+    r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+    r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
+    r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+
+    if not all([r2_access_key_id, r2_secret_access_key, r2_bucket_name]):
+        raise RuntimeError('Faltan credenciales de R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY o R2_BUCKET_NAME.')
+
+    # Si es R2, el endpoint suele construirse con el Account ID si no se provee completo
+    if not r2_endpoint_url and r2_account_id:
+        r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=r2_endpoint_url,
+        aws_access_key_id=r2_access_key_id,
+        aws_secret_access_key=r2_secret_access_key,
+        config=Config(signature_version='s3v4'),
+        region_name='auto'
+    )
+
+    object_name = f"covers/{uuid.uuid4()}-{nombre_archivo}"
+
+    try:
+        response = s3_client.generate_presigned_post(
+            Bucket=r2_bucket_name,
+            Key=object_name,
+            Fields={'Content-Type': content_type},
+            Conditions=[
+                {'Content-Type': content_type},
+                ['content-length-range', 0, max_upload_bytes]
+            ],
+            ExpiresIn=3600
+        )
+        # La URL final del objeto si la subida es exitosa
+        if r2_endpoint_url:
+            # Para R2 o S3 con endpoint custom
+            object_url = f"{r2_endpoint_url}/{r2_bucket_name}/{object_name}"
+        else:
+            object_url = f"https://{r2_bucket_name}.s3.amazonaws.com/{object_name}"
+
+        response['object_url'] = object_url
+        return response
+    except Exception as e:
+        raise RuntimeError(f"Error al generar presigned post: {str(e)}")
 
 
 def ensure_bootstrap_admin(email: str, password: str, nombre: str = 'GameVault', apellido: str = 'Admin') -> Dict[str, Any]:

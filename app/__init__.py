@@ -161,8 +161,10 @@ def build_config() -> dict:
         'RATELIMIT_STORAGE_URI': os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
         'RATELIMIT_HEADERS_ENABLED': True,
         'DEFAULT_USER_ID': os.environ.get('DEFAULT_USER_ID', 'user-demo-001'),
-        'S3_BUCKET_NAME': os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files'),
+        'S3_BUCKET_NAME': os.environ.get('R2_BUCKET_NAME') or os.environ.get('S3_BUCKET_NAME', 'gamevault-media-files'),
         'S3_REGION': os.environ.get('AWS_REGION', 'us-east-1'),
+        'R2_ACCOUNT_ID': os.environ.get('R2_ACCOUNT_ID'),
+        'R2_ENDPOINT_URL': os.environ.get('R2_ENDPOINT_URL'),
         'RESET_TOKEN_EXPIRY_MINUTES': env_int('RESET_TOKEN_EXPIRY_MINUTES', 30),
         'AUDIT_LOG_RETENTION_DAYS': env_int('AUDIT_LOG_RETENTION_DAYS', 90),
         'GAMES_PER_PAGE': env_int('GAMES_PER_PAGE', 12),
@@ -249,17 +251,32 @@ def create_app() -> Flask:
         # Minimize attack surface by disabling unused browser features
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), hid=(), serial=()'
 
-        # Harden CSP by restricting S3 access to the specific bucket host (Security enhancement)
+        # Harden CSP by restricting S3/R2 access to the specific bucket host (Security enhancement)
         img_sources = ["'self'", "data:"]
         connect_sources = ["'self'"]
         storage_backend = app.config.get('STORAGE_BACKEND')
         if storage_backend and storage_backend not in {'none', 'local'}:
             bucket = app.config.get('S3_BUCKET_NAME')
             region = app.config.get('S3_REGION')
-            if bucket and region:
-                s3_host = f"{bucket}.s3.{region}.amazonaws.com"
-                img_sources.append(s3_host)
-                connect_sources.append(s3_host)
+            r2_endpoint = app.config.get('R2_ENDPOINT_URL')
+            r2_account_id = app.config.get('R2_ACCOUNT_ID')
+
+            if storage_backend == 'r2':
+                if r2_endpoint:
+                    r2_host = urlparse(r2_endpoint).netloc
+                elif r2_account_id:
+                    r2_host = f"{r2_account_id}.r2.cloudflarestorage.com"
+                else:
+                    r2_host = None
+
+                if r2_host:
+                    img_sources.append(r2_host)
+                    connect_sources.append(r2_host)
+            else:
+                if bucket and region:
+                    s3_host = f"{bucket}.s3.{region}.amazonaws.com"
+                    img_sources.append(s3_host)
+                    connect_sources.append(s3_host)
 
         # Content-Security-Policy: defense-in-depth against XSS and injection
         csp_nonce = getattr(g, 'csp_nonce', '')

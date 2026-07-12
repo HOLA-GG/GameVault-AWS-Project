@@ -271,6 +271,18 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
         return norm_with_slash.startswith(prefix)
 
     parsed = urlparse(image_url)
+    # Soporte para R2
+    if storage_backend == 'r2':
+        account_id = os.environ.get('R2_ACCOUNT_ID')
+        endpoint = os.environ.get('R2_ENDPOINT_URL')
+        if endpoint:
+            expected_netloc = urlparse(endpoint).netloc
+        elif account_id:
+            expected_netloc = f"{account_id}.r2.cloudflarestorage.com"
+        else:
+            return False
+        return parsed.scheme == 'https' and parsed.netloc == expected_netloc
+
     bucket_name = current_app.config['S3_BUCKET_NAME']
     region = current_app.config['S3_REGION']
     expected_host = f'{bucket_name}.s3.{region}.amazonaws.com'
@@ -330,8 +342,12 @@ def subir_imagen_a_s3(archivo):
         return None
 
     try:
+        import boto3
+        from botocore.config import Config
+
         extension = os.path.splitext(secure_filename(archivo.filename))[1].lower()
         nombre_unico = f"covers/{uuid.uuid4()}{extension}"
+
         if storage_backend == 'local':
             upload_dir = os.path.join(current_app.config['LOCAL_UPLOAD_DIR'], 'covers')
             os.makedirs(upload_dir, exist_ok=True)
@@ -339,12 +355,35 @@ def subir_imagen_a_s3(archivo):
             archivo.save(destination)
             return f"{current_app.config['LOCAL_UPLOAD_URL_PATH']}/{nombre_unico}"
 
-        current_app.logger.warning(
-            'image_upload_not_implemented storage_backend=%s object_key=%s',
-            storage_backend,
-            nombre_unico,
+        # Soporte para R2 / S3
+        r2_account_id = os.environ.get('R2_ACCOUNT_ID')
+        r2_access_key_id = os.environ.get('R2_ACCESS_KEY_ID')
+        r2_secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+        r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
+        r2_endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+
+        if not r2_endpoint_url and r2_account_id:
+            r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint_url,
+            aws_access_key_id=r2_access_key_id,
+            aws_secret_access_key=r2_secret_access_key,
+            config=Config(signature_version='s3v4'),
+            region_name='auto'
         )
-        return None
+
+        s3_client.upload_fileobj(
+            archivo,
+            r2_bucket_name,
+            nombre_unico,
+            ExtraArgs={'ContentType': archivo.content_type}
+        )
+
+        if r2_endpoint_url:
+            return f"{r2_endpoint_url}/{r2_bucket_name}/{nombre_unico}"
+        return f"https://{r2_bucket_name}.s3.amazonaws.com/{nombre_unico}"
     except Exception as exc:
         current_app.logger.error('image_upload_unexpected_error error=%s', exc)
         return None

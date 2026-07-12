@@ -25,10 +25,10 @@ Render (Flask / Gunicorn / WSGI)
 - `run.py`: arranque local de desarrollo.
 - `app/__init__.py`: configuracion central, logging, Sentry, cookies y extensiones.
 - `app/routes.py`: rutas publicas, privadas, admin, perfil y password reset.
-- `app/models.py`: acceso a DynamoDB y S3.
-- `setup_dynamodb.py`: provision de tablas, TTL e indices.
-- `setup_s3.py`: provision de bucket privado, CORS, cifrado y versionado.
-- `migrate_password_reset.py`: recreacion de tabla de tokens si hace falta.
+- `app/models.py`: capa de datos con SQLAlchemy sobre PostgreSQL (Neon).
+- `setup_dynamodb.py`: (Legacy) provision de tablas DynamoDB.
+- `setup_s3.py`: (Legacy) provision de bucket S3.
+- `migrate_password_reset.py`: (Legacy) recreacion de tabla de tokens en DynamoDB.
 
 ## Variables de entorno
 
@@ -131,7 +131,6 @@ Render detecta automáticamente el archivo `render.yaml` o puedes configurar un 
 
 ## Riesgos aun abiertos
 
-- `obtener_estadisticas_logs()` sigue usando scan y debe migrarse a agregados dedicados si el volumen crece.
 - Falta verificacion de email.
 - Falta analitica de conversion.
 - Aun no hay backups documentados de negocio ni automatizacion de deploy productivo.

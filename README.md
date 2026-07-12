@@ -66,7 +66,11 @@ pytest
 
 ## Siguientes pasos recomendados
 
-- Definir el storage definitivo de imágenes
+- Finalizar integración de Cloudflare R2 para almacenamiento de imágenes
 - Añadir CI/CD con secrets de entorno separados por ambiente
 - Conectar un dominio propio y HTTPS estricto
 - Añadir analítica de conversión y onboarding guiado
+
+## Legacy (AWS/DynamoDB)
+
+Los archivos `setup_dynamodb.py`, `setup_s3.py`, `migrate_password_reset.py`, `setup_test_data.py` (v1) y `seed_verification.py` pertenecen a la arquitectura anterior basada en AWS y están marcados como **legacy**. No deben utilizarse en la infraestructura actual basada en Render/Neon.
