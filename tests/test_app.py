@@ -281,7 +281,7 @@ def test_forgot_password_never_exposes_token(monkeypatch, client):
             'error': None,
         },
     )
-    monkeypatch.setattr(routes, 'enviar_email_reset_password', lambda _email, _token: True)
+    monkeypatch.setattr(routes, 'enviar_email_reset_password', lambda _email, _token, **_kwargs: True)
     monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
 
     response = client.post(
@@ -310,7 +310,7 @@ def test_forgot_password_can_show_debug_token_locally(monkeypatch, client):
             'error': None,
         },
     )
-    monkeypatch.setattr(routes, 'enviar_email_reset_password', lambda _email, _token: False)
+    monkeypatch.setattr(routes, 'enviar_email_reset_password', lambda _email, _token, **_kwargs: False)
     monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
 
     response = client.post('/forgot-password', data={'email': 'ana@example.com'})
@@ -336,7 +336,7 @@ def test_forgot_password_shows_recovery_token_when_email_delivery_fails_in_non_p
             'error': None,
         },
     )
-    monkeypatch.setattr(routes, 'enviar_email_reset_password', lambda _email, _token: False)
+    monkeypatch.setattr(routes, 'enviar_email_reset_password', lambda _email, _token, **_kwargs: False)
     monkeypatch.setattr(routes, 'crear_log_audit', lambda **_kwargs: {'success': True})
 
     response = client.post('/forgot-password', data={'email': 'ana@example.com'})

@@ -61,7 +61,8 @@ _SENSITIVE_PATTERNS = {
     'account_number', 'tax_id', 'phone', 'telefono', 'celular', 'mobile',
     'address', 'direccion', 'birth', 'nacimiento', 'pin', 'apikey',
     'recovery', 'security', 'identity', 'national_id', 'personal_id',
-    'tarjeta', 'clave', 'cuenta', 'identidad', 'expiry', 'expiration'
+    'tarjeta', 'clave', 'cuenta', 'identidad', 'expiry', 'expiration',
+    'pass', 'pwd', 'sid'
 }
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|')
 _COMMON_WEAK_PASSWORDS = {

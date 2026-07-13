@@ -220,6 +220,8 @@ def create_app() -> Flask:
         response.headers['X-Permitted-Cross-Domain-Policies'] = 'none'
         # Prevent cross-origin window leaks (defense-in-depth for social/auth)
         response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+        # Prevent cross-origin resource sharing risks
+        response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
 
         # Disable caching and indexing for sensitive authenticated routes (Security enhancement)
         sensitive_endpoints = {
@@ -228,7 +230,7 @@ def create_app() -> Flask:
             'main.admin_logs_export', 'main.admin_logs_clear',
             'main.forgot_password', 'main.forgot_password_manual',
             'main.validate_token_page', 'main.verify_token',
-            'main.reset_password_with_email'
+            'main.reset_password_with_email', 'main.healthz', 'main.salud'
         }
         if request.endpoint in sensitive_endpoints:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
@@ -286,6 +288,10 @@ def create_app() -> Flask:
             "style-src 'self' 'unsafe-inline'",
             f"img-src {' '.join(img_sources)}",
             f"connect-src {' '.join(connect_sources)}",
+            "frame-src 'none'",
+            "font-src 'self'",
+            "media-src 'none'",
+            "worker-src 'none'",
             "frame-ancestors 'self'",
             "form-action 'self'",
             "base-uri 'self'",
