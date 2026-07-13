@@ -514,12 +514,10 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             ratings_count += 1
 
         # Date metrics (Optimized: Rely on model layer for UTC-aware datetimes)
-        # Bolt Optimization: Remove redundant _ensure_dt() calls as game_to_dict(format_dates=False)
-        # already provides UTC-aware datetimes or MIN_DATE.
+        # Bolt Optimization: Inline effective date calculation using ternary to avoid max()
+        # function call overhead in hot loops.
         dt_created = juego['created_at']
         dt_updated = juego['updated_at']
-
-        # Bolt Optimization: Inline effective date calculation.
         effective_dt = dt_updated if dt_updated > dt_created else dt_created
 
         if prioridad == 'Alta':
@@ -672,8 +670,8 @@ def filter_and_sort_games(juegos, filters):
                 continue
 
             # La búsqueda por texto es la operación más costosa, optimizada con short-circuit.
-            # Bolt Optimization: Prioritize likely matches and short categorical fields before long descriptions.
-            # Normalized titulo and descripcion in data layer ensure null-safe .lower() calls.
+            # Bolt Optimization: Reorder checks to prioritize shorter categorical fields,
+            # maximizing short-circuit evaluation speed for mismatched records.
             if query:
                 if not (
                     query in juego['plataforma'].lower() or
@@ -698,7 +696,7 @@ def filter_and_sort_games(juegos, filters):
     elif sort_by == 'created_desc':
         filtered.sort(key=lambda j: j['created_at'], reverse=True)
     else:
-        # Bolt Optimization: Inline effective update date comparison in sort key to avoid max() overhead.
+        # Bolt Optimization: Inline effective date comparison in sort key to avoid max() overhead.
         filtered.sort(key=lambda j: j['updated_at'] if j['updated_at'] > j['created_at'] else j['created_at'], reverse=True)
 
     return filtered
@@ -706,8 +704,8 @@ def filter_and_sort_games(juegos, filters):
 
 def enrich_game_metadata(game: dict | None) -> dict | None:
     """Enriquece el juego con URL de imagen y serializa fechas (Optimización Bolt: in-place)."""
-    if game is None:
-        return None
+    if game is None or game.get('_enriched'):
+        return game
 
     # Bolt Optimization: Access key directly to avoid .get() overhead.
     # restore fallback safety for crear_url_firmada_lectura.
@@ -723,13 +721,15 @@ def enrich_game_metadata(game: dict | None) -> dict | None:
     if isinstance(cre, datetime):
         game['created_at'] = as_iso(cre)
 
+    # Bolt: Mark as enriched to avoid redundant processing if featured multiple times.
+    game['_enriched'] = True
     return game
 
 
 def enrich_log_metadata(log: dict | None) -> dict | None:
     """Enriquece el log con clases de badges y serializa fechas (Optimización Bolt: in-place)."""
-    if log is None:
-        return None
+    if log is None or log.get('_enriched'):
+        return log
 
     # Bolt Optimization: Assign badge classes and serialize timestamp only when needed for rendering.
     # Use bracket access for keys guaranteed by the data layer to avoid .get() overhead.
@@ -747,6 +747,8 @@ def enrich_log_metadata(log: dict | None) -> dict | None:
     if isinstance(ts, datetime):
         log['timestamp'] = as_iso(ts)
 
+    # Bolt: Mark as enriched to avoid redundant processing.
+    log['_enriched'] = True
     return log
 
 
