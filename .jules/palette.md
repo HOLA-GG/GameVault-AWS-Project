@@ -93,3 +93,7 @@
 ## 2026-07-10 - [Visual Parity for ARIA-Labels via Tooltips]
 **Learning:** Functional elements that use `aria-label` for screen reader accessibility often leave mouse users without visual context for "what this does" if the label isn't reflected in the UI. Mirroring `aria-label` logic into the `title` attribute provides consistent visual tooltips that bridge the gap between accessibility and standard visual feedback.
 **Action:** For all interactive elements where the purpose is communicated via `aria-label` (like filter badges or icon-only buttons), always include a matching `title` attribute to provide visual tooltips.
+
+## 2026-07-13 - [Identity Field Utility and Accessibility]
+**Learning:** Using `disabled` for immutable user data (like an email address) creates an accessibility "dead end" where users cannot select, copy, or easily hear the data with screen readers. Switching to `readonly` maintains data integrity while allowing focus and selection. Enhancing this with an explicit "Copy" button and `.select-on-focus` utility transforms a static label into a high-utility identity tool.
+**Action:** Always prefer `readonly` over `disabled` for fields that users might need to copy (IDs, emails, keys), and pair them with a dedicated copy button and selection-on-focus for maximum efficiency.
