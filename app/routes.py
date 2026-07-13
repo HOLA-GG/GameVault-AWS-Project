@@ -322,8 +322,8 @@ def procesar_imagen_base64(archivo):
 
 
 
-def enviar_email_reset_password(destinatario: str, token: str) -> bool:
-    """Envía el correo de recuperación con enlace directo."""
+def enviar_email_reset_password(destinatario: str, token: str, ip_address: str | None = None) -> bool:
+    """Envía el correo de recuperación con enlace directo e información de contexto."""
     try:
         if current_app.config.get('MAIL_SUPPRESS_SEND'):
             current_app.logger.warning('password_reset_email_suppressed email=%s', destinatario)
@@ -332,19 +332,23 @@ def enviar_email_reset_password(destinatario: str, token: str) -> bool:
         reset_url = url_for('main.reset_password_with_email', token=token, _external=True)
         expiry_minutes = current_app.config['RESET_TOKEN_EXPIRY_MINUTES']
 
+        ip_info = f"<p style='color: #666; font-size: 0.9em;'>Esta solicitud fue realizada desde la dirección IP: <strong>{ip_address}</strong></p>" if ip_address else ""
+
         message = Message(
             subject='Recuperacion de contraseña - GameVault',
             recipients=[destinatario],
             html=f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #1d4ed8;">Recupera tu acceso</h2>
-                <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+                <h2 style="color: #1d4ed8; margin-top: 0;">Recupera tu acceso</h2>
+                <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en GameVault.</p>
                 <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
-                <p style="text-align: center; margin: 24px 0;">
-                    <a href="{reset_url}" style="background: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 10px; display: inline-block;">Restablecer contraseña</a>
+                <p style="text-align: center; margin: 32px 0;">
+                    <a href="{reset_url}" style="background: #1d4ed8; color: white; padding: 14px 28px; text-decoration: none; border-radius: 10px; display: inline-block; font-weight: bold;">Restablecer contraseña</a>
                 </p>
                 <p>Este enlace expira en {expiry_minutes} minutos.</p>
-                <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+                {ip_info}
+                <p style="color: #666; font-size: 0.9em;"><strong>¿No solicitaste este cambio?</strong> Si no has pedido restablecer tu contraseña, puedes ignorar este mensaje de forma segura. Tu cuenta sigue estando protegida.</p>
             </div>
             """,
         )
@@ -1619,9 +1623,10 @@ def forgot_password():
         return redirect(url_for('main.forgot_password'))
 
     if user and user.get('status') == 'active':
-        result = crear_reset_token(user['user_id'], request.remote_addr or None)
+        request_ip = get_request_ip()
+        result = crear_reset_token(user['user_id'], request_ip)
         if result['success']:
-            email_sent = enviar_email_reset_password(email, result['token'])
+            email_sent = enviar_email_reset_password(email, result['token'], ip_address=request_ip)
             crear_log_audit(
                 user_id=user['user_id'],
                 action='PASSWORD_RESET_REQUEST',
@@ -1688,7 +1693,8 @@ def forgot_password_manual():
         flash('No se pudo validar los datos de recuperación.', 'error')
         return redirect(url_for('main.forgot_password'))
 
-    result = crear_reset_token(user['user_id'], request.remote_addr or None)
+    request_ip = get_request_ip()
+    result = crear_reset_token(user['user_id'], request_ip)
     if not result.get('success'):
         flash('No se pudo generar el token de recuperación. Intenta de nuevo.', 'error')
         return redirect(url_for('main.forgot_password'))
@@ -1698,7 +1704,7 @@ def forgot_password_manual():
         action='PASSWORD_RESET_REQUEST',
         resource='auth',
         details={'email': email, 'channel': 'manual_token'},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=request_ip,
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
