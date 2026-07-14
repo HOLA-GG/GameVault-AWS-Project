@@ -817,15 +817,19 @@ def obtener_key_desde_url(imagen_url):
         return None
     try:
         parsed = urlparse(imagen_url)
-        path = unquote(parsed.path).lstrip('/')
+        # Normalize to prevent bypasses via backslashes, encoding, or multiple slashes (Security hardening)
+        path = unquote(parsed.path).replace('\\', '/').lstrip('/')
+        # os.path.normpath collapses redundancies like '..' and '.' (Security hardening)
+        normalized_path = os.path.normpath(path).replace('\\', '/')
+
         # Si la URL es tipo http://endpoint/bucket/key
         r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
-        if r2_bucket_name and path.startswith(r2_bucket_name + '/'):
-            path = path.replace(r2_bucket_name + '/', '', 1)
+        if r2_bucket_name and normalized_path.startswith(r2_bucket_name + '/'):
+            normalized_path = normalized_path.replace(r2_bucket_name + '/', '', 1)
 
         # Defensa en profundidad: solo permitir llaves dentro del prefijo de portadas
-        if path.startswith('covers/'):
-            return path
+        if normalized_path.startswith('covers/'):
+            return normalized_path
         return None
     except Exception:
         return None

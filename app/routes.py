@@ -253,7 +253,10 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
         return norm_with_slash.startswith(prefix)
 
     parsed = urlparse(image_url)
-    path = unquote(parsed.path).lstrip('/')
+    # Normalize to prevent bypasses via backslashes, encoding, or multiple slashes (Security hardening)
+    path = unquote(parsed.path).replace('\\', '/').lstrip('/')
+    # os.path.normpath collapses redundancies like '..' and '.' (Security hardening)
+    normalized_path = os.path.normpath(path).replace('\\', '/')
 
     # Soporte para R2
     if storage_backend == 'r2':
@@ -270,14 +273,14 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
             return False
 
         bucket_name = os.environ.get('R2_BUCKET_NAME')
-        if bucket_name and path.startswith(bucket_name + '/'):
-            path = path.replace(bucket_name + '/', '', 1)
-        return path.startswith('covers/')
+        if bucket_name and normalized_path.startswith(bucket_name + '/'):
+            normalized_path = normalized_path.replace(bucket_name + '/', '', 1)
+        return normalized_path.startswith('covers/')
 
     bucket_name = current_app.config['S3_BUCKET_NAME']
     region = current_app.config['S3_REGION']
     expected_host = f'{bucket_name}.s3.{region}.amazonaws.com'
-    return parsed.scheme == 'https' and parsed.netloc == expected_host and path.startswith('covers/')
+    return parsed.scheme == 'https' and parsed.netloc == expected_host and normalized_path.startswith('covers/')
 
 
 def is_safe_url(target: str) -> bool:
