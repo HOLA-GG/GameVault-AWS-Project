@@ -424,11 +424,19 @@ def user_to_dict(user: User | None, format_dates: bool = True) -> Optional[Dict[
 
 def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de User a un diccionario (Optimización Bolt)."""
+    # Bolt Optimization: Support mapping for specific field selections.
+    if isinstance(row, dict):
+        if format_dates:
+            for field in ('created_at', 'updated_at'):
+                if field in row:
+                    row[field] = as_iso(row[field])
+        return row
+
     # Centralized normalization to UTC-aware datetimes for consistency.
     _MIN_DATE = MIN_DATE
-    cre = row.created_at or _MIN_DATE
+    cre = getattr(row, 'created_at', _MIN_DATE) or _MIN_DATE
     if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
-    upd = row.updated_at or _MIN_DATE
+    upd = getattr(row, 'updated_at', _MIN_DATE) or _MIN_DATE
     if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
 
     if format_dates:
@@ -1444,14 +1452,24 @@ def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, An
     if not user_ids:
         return []
     format_dates = kwargs.get('format_dates', True)
+    # Bolt optimization: Allow fetching specific columns to reduce DB load.
+    fields = kwargs.get('fields')
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        # Fetching the full table via select(User.__table__) bypasses ORM hydration
-        # while keeping the data layer robust against schema changes.
-        results = session.execute(
-            select(User.__table__).where(User.user_id.in_(user_ids))
-        ).all()
+        if fields:
+            # SQL: SELECT user_id, email, nombre ... FROM users
+            query = select(*[getattr(User, f) for f in fields])
+        else:
+            # Fetching the full table via select(User.__table__) bypasses ORM hydration
+            # while keeping the data layer robust against schema changes.
+            query = select(User.__table__)
+
+        results = session.execute(query.where(User.user_id.in_(user_ids))).all()
+
+        if fields:
+            # Manual mapping for specific field selections using the normalized helper.
+            return [_user_row_to_dict(dict(zip(fields, row)), format_dates=format_dates) for row in results]
         return [_user_row_to_dict(row, format_dates=format_dates) for row in results]
 
 

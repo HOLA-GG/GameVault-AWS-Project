@@ -2005,7 +2005,14 @@ def admin_logs():
     # Bolt Optimization: Enrich only groups and logs belonging to the current page view.
     page_groups = pagination['items']
     page_user_ids = {g['user_id'] for g in page_groups if g['user_id'] != 'system'}
-    user_map = {u['user_id']: u for u in obtener_usuarios_por_ids(list(page_user_ids), format_dates=False)} if page_user_ids else {}
+    # Bolt Optimization: Fetch only required fields (user_id, email, nombre) to reduce DB load.
+    user_map = {
+        u['user_id']: u for u in obtener_usuarios_por_ids(
+            list(page_user_ids),
+            format_dates=False,
+            fields=['user_id', 'email', 'nombre']
+        )
+    } if page_user_ids else {}
 
     for group in page_groups:
         uid = group['user_id']
