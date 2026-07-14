@@ -135,3 +135,7 @@
 ## 2026-07-12 - Singleton S3 Client and Storage Context Resilience
 **Learning:** Initializing a `boto3.client` on every request in a loop (e.g., for signed URLs in a dashboard) is a significant CPU bottleneck. Moving this to a singleton pattern solves the speed issue, but in a Flask app, storage utilities are often called both from request contexts and standalone scripts. Relying solely on `current_app.config` causes `RuntimeError` in non-request contexts.
 **Action:** Implement storage clients as singletons. Use a tiered configuration lookup: try `current_app.config` first for request-time overrides, and fall back to module-level constants (from `os.environ`) within a `try...except RuntimeError` block to maintain script compatibility.
+
+## 2026-07-22 - SQL Projection for Partial User Lookups
+**Learning:** Fetching full records or using `select(Model.__table__)` in batch lookups (like `obtener_usuarios_por_ids`) introduces unnecessary database I/O and network overhead when only a few identity fields (ID, name, email) are needed for UI enrichment. Bypassing ORM hydration while still returning normalized dictionaries requires mapping helpers that can handle partial results.
+**Action:** Add a `fields` parameter to batch fetchers to enable SQL projection. Update mapping helpers (like `_user_row_to_dict`) to safely handle both dictionary and object inputs, ensuring date normalization is applied only when relevant fields are present.
