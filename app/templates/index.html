@@ -252,7 +252,8 @@
     {% if juegos %}
         <div class="games-grid">
             {% for juego in juegos %}
-                <article class="game-card" aria-labelledby="game-title-{{ juego.game_id }}">
+                {% set is_next_focus = dashboard_insights.next_focus and dashboard_insights.next_focus.game_id == juego.game_id %}
+                <article class="game-card {{ 'electric-card' if is_next_focus }}" aria-labelledby="game-title-{{ juego.game_id }}">
                     <div class="game-image-container">
                         <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="game-image-link" tabindex="-1" aria-hidden="true">
                             {% if juego.imagen_url %}
@@ -274,6 +275,9 @@
                         {% if juego.es_favorito %}
                             {% set fav_active = filters.favoritos == 'solo' %}
                             <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None if fav_active else 'solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" title="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" {{ 'aria-current="true"'|safe if fav_active }}>Favorito</a>
+                        {% endif %}
+                        {% if is_next_focus %}
+                            <span class="badge badge-next-focus">🎯 Siguiente foco</span>
                         {% endif %}
                     </div>
                     </div>

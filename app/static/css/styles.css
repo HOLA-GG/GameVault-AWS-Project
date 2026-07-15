@@ -2191,6 +2191,12 @@ kbd {
     border: 1px solid rgba(125, 255, 177, 0.28);
 }
 
+.badge-next-focus {
+    background: var(--electric-color);
+    color: var(--background-dark);
+    border: none;
+}
+
 [data-theme="gamer"] .accessibility-panel,
 [data-theme="gamer"] .section,
 [data-theme="gamer"] .nav-bar,
