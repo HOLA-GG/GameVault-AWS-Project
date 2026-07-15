@@ -62,9 +62,10 @@ _SENSITIVE_PATTERNS = {
     'address', 'direccion', 'birth', 'nacimiento', 'pin', 'apikey',
     'recovery', 'security', 'identity', 'national_id', 'personal_id',
     'tarjeta', 'clave', 'cuenta', 'identidad', 'expiry', 'expiration',
-    'pass', 'pwd', 'sid'
+    'pass', 'pwd', 'sid', 'csrf', 'xsrf', 'access_token', 'refresh_token',
+    'id_token', 'authorization', 'bearer', 'nif', 'nie', 'curp'
 }
-_RISKY_CSV_CHARS = ('=', '+', '-', '@', '|')
+_RISKY_CSV_CHARS = ('=', '+', '-', '@', '|', '`')
 _COMMON_WEAK_PASSWORDS = {
     'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
     'videogames123', 'qwerty123', '12345678a', 'password1234', 'welcome123'
@@ -1265,7 +1266,16 @@ def crear_log_audit(
     derived_name = AUDIT_ACTIONS.get(action, safe_action)[:120]
 
     # Bolt Optimization: Redact sensitive details once to avoid redundant recursive calls in the retry block.
-    safe_details = redact_sensitive_details(details) or {}
+    # Traceability enhancement: Automatically inject request_id if within a request context.
+    safe_details = details.copy() if isinstance(details, dict) else {}
+    try:
+        from flask import g
+        if hasattr(g, 'request_id') and 'request_id' not in safe_details:
+            safe_details['request_id'] = g.request_id
+    except (ImportError, RuntimeError):
+        pass
+
+    safe_details = redact_sensitive_details(safe_details)
 
     item = AuditLog(
         audit_id=str(uuid.uuid4()),
