@@ -139,3 +139,7 @@
 ## 2026-07-22 - SQL Projection for Partial User Lookups
 **Learning:** Fetching full records or using `select(Model.__table__)` in batch lookups (like `obtener_usuarios_por_ids`) introduces unnecessary database I/O and network overhead when only a few identity fields (ID, name, email) are needed for UI enrichment. Bypassing ORM hydration while still returning normalized dictionaries requires mapping helpers that can handle partial results.
 **Action:** Add a `fields` parameter to batch fetchers to enable SQL projection. Update mapping helpers (like `_user_row_to_dict`) to safely handle both dictionary and object inputs, ensuring date normalization is applied only when relevant fields are present.
+
+## 2026-07-15 - Hardening Row-to-Dict Helpers for Selective Projection
+**Learning:** Implementing selective SQL projection improves performance but can cause regressions in helper functions (like `_user_row_to_dict` or `_audit_log_row_to_dict`) that rely on direct attribute access (`row.field`). If a field is excluded from the projection, it raises an `AttributeError`.
+**Action:** Always use `getattr(row, field, default)` in mapping helpers. This ensures robustness when handling partial results from SQL projection without requiring brittle type checks or breaking existing call-sites that expect a full dictionary structure.
