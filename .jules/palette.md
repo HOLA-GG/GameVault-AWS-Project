@@ -97,3 +97,11 @@
 ## 2026-07-13 - [Identity Field Utility and Accessibility]
 **Learning:** Using `disabled` for immutable user data (like an email address) creates an accessibility "dead end" where users cannot select, copy, or easily hear the data with screen readers. Switching to `readonly` maintains data integrity while allowing focus and selection. Enhancing this with an explicit "Copy" button and `.select-on-focus` utility transforms a static label into a high-utility identity tool.
 **Action:** Always prefer `readonly` over `disabled` for fields that users might need to copy (IDs, emails, keys), and pair them with a dedicated copy button and selection-on-focus for maximum efficiency.
+
+## 2025-02-14 - [Guiding Priority via Visual Cues]
+**Learning:** In dashboards with multiple items, users can feel overwhelmed by "choice paralysis." Implementing a "Next Focus" highlight—using both a distinct container style (like `.electric-card`) and a clear status badge (e.g., 🎯 Siguiente foco)—provides an immediate visual anchor that guides the user toward the most logical next action, reducing cognitive load.
+**Action:** Use a combination of container-level visual effects and specific semantic badges to highlight "priority" items that require immediate user attention.
+
+## 2025-02-14 - [Grammatical Precision in Accessibility Labels]
+**Learning:** Screen reader users rely on `aria-label` for precise context. Using static singular labels for dynamic numeric values (e.g., "4.5 estrella") creates a jarring and "unpolished" auditory experience. Implementing conditional pluralization within template attributes ensures that accessibility labels remain grammatically correct and professional, mirroring the quality of the visual UI.
+**Action:** Always use conditional logic in templates to handle pluralization for accessibility labels that incorporate dynamic counts or measurements.

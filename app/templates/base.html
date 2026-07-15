@@ -28,7 +28,7 @@
         <aside class="accessibility-panel" id="accessibilityPanel" hidden>
             <div class="accessibility-header">
                 <strong>Accesibilidad</strong>
-                <button type="button" class="accessibility-close" id="accessibilityClose" aria-label="Cerrar panel">×</button>
+                <button type="button" class="accessibility-close" id="accessibilityClose" aria-label="Cerrar panel" title="Cerrar panel">×</button>
             </div>
 
             <div class="accessibility-group">
@@ -393,6 +393,7 @@
                 closeBtn.type = 'button';
                 closeBtn.className = 'flash-close';
                 closeBtn.setAttribute('aria-label', 'Cerrar mensaje');
+                closeBtn.title = 'Cerrar mensaje';
                 closeBtn.innerHTML = '&times;';
 
                 const dismiss = () => {
