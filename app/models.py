@@ -425,15 +425,8 @@ def user_to_dict(user: User | None, format_dates: bool = True) -> Optional[Dict[
 
 def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de User a un diccionario (Optimización Bolt)."""
-    # Bolt Optimization: Support mapping for specific field selections.
-    if isinstance(row, dict):
-        if format_dates:
-            for field in ('created_at', 'updated_at'):
-                if field in row:
-                    row[field] = as_iso(row[field])
-        return row
-
-    # Centralized normalization to UTC-aware datetimes for consistency.
+    # Bolt Optimization: Support mapping for specific field selections from SQL projection.
+    # We use getattr with defaults to ensure robustness if some fields were excluded.
     _MIN_DATE = MIN_DATE
     cre = getattr(row, 'created_at', _MIN_DATE) or _MIN_DATE
     if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
@@ -444,17 +437,17 @@ def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
         cre, upd = cre.isoformat(), upd.isoformat()
 
     return {
-        'user_id': row.user_id,
-        'email': row.email,
-        'nombre': row.nombre,
-        'apellido': row.apellido,
-        'prefijo_pais': row.prefijo_pais,
-        'telefono': row.telefono,
-        'password_hash': row.password_hash,
-        'role': row.role,
-        'status': row.status,
-        'collection_visibility': row.collection_visibility,
-        'homepage_showcase_opt_in': row.homepage_showcase_opt_in,
+        'user_id': getattr(row, 'user_id', None),
+        'email': getattr(row, 'email', ''),
+        'nombre': getattr(row, 'nombre', ''),
+        'apellido': getattr(row, 'apellido', ''),
+        'prefijo_pais': getattr(row, 'prefijo_pais', ''),
+        'telefono': getattr(row, 'telefono', ''),
+        'password_hash': getattr(row, 'password_hash', ''),
+        'role': getattr(row, 'role', 'user'),
+        'status': getattr(row, 'status', 'active'),
+        'collection_visibility': getattr(row, 'collection_visibility', 'private'),
+        'homepage_showcase_opt_in': bool(getattr(row, 'homepage_showcase_opt_in', False)),
         'created_at': cre,
         'updated_at': upd,
     }
@@ -632,7 +625,9 @@ def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optio
 
 def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de AuditLog a un diccionario (Optimización Bolt)."""
-    ts = row.timestamp or MIN_DATE
+    # Bolt Optimization: Support mapping for specific field selections from SQL projection.
+    # We use getattr with defaults to ensure robustness if some fields were excluded.
+    ts = getattr(row, 'timestamp', MIN_DATE) or MIN_DATE
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
 
@@ -640,16 +635,16 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
         ts = ts.isoformat()
 
     return {
-        'audit_id': row.audit_id,
-        'user_id': row.user_id,
-        'action': row.action,
-        'action_name': row.action_name,
-        'resource': row.resource,
+        'audit_id': getattr(row, 'audit_id', None),
+        'user_id': getattr(row, 'user_id', None),
+        'action': getattr(row, 'action', 'UNKNOWN'),
+        'action_name': getattr(row, 'action_name', 'Actividad'),
+        'resource': getattr(row, 'resource', 'unknown'),
         'timestamp': ts,
-        'ip_address': row.ip_address,
-        'user_agent': row.user_agent,
-        'details': row.details or {},
-        'status': row.status,
+        'ip_address': getattr(row, 'ip_address', 'unknown'),
+        'user_agent': getattr(row, 'user_agent', 'unknown'),
+        'details': getattr(row, 'details', {}) or {},
+        'status': getattr(row, 'status', 'SUCCESS'),
     }
 
 
@@ -1055,12 +1050,18 @@ def verificar_credenciales(email, password, format_dates: bool = True):
 def obtener_todos_usuarios(limit: int | None = None, offset: int | None = None, **kwargs) -> List[Dict[str, Any]]:
     """Obtiene todos los usuarios (Optimización Bolt: bypass ORM hydration)."""
     format_dates = kwargs.get('format_dates', True)
+    # Bolt optimization: Allow fetching specific columns to reduce DB load.
+    fields = kwargs.get('fields')
     ensure_tables()
     session_factory = get_session_factory()
 
-    # Fetching the full table via select(User.__table__) bypasses ORM hydration
-    # but ensures we get all columns even if the schema changes.
-    query = select(User.__table__).order_by(User.created_at.desc())
+    if fields:
+        # SQL: SELECT user_id, email, nombre ... FROM users
+        query = select(*[getattr(User, f) for f in fields]).order_by(User.created_at.desc())
+    else:
+        # Fetching the full table via select(User.__table__) bypasses ORM hydration
+        # but ensures we get all columns even if the schema changes.
+        query = select(User.__table__).order_by(User.created_at.desc())
 
     if limit is not None:
         query = query.limit(limit)
@@ -1320,28 +1321,43 @@ def crear_log_audit(
 def obtener_logs_por_usuario(user_id: str, limit: int = 50, **kwargs) -> List[Dict[str, Any]]:
     """Obtiene logs recientes de un usuario (Optimización Bolt: bypass ORM hydration)."""
     format_dates = kwargs.get('format_dates', True)
+    # Bolt optimization: Allow fetching specific columns to reduce DB load.
+    fields = kwargs.get('fields')
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        # Use select(AuditLog.__table__) to bypass ORM hydration
+        if fields:
+            # SQL: SELECT timestamp, action ... FROM audit_logs
+            query = select(*[getattr(AuditLog, f) for f in fields])
+        else:
+            # Use select(AuditLog.__table__) to bypass ORM hydration
+            query = select(AuditLog.__table__)
+
         results = session.execute(
-            select(AuditLog.__table__)
-            .where(AuditLog.user_id == user_id)
+            query.where(AuditLog.user_id == user_id)
             .order_by(AuditLog.timestamp.desc())
             .limit(limit)
         ).all()
+
         return [_audit_log_row_to_dict(row, format_dates=format_dates) for row in results]
 
 
 def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwargs) -> List[Dict[str, Any]]:
     """Obtiene logs de auditoría con filtros opcionales (Optimización Bolt: bypass ORM hydration)."""
     format_dates = kwargs.get('format_dates', True)
+    # Bolt optimization: Allow fetching specific columns to reduce DB load.
+    fields = kwargs.get('fields')
     ensure_tables()
     session_factory = get_session_factory()
     filters = filters or {}
 
-    # Use select(AuditLog.__table__) to bypass ORM hydration
-    query = select(AuditLog.__table__)
+    if fields:
+        # SQL: SELECT audit_id, user_id, action ... FROM audit_logs
+        query = select(*[getattr(AuditLog, f) for f in fields])
+    else:
+        # Use select(AuditLog.__table__) to bypass ORM hydration
+        query = select(AuditLog.__table__)
+
     if filters.get('user_id'):
         query = query.where(AuditLog.user_id == filters['user_id'])
     if filters.get('action'):
@@ -1476,10 +1492,6 @@ def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, An
             query = select(User.__table__)
 
         results = session.execute(query.where(User.user_id.in_(user_ids))).all()
-
-        if fields:
-            # Manual mapping for specific field selections using the normalized helper.
-            return [_user_row_to_dict(dict(zip(fields, row)), format_dates=format_dates) for row in results]
         return [_user_row_to_dict(row, format_dates=format_dates) for row in results]
 
 

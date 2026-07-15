@@ -1479,7 +1479,12 @@ def profile():
     # We use full=False to skip expensive dominant metrics and specific game lookups not rendered in profile.html.
     # This reduces database roundtrips from 10 to 1 for this route.
     profile_insights = obtener_metricas_coleccion(user_id, full=False)
-    recent_activity_logs = obtener_logs_por_usuario(user_id, limit=8)
+    # Bolt Optimization: Fetch only required fields for activity feed in profile.html.
+    recent_activity_logs = obtener_logs_por_usuario(
+        user_id,
+        limit=8,
+        fields=['timestamp', 'action', 'action_name', 'resource', 'status', 'details']
+    )
     for log in recent_activity_logs:
         enrich_log_metadata(log)
 
@@ -1847,8 +1852,13 @@ def admin_panel():
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
     offset = (page - 1) * per_page
 
-    # Bolt Optimization: Fetch users with raw datetimes as they are not rendered in admin.html.
-    usuarios = obtener_todos_usuarios(limit=per_page, offset=offset, format_dates=False)
+    # Bolt Optimization: Fetch users with raw datetimes and selective projection as they are not rendered in admin.html.
+    usuarios = obtener_todos_usuarios(
+        limit=per_page,
+        offset=offset,
+        format_dates=False,
+        fields=['user_id', 'email', 'nombre', 'prefijo_pais', 'telefono', 'role']
+    )
     total_usuarios = contar_usuarios()
 
     # Construcción manual de metadatos de paginación para mantener compatibilidad con la plantilla
@@ -1995,8 +2005,13 @@ def admin_logs():
         'start_date': request.args.get('start_date', '').strip(),
         'end_date': request.args.get('end_date', '').strip(),
     }
-    # Bolt Optimization: Fetch raw logs to avoid expensive ISO conversions in the hot path.
-    logs = obtener_todos_logs(filters, limit=500, format_dates=False)
+    # Bolt Optimization: Fetch raw logs with selective projection to avoid expensive ISO conversions in the hot path.
+    logs = obtener_todos_logs(
+        filters,
+        limit=500,
+        format_dates=False,
+        fields=['audit_id', 'user_id', 'action', 'action_name', 'resource', 'timestamp', 'ip_address', 'details', 'status']
+    )
     page = request.args.get('page', 1, type=int)
     stats = obtener_estadisticas_logs()
     grouped_logs = build_admin_log_groups(logs)
