@@ -152,3 +152,8 @@
 **Vulnerability:** IDOR/Path Traversal in S3/R2 storage allows unauthorized deletion or validation of arbitrary files in the bucket.
 **Learning:** Broad hostname validation for S3/R2 URLs is insufficient. Attackers can provide URLs for other objects in the same bucket (e.g., config files), and the application might attempt to delete them during game updates or deletions. URL encoding can also be used to bypass simple string prefix checks.
 **Prevention:** Strictly enforce a specific prefix (e.g., `covers/`) for all user-controlled object keys. Use `unquote` to normalize paths before validation and ensure `secure_filename` is applied to all uploaded filenames.
+
+## 2025-07-22 - Harden Password Complexity and Blocklist
+**Vulnerability:** Weak password policy allowed easily guessable passwords (e.g., "password123", "gamevault2025").
+**Learning:** Basic length and alpha-numeric checks are insufficient to stop brute-force or dictionary attacks. Furthermore, application-specific weak passwords (like variants of the project name) are often overlooked in generic blocklists but are prime targets for automated attacks.
+**Prevention:** Enforce strict complexity requirements (uppercase, lowercase, and numbers) and maintain a proactive, application-specific blocklist that includes both common weak patterns and context-aware terms (like app names or release years).
