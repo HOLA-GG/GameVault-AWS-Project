@@ -143,3 +143,7 @@
 ## 2026-07-15 - Hardening Row-to-Dict Helpers for Selective Projection
 **Learning:** Implementing selective SQL projection improves performance but can cause regressions in helper functions (like `_user_row_to_dict` or `_audit_log_row_to_dict`) that rely on direct attribute access (`row.field`). If a field is excluded from the projection, it raises an `AttributeError`.
 **Action:** Always use `getattr(row, field, default)` in mapping helpers. This ensures robustness when handling partial results from SQL projection without requiring brittle type checks or breaking existing call-sites that expect a full dictionary structure.
+
+## 2026-07-25 - Regex-based Redaction for Performance
+**Learning:** Using an iterative `any(p in key for p in patterns)` loop in a hot path (like audit log redaction) has (N \times M)$ complexity. Replacing it with a pre-compiled regular expression (`re.compile('|'.join(patterns))`) moves the heavy lifting to the optimized C-based regex engine, achieving (M)$ complexity and a measurable speedup.
+**Action:** Always prefer pre-compiled regex for multi-pattern string matching in performance-critical loops.
