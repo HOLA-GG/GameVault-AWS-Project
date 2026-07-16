@@ -65,6 +65,7 @@ _SENSITIVE_PATTERNS = {
     'pass', 'pwd', 'sid', 'csrf', 'xsrf', 'access_token', 'refresh_token',
     'id_token', 'authorization', 'bearer', 'nif', 'nie', 'curp'
 }
+_SENSITIVE_RE = re.compile('|'.join(map(re.escape, _SENSITIVE_PATTERNS)), re.I)
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|', '`')
 _COMMON_WEAK_PASSWORDS = {
     'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
@@ -592,10 +593,11 @@ def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any
         })
 
         # 4. Filter Options (Excluyendo valores por defecto para coincidir con la lógica previa)
+        # Bolt Optimization: Remove redundant list() constructors as .all() already returns a list.
         results['filter_options'] = {
-            'plataformas': list(session.scalars(select(func.distinct(Game.plataforma)).where(Game.user_id == user_id, Game.plataforma.isnot(None), Game.plataforma != 'Sin plataforma').order_by(Game.plataforma)).all()),
-            'estados': list(session.scalars(select(func.distinct(Game.estado)).where(Game.user_id == user_id, Game.estado.isnot(None), Game.estado != 'N/A').order_by(Game.estado)).all()),
-            'categorias': list(session.scalars(select(func.distinct(Game.categoria)).where(Game.user_id == user_id).order_by(Game.categoria)).all()),
+            'plataformas': session.scalars(select(func.distinct(Game.plataforma)).where(Game.user_id == user_id, Game.plataforma.isnot(None), Game.plataforma != 'Sin plataforma').order_by(Game.plataforma)).all(),
+            'estados': session.scalars(select(func.distinct(Game.estado)).where(Game.user_id == user_id, Game.estado.isnot(None), Game.estado != 'N/A').order_by(Game.estado)).all(),
+            'categorias': session.scalars(select(func.distinct(Game.categoria)).where(Game.user_id == user_id).order_by(Game.categoria)).all(),
         }
 
         return results
@@ -1222,8 +1224,8 @@ def redact_sensitive_details(data: Any, depth: int = 0) -> Any:
             if i >= 100:
                 redacted_dict['[BREADTH_LIMIT_REACHED]'] = '...'
                 break
-            key_lower = str(k).lower()
-            if any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS):
+            # Bolt Optimization: Use pre-compiled regex for O(N) sensitive field detection.
+            if _SENSITIVE_RE.search(str(k)):
                 redacted_dict[k] = '[REDACTED]'
             else:
                 redacted_dict[k] = redact_sensitive_details(v, depth + 1)
