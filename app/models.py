@@ -68,7 +68,8 @@ _SENSITIVE_PATTERNS = {
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|', '`')
 _COMMON_WEAK_PASSWORDS = {
     'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
-    'videogames123', 'qwerty123', '12345678a', 'password1234', 'welcome123'
+    'videogames123', 'qwerty123', '12345678a', 'password1234', 'welcome123',
+    'gamevault123', 'gamevault2024', 'gamevault2025'
 }
 
 
@@ -755,7 +756,7 @@ def subir_imagen_a_s3(archivo):
 
 
 def validar_password(password):
-    """Valida que la contraseña tenga una longitud segura (8-128) y complejidad básica."""
+    """Valida que la contraseña tenga una longitud segura (8-128) y complejidad requerida (A-Z, a-z, 0-9)."""
     # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
     if not (8 <= len(password) <= 128):
         return False
@@ -764,8 +765,10 @@ def validar_password(password):
     if password.lower() in _COMMON_WEAK_PASSWORDS:
         return False
 
-    # Requerir al menos una letra y un número (Seguridad mejorada)
-    return any(c.isalpha() for c in password) and any(c.isdigit() for c in password)
+    # Requerir al menos una mayúscula, una minúscula y un número (Seguridad mejorada: Sentinel Hardening)
+    return any(c.islower() for c in password) and \
+           any(c.isupper() for c in password) and \
+           any(c.isdigit() for c in password)
 
 
 def eliminar_imagen_s3(imagen_url):

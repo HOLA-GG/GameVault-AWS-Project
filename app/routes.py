@@ -1304,7 +1304,7 @@ def registro():
     if not password:
         errores.append('La contraseña es requerida.')
     elif not validar_password(password):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
     if prefijo_pais and len(prefijo_pais) > 10:
         errores.append('El prefijo de país es demasiado largo (máximo 10 caracteres).')
     if telefono and not validar_telefono(telefono):
@@ -1516,7 +1516,7 @@ def profile():
             )
             errores.append('La contraseña actual no es correcta.')
         if not validar_password(password):
-            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
+            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
         if password != confirm_password:
             errores.append('Las contraseñas no coinciden.')
 
@@ -1813,7 +1813,7 @@ def reset_password_with_email(token):
     confirm_password = request.form.get('confirm_password', '').strip()
     errores = []
     if not validar_password(password):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una letra y un número.')
+        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     if user is None or user.get('status') != 'active':
