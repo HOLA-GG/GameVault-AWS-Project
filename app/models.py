@@ -657,13 +657,13 @@ def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
         return None
     try:
         parsed = datetime.fromisoformat(value)
-    except ValueError:
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        if end:
+            parsed = parsed + timedelta(days=1)
+        return parsed
+    except (ValueError, OverflowError):
         return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    if end:
-        parsed = parsed + timedelta(days=1)
-    return parsed
 
 
 def validar_email(email):
@@ -1431,7 +1431,13 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
     """Elimina logs antiguos (optimizado con batch delete)."""
     ensure_tables()
     days = days or AUDIT_LOG_RETENTION_DAYS
-    cutoff_date = utcnow() - timedelta(days=days)
+    # Prevent OverflowError with extremely large days (Security hardening)
+    if days > 36500:  # Max 100 years
+        days = 36500
+    try:
+        cutoff_date = utcnow() - timedelta(days=days)
+    except OverflowError:
+        cutoff_date = utcnow() - timedelta(days=AUDIT_LOG_RETENTION_DAYS)
     session_factory = get_session_factory()
     with session_factory() as session:
         stmt = delete(AuditLog).where(AuditLog.timestamp < cutoff_date)
