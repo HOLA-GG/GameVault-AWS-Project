@@ -147,3 +147,7 @@
 ## 2026-07-25 - Regex-based Redaction for Performance
 **Learning:** Using an iterative `any(p in key for p in patterns)` loop in a hot path (like audit log redaction) has (N \times M)$ complexity. Replacing it with a pre-compiled regular expression (`re.compile('|'.join(patterns))`) moves the heavy lifting to the optimized C-based regex engine, achieving (M)$ complexity and a measurable speedup.
 **Action:** Always prefer pre-compiled regex for multi-pattern string matching in performance-critical loops.
+
+## 2026-07-28 - Pre-lowercased Fields for Hot-Path Searching and Sorting
+**Learning:** Performing multiple `.lower()` string conversions and allocations inside an $O(N)$ filtering or sorting loop (like user-triggered text search) introduces measurable CPU and memory garbage collection overhead. Pre-calculating these lowercase values once during database-to-dictionary serialization (`_game_row_to_dict`) reduces search-time latency by avoiding dynamic string allocation entirely.
+**Action:** Pre-calculate lowercase properties for fields frequently subjected to user-initiated search, filtering, or string-based sorting, while using safe fallback getters to maintain robustness.

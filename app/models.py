@@ -474,16 +474,26 @@ def _game_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     if format_dates:
         cre, upd = cre.isoformat(), upd.isoformat()
 
+    titulo = row.titulo or ''
+    descripcion = row.descripcion or ''
+    plataforma = row.plataforma or 'PC'
+    estado = row.estado or 'N/A'
+
     return {
         'game_id': row.game_id,
         'user_id': row.user_id,
         # Bolt Optimization: Normalize strings to empty strings for null-safe .lower() in routes.
-        'titulo': row.titulo or '',
-        'descripcion': row.descripcion or '',
+        'titulo': titulo,
+        'descripcion': descripcion,
         'imagen_url': row.imagen_url,
         # Bolt Optimization: Normalize categorical fields to model defaults if null.
-        'plataforma': row.plataforma or 'PC',
-        'estado': row.estado or 'N/A',
+        'plataforma': plataforma,
+        'estado': estado,
+        # Pre-lowercased cache fields for O(1) string search and sorting optimizations
+        'titulo_lower': titulo.lower(),
+        'descripcion_lower': descripcion.lower(),
+        'plataforma_lower': plataforma.lower(),
+        'estado_lower': estado.lower(),
         'categoria': row.categoria or 'Biblioteca',
         'prioridad': row.prioridad or 'Media',
         'calificacion': row.calificacion,
