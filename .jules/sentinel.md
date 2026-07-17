@@ -157,3 +157,8 @@
 **Vulnerability:** Weak password policy allowed easily guessable passwords (e.g., "password123", "gamevault2025").
 **Learning:** Basic length and alpha-numeric checks are insufficient to stop brute-force or dictionary attacks. Furthermore, application-specific weak passwords (like variants of the project name) are often overlooked in generic blocklists but are prime targets for automated attacks.
 **Prevention:** Enforce strict complexity requirements (uppercase, lowercase, and numbers) and maintain a proactive, application-specific blocklist that includes both common weak patterns and context-aware terms (like app names or release years).
+
+## 2026-07-25 - Prevent CPU Hashing Exhaustion and Availability Disruption
+**Vulnerability:** CPU-exhaustion Denial of Service (DoS) via unbounded password/token inputs, and unhandled `OverflowError` date crashes on admin/logging paths.
+**Learning:** Calling cryptographic functions (such as `check_password_hash` or `hashlib`) on arbitrary-length client inputs can easily exhaust server CPU resources. Similarly, standard library datetime manipulations without boundary or exception checks can result in application crashes (500 errors).
+**Prevention:** Strictly enforce maximum length limits (e.g., 128 characters) on all input parameters bound for cryptographic processing, and wrap dynamic date/time filters in exception handlers to catch and gracefully resolve potential `OverflowError` boundaries.

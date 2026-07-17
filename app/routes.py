@@ -1504,7 +1504,10 @@ def profile():
         confirm_password = request.form.get('confirm_password', '').strip()
 
         errores = []
-        if not check_password_hash(user['password_hash'], current_password):
+        # Protect against hashing DoS for extremely long input password
+        if len(current_password) > 128:
+            errores.append('La contraseña actual es demasiado larga (máximo 128 caracteres).')
+        elif not check_password_hash(user['password_hash'], current_password):
             crear_log_audit(
                 user_id=session['user_id'],
                 action='CHANGE_PASSWORD',
@@ -1753,6 +1756,11 @@ def verify_token():
         flash('El token es requerido.', 'error')
         return redirect(url_for('main.validate_token_page'))
 
+    # Limit token length to prevent potential payload/hashing DoS
+    if len(token) > 128:
+        flash('El token no es válido.', 'error')
+        return redirect(url_for('main.validate_token_page'))
+
     token_validation = validar_reset_token(token)
     if not token_validation['valid']:
         crear_log_audit(
@@ -1782,6 +1790,11 @@ def reset_password_with_email(token):
     """Permite establecer una nueva contraseña con un token válido."""
     if session.get('user_id'):
         return redirect(url_for('main.dashboard'))
+
+    # Limit token length to prevent potential payload/hashing DoS
+    if len(token) > 128:
+        flash('El token no es válido.', 'error')
+        return redirect(url_for('main.forgot_password'))
 
     token_validation = validar_reset_token(token)
     if not token_validation['valid']:
