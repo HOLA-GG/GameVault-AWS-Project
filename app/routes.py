@@ -676,11 +676,26 @@ def filter_and_sort_games(juegos, filters):
             # Bolt Optimization: Reorder checks to prioritize shorter categorical fields,
             # maximizing short-circuit evaluation speed for mismatched records.
             if query:
+                # Bolt Optimization: Use pre-lowercased cache fields if available to avoid string allocation in the hot loop.
+                # Fallback to in-line .lower() for robustness.
+                p_low = juego.get('plataforma_lower')
+                if p_low is None:
+                    p_low = juego['plataforma'].lower()
+                e_low = juego.get('estado_lower')
+                if e_low is None:
+                    e_low = juego['estado'].lower()
+                t_low = juego.get('titulo_lower')
+                if t_low is None:
+                    t_low = juego['titulo'].lower()
+                d_low = juego.get('descripcion_lower')
+                if d_low is None:
+                    d_low = juego['descripcion'].lower()
+
                 if not (
-                    query in juego['plataforma'].lower() or
-                    query in juego['estado'].lower() or
-                    query in juego['titulo'].lower() or
-                    query in juego['descripcion'].lower()
+                    query in p_low or
+                    query in e_low or
+                    query in t_low or
+                    query in d_low
                 ):
                     continue
 
@@ -691,9 +706,9 @@ def filter_and_sort_games(juegos, filters):
         return filtered
 
     if sort_by == 'title_asc':
-        filtered.sort(key=lambda j: (j['titulo'] or '').lower())
+        filtered.sort(key=lambda j: j.get('titulo_lower') or (j['titulo'] or '').lower())
     elif sort_by == 'title_desc':
-        filtered.sort(key=lambda j: (j['titulo'] or '').lower(), reverse=True)
+        filtered.sort(key=lambda j: j.get('titulo_lower') or (j['titulo'] or '').lower(), reverse=True)
     elif sort_by == 'created_asc':
         filtered.sort(key=lambda j: j['created_at'])
     elif sort_by == 'created_desc':
