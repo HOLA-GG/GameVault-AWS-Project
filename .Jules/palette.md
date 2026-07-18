@@ -21,3 +21,7 @@
 ## 2026-07-01 - Global Accessibility Parity for Transient and Static Feedback
 **Learning:** Transient visual feedback (like copy-to-clipboard notifications) and static constraints (like character counters or required fields) create a "hidden" experience for assistive technology users if not programmatically announced or linked. A centralized `aria-live` announcer and the consistent use of `aria-describedby` ensure that non-visual users receive the same real-time context as visual users.
 **Action:** Implement a global announcer for all non-standard UI feedback. Link character counters and required indicators to their inputs using ARIA attributes to maintain a single source of truth for form constraints across all modalities.
+
+## 2026-07-02 - Actionable Real-Time Password Complexity Guidance
+**Learning:** Generic "Weak" or "Medium" password strength indicators fail to help users satisfy complex backend validation rules, leading to frustrating trial-and-error form submissions. Supplementing strength visualizers with real-time, localized descriptions of missing criteria (e.g., lowercase, uppercase, number, minimum characters) directly addresses user cognitive load and reduces form submission failures.
+**Action:** Always pair abstract metrics (like password strength percentages or color bars) with direct, human-readable instructions detailing what requirements are currently unmet, ensuring smooth progressive feedback before submission.
