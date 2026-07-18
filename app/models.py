@@ -1441,6 +1441,9 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
     """Elimina logs antiguos (optimizado con batch delete)."""
     ensure_tables()
     days = days or AUDIT_LOG_RETENTION_DAYS
+    # Enforce minimum of 1 day to prevent negative or zero inputs from wiping recent logs (Security hardening)
+    if days < 1:
+        days = 1
     # Prevent OverflowError with extremely large days (Security hardening)
     if days > 36500:  # Max 100 years
         days = 36500

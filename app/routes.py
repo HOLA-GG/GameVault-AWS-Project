@@ -1949,9 +1949,24 @@ def admin_collections():
 @require_admin
 @limiter.limit('10 per minute')
 def admin_eliminar_usuario(user_id):
-    """Elimina un usuario salvo al propio admin actual."""
+    """Elimina un usuario salvo al propio admin actual y otros administradores."""
     if session.get('user_id') == user_id:
         flash('No puedes eliminar tu propia cuenta desde el panel.', 'error')
+        return redirect(url_for('main.admin_panel'))
+
+    # Prevent administrators from deleting other admins to avoid lockout and privilege abuse
+    target_user = obtener_usuario_por_id(user_id, format_dates=False)
+    if target_user and target_user.get('role') == 'admin':
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'delete_user', 'error': 'cannot_delete_another_admin'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No está permitido eliminar a otro administrador por seguridad.', 'error')
         return redirect(url_for('main.admin_panel'))
 
     resultado = eliminar_usuario(user_id)
