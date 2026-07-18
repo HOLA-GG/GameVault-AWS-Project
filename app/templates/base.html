@@ -360,18 +360,32 @@
 
                     bar.classList.remove('is-weak', 'is-medium', 'is-strong');
                     text.classList.remove('is-weak', 'is-medium', 'is-strong');
+
+                    const missing = [];
+                    if (val.length < 8) missing.push('mínimo 8 caracteres');
+                    if (!/[A-Z]/.test(val)) missing.push('una mayúscula');
+                    if (!/[a-z]/.test(val)) missing.push('una minúscula');
+                    if (!/[0-9]/.test(val)) missing.push('un número');
+
+                    let statusText = '';
                     if (score <= 2) {
                         bar.classList.add('is-weak');
                         text.classList.add('is-weak');
-                        text.textContent = 'Contraseña débil';
+                        statusText = 'Contraseña débil';
                     } else if (score <= 4) {
                         bar.classList.add('is-medium');
                         text.classList.add('is-medium');
-                        text.textContent = 'Contraseña media';
+                        statusText = 'Contraseña media';
                     } else {
                         bar.classList.add('is-strong');
                         text.classList.add('is-strong');
-                        text.textContent = 'Contraseña fuerte';
+                        statusText = 'Contraseña fuerte';
+                    }
+
+                    if (missing.length > 0) {
+                        text.textContent = `${statusText} (falta: ${missing.join(', ')})`;
+                    } else {
+                        text.textContent = statusText;
                     }
                 };
                 input.addEventListener('input', update);
