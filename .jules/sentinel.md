@@ -162,3 +162,8 @@
 **Vulnerability:** CPU-exhaustion Denial of Service (DoS) via unbounded password/token inputs, and unhandled `OverflowError` date crashes on admin/logging paths.
 **Learning:** Calling cryptographic functions (such as `check_password_hash` or `hashlib`) on arbitrary-length client inputs can easily exhaust server CPU resources. Similarly, standard library datetime manipulations without boundary or exception checks can result in application crashes (500 errors).
 **Prevention:** Strictly enforce maximum length limits (e.g., 128 characters) on all input parameters bound for cryptographic processing, and wrap dynamic date/time filters in exception handlers to catch and gracefully resolve potential `OverflowError` boundaries.
+
+## 2026-07-28 - Prevent Administrative Lockout and Log-Wiping Abuse
+**Vulnerability:** Lack of safeguards against administrators deleting other administrators, and unsecured negative/zero values in log-retention clearing.
+**Learning:** Without role-based boundaries on administrative destructive routes, any administrator account (or a single compromised admin credential) can easily delete other admins, leading to severe sabotage, administrative lockout, and hostile takeover. Additionally, lack of absolute positive-value bounds on retention queries permits erasing recent audit trails.
+**Prevention:** Enforce strict same-role deletion limits on administrative actions, and validate parameter boundaries at both the route and data layers as defense-in-depth.
