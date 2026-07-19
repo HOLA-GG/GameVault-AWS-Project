@@ -167,3 +167,8 @@
 **Vulnerability:** Lack of safeguards against administrators deleting other administrators, and unsecured negative/zero values in log-retention clearing.
 **Learning:** Without role-based boundaries on administrative destructive routes, any administrator account (or a single compromised admin credential) can easily delete other admins, leading to severe sabotage, administrative lockout, and hostile takeover. Additionally, lack of absolute positive-value bounds on retention queries permits erasing recent audit trails.
 **Prevention:** Enforce strict same-role deletion limits on administrative actions, and validate parameter boundaries at both the route and data layers as defense-in-depth.
+
+## 2026-07-29 - Prevent Admin Profile Abuse and GET Route DoS
+**Vulnerability:** Lack of same-role editing boundaries on administrative profile update endpoints, and completely un-rate-limited GET requests on password reset verification routes.
+**Learning:** In addition to deleting, allowing compromised administrator credentials to edit other administrators' identities leads to impersonation, profile sabotage, and auditing confusion. Furthermore, leaving database-querying GET endpoints (like token validations and password resets) un-rate-limited enables simple brute-force log flooding and DB depletion by repeatedly triggering token audits.
+**Prevention:** Enforce strict same-role editing constraints on admin routes. Always rate-limit GET requests on sensitive, database-querying pages and token-validation handlers to mitigate brute-force log-flooding and Denial of Service.

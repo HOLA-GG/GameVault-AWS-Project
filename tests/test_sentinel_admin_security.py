@@ -199,3 +199,98 @@ def test_limpiar_logs_antiguos_boundary_handling(app):
     # 4. Ejecutar con days=50000 (deberia limitarse a 36500)
     res_large = limpiar_logs_antiguos(50000)
     assert res_large['error'] is None
+
+
+def test_admin_cannot_edit_another_admin(client, app):
+    """Verifica que un administrador no pueda editar/renombrar a otro administrador."""
+    from app.models import get_session_factory, User, AuditLog, crear_usuario
+    from werkzeug.security import generate_password_hash
+    import hashlib
+
+    # 1. Crear Administrador A
+    admin_a_pw = generate_password_hash("SecureA123!")
+    user_a = crear_usuario(
+        nombre="Admin A",
+        apellido="A",
+        email="admin_a_edit@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=admin_a_pw
+    )
+    assert user_a is not None
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        db_user_a = session.get(User, user_a['user_id'])
+        db_user_a.role = 'admin'
+        session.commit()
+
+    # 2. Crear Administrador B
+    admin_b_pw = generate_password_hash("SecureB123!")
+    user_b = crear_usuario(
+        nombre="Admin B",
+        apellido="B",
+        email="admin_b_edit@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=admin_b_pw
+    )
+    assert user_b is not None
+    with session_factory() as session:
+        db_user_b = session.get(User, user_b['user_id'])
+        db_user_b.role = 'admin'
+        session.commit()
+
+    # 3. Loguearse como Administrador A
+    with client.session_transaction() as sess:
+        sess['user_id'] = user_a['user_id']
+        sess['email'] = user_a['email']
+        sess['nombre'] = user_a['nombre']
+        sess['role'] = 'admin'
+        sess['_pw_hash'] = hashlib.sha256(admin_a_pw.encode('utf-8')).hexdigest()
+
+    # 4. Intentar renombrar al Administrador B
+    response = client.post(f"/admin/edit/{user_b['user_id']}", data={'nombre': 'Nombre Alterado'})
+    assert response.status_code == 302
+
+    # 5. Verificar que el Administrador B no haya sido renombrado
+    with session_factory() as session:
+        db_user_b_check = session.get(User, user_b['user_id'])
+        assert db_user_b_check is not None
+        assert db_user_b_check.nombre == "Admin B"
+
+    # 6. Verificar que se genero un log de auditoria fallido
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.user_id == user_a['user_id'], AuditLog.action == 'ADMIN_ACTION', AuditLog.status == 'FAILED')
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log is not None
+        assert log.details.get('target_user_id') == user_b['user_id']
+        assert log.details.get('operation') == 'rename_user'
+        assert log.details.get('error') == 'cannot_edit_another_admin'
+
+
+def test_reset_password_get_rate_limiting(client, app):
+    """Verifica que el rate-limiting en solicitudes GET en la ruta de reset password esté activo."""
+    from app.extensions import limiter
+    # Habilitar rate-limiting para esta prueba específica
+    app.config['RATELIMIT_ENABLED'] = True
+    limiter.enabled = True
+
+    # Realizar más de 10 peticiones GET consecutivas a reset-password
+    # (El límite que colocamos es de 10 por minuto para peticiones GET)
+    for i in range(10):
+        res = client.get('/reset-password/dummy-token-rate-limit-test')
+        # Las primeras peticiones deberían procesarse (redirigiendo o fallando por token no válido)
+        assert res.status_code in (200, 302)
+
+    try:
+        # El intento número 11 debería ser rechazado con 429 Too Many Requests
+        res_limit = client.get('/reset-password/dummy-token-rate-limit-test')
+        assert res_limit.status_code == 429
+        assert b"Demasiados intentos" in res_limit.data
+    finally:
+        # Restaurar estado original del limiter
+        app.config['RATELIMIT_ENABLED'] = False
+        limiter.enabled = False
