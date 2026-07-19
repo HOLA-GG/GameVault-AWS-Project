@@ -1680,6 +1680,7 @@ def forgot_password():
 
 
 @main_bp.route("/forgot-password/manual", methods=["GET", "POST"])
+@limiter.limit('10 per minute', methods=['GET'])
 @limiter.limit('3 per hour', methods=['POST'])
 def forgot_password_manual():
     """Permite recuperar token desde la web validando email + teléfono registrado."""
@@ -1750,6 +1751,7 @@ def forgot_password_manual():
 
 
 @main_bp.route('/validate-token')
+@limiter.limit('10 per minute')
 def validate_token_page():
     """Página secundaria para validar manualmente un token recibido por correo."""
     if session.get('user_id'):
@@ -1798,6 +1800,7 @@ def verify_token():
 
 
 @main_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['GET'])
 @limiter.limit('5 per hour', methods=['POST'])
 def reset_password_with_email(token):
     """Permite establecer una nueva contraseña con un token válido."""
@@ -1999,6 +2002,21 @@ def admin_eliminar_usuario(user_id):
 @limiter.limit('10 per minute')
 def admin_editar_usuario(user_id):
     """Edita el nombre principal de un usuario."""
+    # Prevent administrators from editing other admins to avoid privilege abuse and impersonation (Security hardening)
+    target_user = obtener_usuario_por_id(user_id, format_dates=False)
+    if target_user and target_user.get('role') == 'admin':
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'cannot_edit_another_admin'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No está permitido editar a otro administrador por seguridad.', 'error')
+        return redirect(url_for('main.admin_panel'))
+
     nuevo_nombre = request.form.get('nombre', '').strip()
     if not nuevo_nombre:
         flash('El nombre no puede estar vacío.', 'error')
