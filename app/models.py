@@ -268,6 +268,11 @@ def get_engine():
         kwargs['connect_args'] = {'check_same_thread': False}
         if ':memory:' in DATABASE_URL:
             kwargs['poolclass'] = StaticPool
+    else:
+        # Optimizaciones para Neon Postgres en Render
+        kwargs['pool_size'] = int(os.environ.get('DB_POOL_SIZE', 5))
+        kwargs['max_overflow'] = int(os.environ.get('DB_MAX_OVERFLOW', 10))
+        kwargs['pool_recycle'] = int(os.environ.get('DB_POOL_RECYCLE', 280))
 
     _engine = create_engine(DATABASE_URL, **kwargs)
     return _engine
