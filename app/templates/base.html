@@ -122,6 +122,17 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const rootElement = document.documentElement;
 
+        function announceToScreenReader(message) {
+            const announcer = document.getElementById('announcer');
+            if (announcer) {
+                announcer.textContent = message;
+                setTimeout(() => {
+                    if (announcer.textContent === message) announcer.textContent = '';
+                }, 3000);
+            }
+        }
+        window.announceToScreenReader = announceToScreenReader;
+
         function setTheme(theme) {
             rootElement.setAttribute('data-theme', theme);
             localStorage.setItem('gamevault-theme', theme);
@@ -139,7 +150,9 @@
             const slider = document.getElementById('fontScaleSlider');
             const preview = document.getElementById('fontScalePreview');
             if (slider) {
-                slider.value = String(Math.round(normalized * 100));
+                const pct = Math.round(normalized * 100);
+                slider.value = String(pct);
+                slider.setAttribute('aria-valuetext', `${pct}%`);
             }
             if (preview) {
                 preview.style.fontSize = `${normalized}rem`;
@@ -441,16 +454,22 @@
             document.querySelectorAll('.theme-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     setTheme(this.dataset.theme);
+                    announceToScreenReader(`Tema cambiado a ${this.dataset.label || this.dataset.theme}`);
                 });
             });
 
             document.getElementById('fontScaleSlider')?.addEventListener('input', function() {
                 applyFontScale(parseFloat(this.value || '100') / 100);
             });
+            document.getElementById('fontScaleSlider')?.addEventListener('change', function() {
+                announceToScreenReader(`Tamaño de texto ajustado al ${this.value}%`);
+            });
 
             document.querySelectorAll('[data-panel-position]').forEach(btn => {
                 btn.addEventListener('click', function() {
                     setPanelPosition(this.dataset.panelPosition);
+                    const label = this.textContent.trim().replace(/^[↖↗↙↘]\s*/, '');
+                    announceToScreenReader(`Ubicación del panel cambiada a ${label}`);
                 });
             });
 
@@ -463,6 +482,7 @@
             document.getElementById('motionToggle')?.addEventListener('click', function() {
                 const reduced = rootElement.getAttribute('data-motion') !== 'reduced';
                 setReducedMotion(reduced);
+                announceToScreenReader(reduced ? 'Animación reducida activada' : 'Animación reducida desactivada');
             });
             document.addEventListener('click', function(event) {
                 const panel = document.getElementById('accessibilityPanel');
@@ -484,16 +504,6 @@
                     }
                 }
             });
-
-            function announceToScreenReader(message) {
-                const announcer = document.getElementById('announcer');
-                if (announcer) {
-                    announcer.textContent = message;
-                    setTimeout(() => {
-                        if (announcer.textContent === message) announcer.textContent = '';
-                    }, 3000);
-                }
-            }
 
             function setupRequiredFields() {
                 document.querySelectorAll('[required]').forEach(el => {
