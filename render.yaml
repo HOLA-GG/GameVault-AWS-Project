@@ -60,3 +60,47 @@ services:
         sync: false
       - key: WEB_CONCURRENCY
         value: "2"
+      - key: NEON_SSLMODE
+        value: require
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "10"
+      - key: DB_POOL_RECYCLE
+        value: "280"
+      - key: LOCAL_UPLOAD_DIR
+        sync: false
+      - key: LOCAL_UPLOAD_URL_PATH
+        value: /static/uploads
+      - key: SHOW_RESET_DEBUG_TOKEN
+        value: "false"
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.0"
+      - key: MAIL_SERVER
+        value: email-smtp.us-east-1.amazonaws.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USE_TLS
+        value: "true"
+      - key: MAIL_USE_SSL
+        value: "false"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
+        value: GameVault <noreply@gamevault.app>
+      - key: MAIL_SUPPRESS_SEND
+        value: "false"
+      - key: BOOTSTRAP_ADMIN_ENABLED
+        value: "false"
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: BOOTSTRAP_ADMIN_NAME
+        value: GameVault
+      - key: BOOTSTRAP_ADMIN_LAST_NAME
+        value: Admin
