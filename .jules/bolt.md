@@ -116,6 +116,10 @@
 **Learning:** In hot loops (N=1000+), extracting helper functions to the module level and removing redundant normalization calls (like ensure_dt) significantly reduces CPU overhead. Replacing .get() with if key in dict and using isinstance() over __class__ checks further streamlines execution.
 **Action:** Always verify that the data layer provides normalized types to avoid redundant checks in view-layer loops. Move inner helper functions to module level to avoid re-definition overhead.
 
+## 2026-07-29 - Attribute Lookup Overhead in SQLAlchemy Row
+**Learning:** Accessing database columns dynamically using `getattr(row, field)` on a SQLAlchemy `Row` object from selective projections triggers standard attribute lookup and raises costly `AttributeError` exceptions for missing/omitted fields. Utilizing the dict-like `_mapping` view of SQLAlchemy `Row` (via `row._mapping.get(field)`) completely avoids this exception-handling overhead and is over 2.5x faster.
+**Action:** Use `hasattr(row, '_mapping')` to detect SQLAlchemy `Row` objects in hot row-to-dictionary mappers, and prefer `_mapping.get(field)` over `getattr()` or direct attribute access.
+
 ## 2026-06-21 - Bypassing ORM Hydration in Large Collections
 **Learning:** For read-only hot paths that return large collections (like a user's entire game library), fetching specific columns directly via `session.execute(select(...))` is significantly faster than fetching full ORM entities. This avoids the overhead of SQLAlchemy's Identity Map and the instantiation of full model objects (hydration).
 **Action:** Use Core-style selects and manual dictionary mapping for frequently accessed list views where full ORM functionality (like relationship lazy-loading or dirty tracking) is not required.

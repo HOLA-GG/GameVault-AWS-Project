@@ -432,8 +432,34 @@ def user_to_dict(user: User | None, format_dates: bool = True) -> Optional[Dict[
 
 def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de User a un diccionario (Optimización Bolt)."""
-    # Bolt Optimization: Support mapping for specific field selections from SQL projection.
-    # We use getattr with defaults to ensure robustness if some fields were excluded.
+    # Bolt Optimization: Use _mapping dictionary view of Row when available to avoid expensive getattr/AttributeError overhead.
+    if hasattr(row, '_mapping'):
+        m = row._mapping
+        _MIN_DATE = MIN_DATE
+        cre = m.get('created_at', _MIN_DATE) or _MIN_DATE
+        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+        upd = m.get('updated_at', _MIN_DATE) or _MIN_DATE
+        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+
+        if format_dates:
+            cre, upd = cre.isoformat(), upd.isoformat()
+
+        return {
+            'user_id': m.get('user_id', None),
+            'email': m.get('email', ''),
+            'nombre': m.get('nombre', ''),
+            'apellido': m.get('apellido', ''),
+            'prefijo_pais': m.get('prefijo_pais', ''),
+            'telefono': m.get('telefono', ''),
+            'password_hash': m.get('password_hash', ''),
+            'role': m.get('role', 'user'),
+            'status': m.get('status', 'active'),
+            'collection_visibility': m.get('collection_visibility', 'private'),
+            'homepage_showcase_opt_in': bool(m.get('homepage_showcase_opt_in', False)),
+            'created_at': cre,
+            'updated_at': upd,
+        }
+
     _MIN_DATE = MIN_DATE
     cre = getattr(row, 'created_at', _MIN_DATE) or _MIN_DATE
     if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
@@ -469,6 +495,43 @@ def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[
 
 def _game_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de Game a un diccionario (Optimización Bolt)."""
+    # Bolt Optimization: Use _mapping dictionary view of Row when available to avoid expensive getattr/AttributeError overhead.
+    if hasattr(row, '_mapping'):
+        m = row._mapping
+        _MIN_DATE = MIN_DATE
+        cre = m.get('created_at') or _MIN_DATE
+        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+        upd = m.get('updated_at') or _MIN_DATE
+        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+
+        if format_dates:
+            cre, upd = cre.isoformat(), upd.isoformat()
+
+        titulo = m.get('titulo') or ''
+        descripcion = m.get('descripcion') or ''
+        plataforma = m.get('plataforma') or 'PC'
+        estado = m.get('estado') or 'N/A'
+
+        return {
+            'game_id': m.get('game_id'),
+            'user_id': m.get('user_id'),
+            'titulo': titulo,
+            'descripcion': descripcion,
+            'imagen_url': m.get('imagen_url'),
+            'plataforma': plataforma,
+            'estado': estado,
+            'titulo_lower': titulo.lower(),
+            'descripcion_lower': descripcion.lower(),
+            'plataforma_lower': plataforma.lower(),
+            'estado_lower': estado.lower(),
+            'categoria': m.get('categoria') or 'Biblioteca',
+            'prioridad': m.get('prioridad') or 'Media',
+            'calificacion': m.get('calificacion'),
+            'es_favorito': m.get('es_favorito'),
+            'created_at': cre,
+            'updated_at': upd,
+        }
+
     # Centralized normalization to UTC-aware datetimes for consistency.
     _MIN_DATE = MIN_DATE
     cre = row.created_at or _MIN_DATE
@@ -643,8 +706,29 @@ def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optio
 
 def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de AuditLog a un diccionario (Optimización Bolt)."""
-    # Bolt Optimization: Support mapping for specific field selections from SQL projection.
-    # We use getattr with defaults to ensure robustness if some fields were excluded.
+    # Bolt Optimization: Use _mapping dictionary view of Row when available to avoid expensive getattr/AttributeError overhead.
+    if hasattr(row, '_mapping'):
+        m = row._mapping
+        ts = m.get('timestamp', MIN_DATE) or MIN_DATE
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+
+        if format_dates:
+            ts = ts.isoformat()
+
+        return {
+            'audit_id': m.get('audit_id', None),
+            'user_id': m.get('user_id', None),
+            'action': m.get('action', 'UNKNOWN'),
+            'action_name': m.get('action_name', 'Actividad'),
+            'resource': m.get('resource', 'unknown'),
+            'timestamp': ts,
+            'ip_address': m.get('ip_address', 'unknown'),
+            'user_agent': m.get('user_agent', 'unknown'),
+            'details': m.get('details', {}) or {},
+            'status': m.get('status', 'SUCCESS'),
+        }
+
     ts = getattr(row, 'timestamp', MIN_DATE) or MIN_DATE
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
