@@ -367,7 +367,17 @@
                     if (/[0-9]/.test(val)) score++;
                     if (/[^A-Za-z0-9]/.test(val)) score++;
 
-                    const width = Math.min(100, (score / 5) * 100);
+                    const weakPasswords = [
+                        'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
+                        'videogames123', 'qwerty123', '12345678a', 'password1234', 'welcome123',
+                        'gamevault123', 'gamevault2024', 'gamevault2025'
+                    ];
+                    const isCommon = weakPasswords.includes(val.toLowerCase());
+
+                    let width = Math.min(100, (score / 5) * 100);
+                    if (isCommon) {
+                        width = 20;
+                    }
                     bar.style.width = `${width}%`;
                     meter.setAttribute('aria-valuenow', Math.round(width));
 
@@ -381,7 +391,11 @@
                     if (!/[0-9]/.test(val)) missing.push('un número');
 
                     let statusText = '';
-                    if (score <= 2) {
+                    if (isCommon) {
+                        bar.classList.add('is-weak');
+                        text.classList.add('is-weak');
+                        statusText = 'Contraseña muy común (bloqueada)';
+                    } else if (score <= 2) {
                         bar.classList.add('is-weak');
                         text.classList.add('is-weak');
                         statusText = 'Contraseña débil';
@@ -395,7 +409,9 @@
                         statusText = 'Contraseña fuerte';
                     }
 
-                    if (missing.length > 0) {
+                    if (isCommon) {
+                        text.textContent = statusText;
+                    } else if (missing.length > 0) {
                         text.textContent = `${statusText} (falta: ${missing.join(', ')})`;
                     } else {
                         text.textContent = statusText;
@@ -566,6 +582,7 @@
                     b.innerHTML = isPassword ? eyeOffIcon : eyeIcon;
                     b.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
                     b.setAttribute('title', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+                    announceToScreenReader(isPassword ? 'Contraseña visible' : 'Contraseña oculta');
                 };
             });
 
