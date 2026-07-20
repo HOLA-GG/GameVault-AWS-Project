@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import ipaddress
 import os
 import re
 import secrets
@@ -765,6 +766,28 @@ def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
         return None
 
 
+def sanitize_and_validate_ip(ip_str: str | None) -> str:
+    """Valida y normaliza una dirección IP para evitar inyección y malformaciones."""
+    if not ip_str:
+        return 'unknown'
+    ip_clean = ip_str.strip()
+    # Si contiene puerto (e.g. 127.0.0.1:8080), intentar extraer solo la IP
+    if ':' in ip_clean and '.' in ip_clean:
+        ip_clean = ip_clean.split(':')[0]
+    try:
+        ipaddress.ip_address(ip_clean)
+        return ip_clean
+    except ValueError:
+        if ip_clean.startswith('[') and ']' in ip_clean:
+            ipv6_clean = ip_clean.split(']')[0].lstrip('[')
+            try:
+                ipaddress.ip_address(ipv6_clean)
+                return ipv6_clean
+            except ValueError:
+                pass
+        return 'unknown'
+
+
 def validar_email(email):
     """Valida el formato y longitud del email (max 255)."""
     if not email or len(email) > 255:
@@ -1210,6 +1233,7 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
     now = utcnow()
     expires_at = now + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
     raw_token = secrets.token_urlsafe(32)
+    safe_ip = sanitize_and_validate_ip(ip_address)[:64]
     item = PasswordResetToken(
         token_id=str(uuid.uuid4()),
         user_id=user_id,
@@ -1218,7 +1242,7 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
         expires_at=expires_at,
         used=False,
         # Truncate IP to match DB schema (Security hardening)
-        ip_address=(ip_address or 'unknown')[:64],
+        ip_address=safe_ip,
     )
     with session_factory() as session:
         session.add(item)
@@ -1381,6 +1405,7 @@ def crear_log_audit(
         pass
 
     safe_details = redact_sensitive_details(safe_details)
+    safe_ip = sanitize_and_validate_ip(ip_address)[:64]
 
     item = AuditLog(
         audit_id=str(uuid.uuid4()),
@@ -1390,7 +1415,7 @@ def crear_log_audit(
         resource=safe_resource,
         timestamp=utcnow(),
         # Ensure fields fit database constraints (Security hardening)
-        ip_address=(ip_address or 'unknown')[:64],
+        ip_address=safe_ip,
         user_agent=(user_agent or 'unknown')[:500],
         details=safe_details,
         status=status[:20],
@@ -1412,7 +1437,7 @@ def crear_log_audit(
                 action_name=derived_name,
                 resource=safe_resource,
                 timestamp=utcnow(),
-                ip_address=(ip_address or 'unknown')[:64],
+                ip_address=safe_ip,
                 user_agent=(user_agent or 'unknown')[:500],
                 details=safe_details,
                 status=status[:20],
