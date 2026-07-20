@@ -172,3 +172,8 @@
 **Vulnerability:** Lack of same-role editing boundaries on administrative profile update endpoints, and completely un-rate-limited GET requests on password reset verification routes.
 **Learning:** In addition to deleting, allowing compromised administrator credentials to edit other administrators' identities leads to impersonation, profile sabotage, and auditing confusion. Furthermore, leaving database-querying GET endpoints (like token validations and password resets) un-rate-limited enables simple brute-force log flooding and DB depletion by repeatedly triggering token audits.
 **Prevention:** Enforce strict same-role editing constraints on admin routes. Always rate-limit GET requests on sensitive, database-querying pages and token-validation handlers to mitigate brute-force log-flooding and Denial of Service.
+
+## 2026-07-30 - Prevent HTML Injection in Email Templates and Validate Request IP Addresses
+**Vulnerability:** Potential HTML Injection in manually formatted HTML emails via spoofed or malformed request IP addresses, and database integrity risks from storing unvalidated IP strings.
+**Learning:** Standard library `ProxyFix` middleware handles reverse proxy headers but does not strictly validate format types. Malformed or custom HTTP header injections can be stored in the database or embedded directly into manually constructed HTML templates (like password reset emails), introducing security risks.
+**Prevention:** Always validate and normalize IP address inputs using python's standard `ipaddress` library before DB persistence or auditing. Ensure any manually constructed HTML templates strictly HTML-escape dynamic context variables like IP addresses to prevent HTML injection and scripting.

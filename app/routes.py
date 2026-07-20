@@ -68,6 +68,7 @@ from app.models import (
     obtener_usuario_por_email,
     obtener_usuario_por_id,
     obtener_usuarios_por_ids,
+    sanitize_and_validate_ip,
     subir_imagen_a_s3,
     usar_token,
     validar_email,
@@ -305,7 +306,7 @@ def is_safe_url(target: str) -> bool:
 def get_request_ip() -> str:
     """Obtiene la IP más confiable disponible para rate limiting blando por visitante."""
     # ProxyFix ya se encarga de extraer la IP correcta de X-Forwarded-For si está configurado.
-    return request.remote_addr or 'unknown'
+    return sanitize_and_validate_ip(request.remote_addr)
 
 
 def procesar_imagen_base64(archivo):
@@ -335,7 +336,9 @@ def enviar_email_reset_password(destinatario: str, token: str, ip_address: str |
         reset_url = url_for('main.reset_password_with_email', token=token, _external=True)
         expiry_minutes = current_app.config['RESET_TOKEN_EXPIRY_MINUTES']
 
-        ip_info = f"<p style='color: #666; font-size: 0.9em;'>Esta solicitud fue realizada desde la dirección IP: <strong>{ip_address}</strong></p>" if ip_address else ""
+        import html
+        safe_ip = html.escape(ip_address) if ip_address else ""
+        ip_info = f"<p style='color: #666; font-size: 0.9em;'>Esta solicitud fue realizada desde la dirección IP: <strong>{safe_ip}</strong></p>" if safe_ip else ""
 
         message = Message(
             subject='Recuperacion de contraseña - GameVault',
