@@ -1325,6 +1325,8 @@ def registro():
         errores.append('El prefijo de país es demasiado largo (máximo 10 caracteres).')
     if telefono and not validar_telefono(telefono):
         errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
+    if len(confirm_password) > 128:
+        errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
@@ -1536,6 +1538,8 @@ def profile():
             errores.append('La contraseña actual no es correcta.')
         if not validar_password(password):
             errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
+        if len(confirm_password) > 128:
+            errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
         if password != confirm_password:
             errores.append('Las contraseñas no coinciden.')
 
@@ -1846,6 +1850,8 @@ def reset_password_with_email(token):
     errores = []
     if not validar_password(password):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
+    if len(confirm_password) > 128:
+        errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
     if user is None or user.get('status') != 'active':
