@@ -77,6 +77,12 @@
                     <button type="button" class="accessibility-chip" data-panel-position="bottom-right" aria-pressed="true">↘ Inferior der.</button>
                 </div>
             </div>
+
+            <div class="accessibility-group" style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px;">
+                <button type="button" class="accessibility-chip" id="accessibilityReset" style="width: 100%; justify-content: center; display: flex; gap: 8px;" aria-label="Restablecer ajustes de accesibilidad a los valores predeterminados" title="Restablecer ajustes">
+                    <span aria-hidden="true">🔄</span> Restablecer ajustes
+                </button>
+            </div>
         </aside>
     </div>
 
@@ -499,6 +505,14 @@
                 const reduced = rootElement.getAttribute('data-motion') !== 'reduced';
                 setReducedMotion(reduced);
                 announceToScreenReader(reduced ? 'Animación reducida activada' : 'Animación reducida desactivada');
+            });
+
+            document.getElementById('accessibilityReset')?.addEventListener('click', function() {
+                setTheme('dark');
+                applyFontScale(1);
+                setReducedMotion(false);
+                setPanelPosition('bottom-right');
+                announceToScreenReader('Ajustes de accesibilidad restablecidos a los valores predeterminados');
             });
             document.addEventListener('click', function(event) {
                 const panel = document.getElementById('accessibilityPanel');
