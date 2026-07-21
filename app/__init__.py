@@ -129,6 +129,9 @@ def build_config() -> dict:
     else:
         database_backend = 'postgres'
 
+    session_cookie_secure = env_bool('SESSION_COOKIE_SECURE', session_secure_default)
+    session_cookie_name = '__Host-session' if session_cookie_secure else 'session'
+
     return {
         'APP_ENV': app_env,
         'SECRET_KEY': secret_key,
@@ -147,7 +150,8 @@ def build_config() -> dict:
         'MAX_CONTENT_LENGTH': max_upload_mb * 1024 * 1024,
         'MAX_UPLOAD_MB': max_upload_mb,
         'MAX_IMAGE_UPLOAD_BYTES': max_upload_mb * 1024 * 1024,
-        'SESSION_COOKIE_SECURE': env_bool('SESSION_COOKIE_SECURE', session_secure_default),
+        'SESSION_COOKIE_SECURE': session_cookie_secure,
+        'SESSION_COOKIE_NAME': session_cookie_name,
         'SESSION_COOKIE_HTTPONLY': env_bool('SESSION_COOKIE_HTTPONLY', True),
         'SESSION_COOKIE_SAMESITE': os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax'),
         'PERMANENT_SESSION_LIFETIME': timedelta(hours=12),
