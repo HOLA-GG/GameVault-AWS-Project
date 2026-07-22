@@ -606,7 +606,13 @@ def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
 
 def get_action_badge_class(action: str) -> str:
     """Asigna color visual según el tipo de actividad auditada (Optimizado: O(1))."""
-    return _ACTION_BADGE_MAP.get((action or '').upper(), 'action-generic')
+    if not action:
+        return 'action-generic'
+    # Bolt Optimization: Try direct fast lookup first, avoiding string method call and allocation.
+    badge = _ACTION_BADGE_MAP.get(action)
+    if badge is not None:
+        return badge
+    return _ACTION_BADGE_MAP.get(action.upper(), 'action-generic')
 
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
@@ -617,8 +623,10 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
     for log in logs:
         # Bolt Optimization: Use bracket access for keys guaranteed by the data layer.
         user_id = log['user_id'] or 'system'
-        if user_id not in grouped:
-            grouped[user_id] = {
+        # Bolt Optimization: Use dictionary get() for a single lookup instead of "not in" followed by lookup.
+        bucket = grouped.get(user_id)
+        if bucket is None:
+            bucket = grouped[user_id] = {
                 'user_id': user_id,
                 # Placeholders to be filled only for the visible page in the route.
                 'email': 'sistema@local' if user_id == 'system' else '',
@@ -628,7 +636,6 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
                 'latest_timestamp': log['timestamp'],
                 'latest_action': log['action_name'] or log['action'] or 'Actividad',
             }
-        bucket = grouped[user_id]
         bucket['items'].append(log)
         bucket['events_count'] += 1
 
