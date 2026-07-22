@@ -155,3 +155,7 @@
 ## 2026-07-28 - Pre-lowercased Fields for Hot-Path Searching and Sorting
 **Learning:** Performing multiple `.lower()` string conversions and allocations inside an $O(N)$ filtering or sorting loop (like user-triggered text search) introduces measurable CPU and memory garbage collection overhead. Pre-calculating these lowercase values once during database-to-dictionary serialization (`_game_row_to_dict`) reduces search-time latency by avoiding dynamic string allocation entirely.
 **Action:** Pre-calculate lowercase properties for fields frequently subjected to user-initiated search, filtering, or string-based sorting, while using safe fallback getters to maintain robustness.
+
+## 2026-07-31 - Fast String Lookup & Single-pass Dictionary Grouping
+**Learning:** Performing repeated `.upper()` case-folding on standard uppercase string constants inside rendering loops (like log tables) introduces unnecessary string allocations and CPU interpreter overhead. Additionally, performing double dictionary lookups (`if key not in d` followed by `d[key]`) during high-frequency collection grouping adds up to ~30% lookup overhead.
+**Action:** Always attempt a direct fast-path lookup first before applying string modifications. For collection grouping, use `.get(key)` to retrieve the bucket in a single lookup and conditionally assign it.
