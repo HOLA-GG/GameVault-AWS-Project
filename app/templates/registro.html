@@ -52,28 +52,6 @@
         <button type="submit" class="btn-submit" id="registerSubmitButton" style="width:100%;" data-loading-text="Creando cuenta...">Crear cuenta</button>
     </form>
 
-    <script nonce="{{ g.csp_nonce }}">
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('registerForm');
-            const button = document.getElementById('registerSubmitButton');
-            const password = document.getElementById('password');
-            const confirmPassword = document.getElementById('confirm_password');
-
-            function validatePassword() {
-                if (password.value !== confirmPassword.value) {
-                    confirmPassword.setCustomValidity('Las contraseñas no coinciden');
-                } else {
-                    confirmPassword.setCustomValidity('');
-                }
-            }
-
-            if (password && confirmPassword) {
-                password.addEventListener('change', validatePassword);
-                confirmPassword.addEventListener('input', validatePassword);
-            }
-
-        });
-    </script>
 </section>
 
 <section class="section">
