@@ -148,6 +148,24 @@ def require_login(view):
             flash('Debes iniciar sesión para acceder a esta sección.', 'error')
             return redirect(url_for('main.login', next=request.full_path.rstrip('?')))
 
+        # User-Agent session pinning (Security enhancement)
+        # Verify that the current request's User-Agent matches the session's pinned User-Agent.
+        session_ua = session.get('_user_agent')
+        current_ua = request.headers.get('User-Agent', 'unknown')
+        if session_ua is not None and session_ua != current_ua:
+            crear_log_audit(
+                user_id=user_id,
+                action='UNAUTHORIZED_ACCESS',
+                resource='auth',
+                details={'reason': 'user_agent_mismatch', 'stored_ua': session_ua, 'current_ua': current_ua},
+                ip_address=get_request_ip(),
+                user_agent=current_ua,
+                status='FAILED',
+            )
+            session.clear()
+            flash('Tu sesión ha sido invalidada por un cambio de dispositivo o navegador.', 'error')
+            return redirect(url_for('main.login'))
+
         # Real-time database validation to prevent stale sessions (Security enhancement)
         # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
         user = obtener_usuario_por_id(user_id, format_dates=False)
@@ -1365,6 +1383,8 @@ def registro():
     session['role'] = resultado.get('role', 'user')
     # Store a SHA256 of the password hash to detect changes and invalidate other sessions
     session['_pw_hash'] = hashlib.sha256(password_hash.encode('utf-8')).hexdigest()
+    # Pin session to current User-Agent (Security enhancement)
+    session['_user_agent'] = request.headers.get('User-Agent', 'unknown')
 
     crear_log_audit(
         user_id=resultado['user_id'],
@@ -1434,6 +1454,8 @@ def login():
     session['role'] = usuario.get('role', 'user')
     # Store a SHA256 of the password hash to detect changes and invalidate other sessions
     session['_pw_hash'] = hashlib.sha256(usuario['password_hash'].encode('utf-8')).hexdigest()
+    # Pin session to current User-Agent (Security enhancement)
+    session['_user_agent'] = request.headers.get('User-Agent', 'unknown')
 
     crear_log_audit(
         user_id=usuario['user_id'],
