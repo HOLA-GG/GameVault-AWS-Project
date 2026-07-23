@@ -286,6 +286,7 @@
                     isLocked = true;
                     card.classList.add('is-loading');
                     setFeedback('Guardando tu voto...', 'info');
+                    window.announceToScreenReader?.('Guardando tu voto...');
 
                     fetch('{{ url_for("main.rate_showcase") }}', {
                         method: 'POST',
@@ -312,18 +313,26 @@
                             }
 
                             if (result.status === 409) {
-                                setFeedback(payload.error || 'Esta colección ya fue valorada desde tu IP.', 'warning');
+                                const msg = payload.error || 'Esta colección ya fue valorada desde tu IP.';
+                                setFeedback(msg, 'warning');
+                                window.announceToScreenReader?.(msg);
                                 return;
                             }
                             if (!result.ok) {
-                                setFeedback(payload.error || 'No se pudo guardar tu voto. Intenta de nuevo.', 'error');
+                                const msg = payload.error || 'No se pudo guardar tu voto. Intenta de nuevo.';
+                                setFeedback(msg, 'error');
+                                window.announceToScreenReader?.(msg);
                                 return;
                             }
 
-                            setFeedback('Gracias. Tu valoración ya quedó registrada.', 'success');
+                            const msg = 'Gracias. Tu valoración ya quedó registrada.';
+                            setFeedback(msg, 'success');
+                            window.announceToScreenReader?.(msg);
                         })
                         .catch(function () {
-                            setFeedback('No se pudo guardar tu voto. Revisa tu conexión.', 'error');
+                            const msg = 'No se pudo guardar tu voto. Revisa tu conexión.';
+                            setFeedback(msg, 'error');
+                            window.announceToScreenReader?.(msg);
                             paintStars(persistedRating);
                         })
                         .finally(function () {

@@ -373,6 +373,7 @@
                 }
                 previewImage.src = URL.createObjectURL(file);
                 previewContainer.style.display = 'flex';
+                window.announceToScreenReader?.('Portada seleccionada: ' + file.name);
             } else {
                 previewContainer.style.display = 'none';
             }
@@ -385,6 +386,7 @@
             fileInput.value = '';
             previewContainer.style.display = 'none';
             previewImage.src = '';
+            window.announceToScreenReader?.('Portada seleccionada eliminada');
         });
 
         form.addEventListener('submit', async function (event) {

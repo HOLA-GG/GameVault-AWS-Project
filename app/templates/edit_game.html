@@ -129,6 +129,7 @@
                 }
                 previewImage.src = URL.createObjectURL(file);
                 previewContainer.style.display = 'flex';
+                window.announceToScreenReader?.('Nueva portada seleccionada: ' + file.name);
             } else {
                 previewContainer.style.display = 'none';
             }
@@ -141,6 +142,7 @@
             fileInput.value = '';
             previewContainer.style.display = 'none';
             previewImage.src = '';
+            window.announceToScreenReader?.('Nueva portada seleccionada eliminada');
         });
 
         form.addEventListener('submit', async function (event) {
