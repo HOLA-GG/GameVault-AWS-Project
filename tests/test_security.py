@@ -286,3 +286,28 @@ def test_strict_referrer_policy_on_sensitive_routes(client):
     # Verify that a normal route still has the default safe policy
     response = client.get('/')
     assert response.headers.get('Referrer-Policy') == 'strict-origin-when-cross-origin'
+
+def test_unhandled_exception_secure_response(app):
+    """Verifica que un error interno no filtre tracebacks y escape adecuadamente el request ID para evitar inyección HTML."""
+    @app.route('/trigger-internal-error')
+    def trigger_error():
+        # Raise an exception containing mock sensitive data (like DB credentials) to ensure it is never returned to client.
+        raise ValueError("Simulated sensitive internal error with DB credentials: db://user:password@host")
+
+    # Disable propagating exceptions so our custom error handler is triggered in tests
+    app.config['PROPAGATE_EXCEPTIONS'] = False
+
+    with app.test_client() as client:
+        # Pass a malicious X-Request-Id to test for HTML/XSS injection vulnerabilities
+        response = client.get('/trigger-internal-error', headers={'X-Request-Id': '<script>alert("xss")</script>'})
+        assert response.status_code == 500
+
+        # Assert no sensitive details are exposed
+        assert b"Simulated sensitive internal error" not in response.data
+        assert b"db://user:password@host" not in response.data
+        assert b"ValueError" not in response.data
+        assert b"Traceback" not in response.data
+
+        # Assert that HTML injection in request ID was successfully sanitized
+        assert b"<script>alert(\"xss\")</script>" not in response.data
+        assert b"&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;" in response.data

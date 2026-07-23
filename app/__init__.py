@@ -342,6 +342,45 @@ def create_app() -> Flask:
         )
         return ('Tu formulario expiro o no paso la validacion de seguridad.', 400)
 
+    @app.errorhandler(500)
+    @app.errorhandler(Exception)
+    def handle_internal_server_error(error):
+        """Global error handler to log tracebacks securely and present a clean error screen (Fail Securely)."""
+        from werkzeug.exceptions import HTTPException
+        if isinstance(error, HTTPException):
+            return error
+
+        import html
+        from flask import jsonify
+        app.logger.exception('unhandled_exception_occurred')
+
+        request_id = getattr(g, 'request_id', '-')
+        safe_request_id = html.escape(request_id)
+
+        # Determine if JSON is expected by the client
+        if request.path.startswith('/api/') or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
+            return jsonify({
+                'error': 'Ocurrio un error interno en el servidor.',
+                'request_id': safe_request_id
+            }), 500
+
+        html_content = (
+            f"<!DOCTYPE html>\n"
+            f"<html>\n"
+            f"<head>\n"
+            f"  <meta charset='UTF-8'>\n"
+            f"  <title>Error Interno - GameVault</title>\n"
+            f"</head>\n"
+            f"<body style='font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: #f8fafc;'>\n"
+            f"  <h1 style='color: #ef4444;'>Error Interno del Servidor</h1>\n"
+            f"  <p>Lo sentimos, ha ocurrido un error inesperado en nuestro sistema.</p>\n"
+            f"  <p style='color: #94a3b8;'>ID de solicitud: <strong>{safe_request_id}</strong></p>\n"
+            f"  <p><a href='/' style='color: #3b82f6; text-decoration: none;'>Volver al inicio</a></p>\n"
+            f"</body>\n"
+            f"</html>"
+        )
+        return (html_content, 500)
+
     from app.models import ensure_bootstrap_admin, init_database
     from app.routes import main_bp
 
