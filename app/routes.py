@@ -538,11 +538,9 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             ratings_count += 1
 
         # Date metrics (Optimized: Rely on model layer for UTC-aware datetimes)
-        # Bolt Optimization: Inline effective date calculation using ternary to avoid max()
-        # function call overhead in hot loops.
-        dt_created = juego['created_at']
-        dt_updated = juego['updated_at']
-        effective_dt = dt_updated if dt_updated > dt_created else dt_created
+        # Bolt Optimization: Use updated_at directly as effective_dt since updated_at is always >= created_at.
+        # This completely avoids branching and comparison operations on every iteration.
+        effective_dt = juego['updated_at']
 
         if prioridad == 'Alta':
             high_priority_count += 1
@@ -557,7 +555,7 @@ def build_dashboard_insights(juegos: list[dict], activity_logs: list[dict] | Non
             elif effective_dt < stale_cutoff:
                 stale_games += 1
 
-        if dt_created >= recent_cutoff:
+        if juego['created_at'] >= recent_cutoff:
             recently_added += 1
 
     recent_activity = 0
@@ -744,8 +742,9 @@ def filter_and_sort_games(juegos, filters):
     elif sort_by == 'created_desc':
         filtered.sort(key=lambda j: j['created_at'], reverse=True)
     else:
-        # Bolt Optimization: Inline effective date comparison in sort key to avoid max() overhead.
-        filtered.sort(key=lambda j: j['updated_at'] if j['updated_at'] > j['created_at'] else j['created_at'], reverse=True)
+        # Bolt Optimization: Use updated_at directly since updated_at is always >= created_at.
+        # This completely avoids branching and ternary evaluation inside the Python sorting loop.
+        filtered.sort(key=lambda j: j['updated_at'], reverse=True)
 
     return filtered
 

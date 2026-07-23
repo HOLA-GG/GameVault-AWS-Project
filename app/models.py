@@ -1706,7 +1706,9 @@ def obtener_resumenes_colecciones(
             .scalar_subquery()
         )
         last_updated_sub = (
-            select(func.max(func.coalesce(Game.updated_at, Game.created_at)))
+            # Bolt Optimization: Use Game.updated_at directly since updated_at is always >= created_at.
+            # This completely avoids func.coalesce(), allowing SQL query planner to leverage index on updated_at.
+            select(func.max(Game.updated_at))
             .where(Game.user_id == User.user_id)
             .correlate(User)
             .scalar_subquery()
