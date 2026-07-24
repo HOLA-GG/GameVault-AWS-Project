@@ -1568,6 +1568,17 @@ def profile():
                 status='FAILED',
             )
             errores.append('La contraseña actual no es correcta.')
+        elif check_password_hash(user['password_hash'], password):
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='CHANGE_PASSWORD',
+                resource='users',
+                details={'email': session.get('email'), 'reason': 'reuse_current_password'},
+                ip_address=request.remote_addr or 'unknown',
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
         if not validar_password(password):
             errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
         if len(confirm_password) > 128:
@@ -1880,6 +1891,17 @@ def reset_password_with_email(token):
     password = request.form.get('password', '').strip()
     confirm_password = request.form.get('confirm_password', '').strip()
     errores = []
+    if user and check_password_hash(user['password_hash'], password):
+        crear_log_audit(
+            user_id=token_validation['user_id'],
+            action='PASSWORD_RESET',
+            resource='auth',
+            details={'email': email, 'reason': 'reuse_current_password'},
+            ip_address=request.remote_addr or 'unknown',
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
     if not validar_password(password):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
     if len(confirm_password) > 128:
