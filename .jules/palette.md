@@ -105,3 +105,7 @@
 ## 2025-02-14 - [Grammatical Precision in Accessibility Labels]
 **Learning:** Screen reader users rely on `aria-label` for precise context. Using static singular labels for dynamic numeric values (e.g., "4.5 estrella") creates a jarring and "unpolished" auditory experience. Implementing conditional pluralization within template attributes ensures that accessibility labels remain grammatically correct and professional, mirroring the quality of the visual UI.
 **Action:** Always use conditional logic in templates to handle pluralization for accessibility labels that incorporate dynamic counts or measurements.
+
+## 2026-07-24 - [Real-time Screen Reader Feedback for File Actions]
+**Learning:** Dynamic layout modifications triggered by custom file upload or removal buttons (such as selecting a game cover or clearing the selection) are entirely non-visual interactions that can leave screen reader users without immediate structural awareness of the state change. Utilizing `window.announceToScreenReader` to broadcast localized confirmation messages (e.g., "Imagen seleccionada: [filename]" and "Imagen seleccionada quitada") bridges the sensory gap and guarantees assistive technology users receive real-time, matching feedback.
+**Action:** Always bind programmatic screen reader announcements to asynchronous or client-side file selection and clearing workflows, ensuring complete interactive parity.
