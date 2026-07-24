@@ -388,7 +388,24 @@
         }
 
         function setupFlashMessages() {
+            const icons = {
+                success: '✅',
+                error: '🚫',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+
             document.querySelectorAll('.flash').forEach(flash => {
+                const category = Object.keys(icons).find(c => flash.classList.contains(c));
+                if (category && !flash.querySelector('.flash-icon')) {
+                    const iconSpan = document.createElement('span');
+                    iconSpan.className = 'flash-icon';
+                    iconSpan.setAttribute('aria-hidden', 'true');
+                    iconSpan.style.marginRight = '8px';
+                    iconSpan.textContent = icons[category];
+                    flash.prepend(iconSpan);
+                }
+
                 const closeBtn = document.createElement('button');
                 closeBtn.type = 'button';
                 closeBtn.className = 'flash-close';

@@ -21,3 +21,7 @@
 ## 2026-07-01 - Global Accessibility Parity for Transient and Static Feedback
 **Learning:** Transient visual feedback (like copy-to-clipboard notifications) and static constraints (like character counters or required fields) create a "hidden" experience for assistive technology users if not programmatically announced or linked. A centralized `aria-live` announcer and the consistent use of `aria-describedby` ensure that non-visual users receive the same real-time context as visual users.
 **Action:** Implement a global announcer for all non-standard UI feedback. Link character counters and required indicators to their inputs using ARIA attributes to maintain a single source of truth for form constraints across all modalities.
+
+## 2026-07-02 - Flash Message Scannability and Contrast
+**Learning:** Standard flash notifications can be visually monotonous, especially when using subtle gradients. Prepending semantic emojis (e.g., ✅, 🚫) significantly improves rapid scannability and categorization. However, these icons must be marked with `aria-hidden` to prevent redundant noise for screen reader users. Additionally, alerts using background gradients often require explicit, high-contrast text overrides (e.g., `#ffffff !important`) to ensure WCAG compliance across all alert types.
+**Action:** Use an idempotent "detect-and-inject" pattern to enhance alerts with visual icons. Always pair visual enhancements with a contrast audit, especially for status-colored components like "info" or "warning" alerts.

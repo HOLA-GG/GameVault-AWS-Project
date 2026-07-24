@@ -740,19 +740,25 @@ header p {
 
 .flash.success {
     background: linear-gradient(135deg, var(--success-color) 0%, #27ae60 100%);
-    color: var(--text-primary);
+    color: #ffffff;
     box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
 }
 
 .flash.error {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #c0392b 100%);
-    color: var(--text-primary);
-    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+    background: linear-gradient(135deg, #ff4d4d 0%, #cc0000 100%);
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
 }
 
 .flash.warning {
     background: linear-gradient(135deg, var(--warning-color) 0%, #e67e22 100%);
-    color: var(--text-primary);
+    color: #ffffff;
+}
+
+.flash.info {
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--background-darker) 100%);
+    color: #ffffff;
+    border: 1px solid var(--primary-color);
 }
 
 @keyframes slideIn {
