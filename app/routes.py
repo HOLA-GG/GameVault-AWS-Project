@@ -9,6 +9,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from operator import itemgetter
 from urllib.parse import unquote, urljoin, urlparse
 
 from flask import (
@@ -730,21 +731,23 @@ def filter_and_sort_games(juegos, filters):
         return filtered
 
     if sort_by == 'title_asc':
-        # Bolt Optimization: Direct bracket access is ~40% faster than .get() with fallback.
-        # Since 'titulo_lower' is guaranteed by _game_row_to_dict mapping, this is safe and fast.
-        filtered.sort(key=lambda j: j['titulo_lower'])
+        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor
+        # as it runs key retrieval completely at the C level in Python.
+        filtered.sort(key=itemgetter('titulo_lower'))
     elif sort_by == 'title_desc':
-        # Bolt Optimization: Direct bracket access is ~40% faster than .get() with fallback.
-        # Since 'titulo_lower' is guaranteed by _game_row_to_dict mapping, this is safe and fast.
-        filtered.sort(key=lambda j: j['titulo_lower'], reverse=True)
+        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor
+        # as it runs key retrieval completely at the C level in Python.
+        filtered.sort(key=itemgetter('titulo_lower'), reverse=True)
     elif sort_by == 'created_asc':
-        filtered.sort(key=lambda j: j['created_at'])
+        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor.
+        filtered.sort(key=itemgetter('created_at'))
     elif sort_by == 'created_desc':
-        filtered.sort(key=lambda j: j['created_at'], reverse=True)
+        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor.
+        filtered.sort(key=itemgetter('created_at'), reverse=True)
     else:
-        # Bolt Optimization: Use updated_at directly since updated_at is always >= created_at.
-        # This completely avoids branching and ternary evaluation inside the Python sorting loop.
-        filtered.sort(key=lambda j: j['updated_at'], reverse=True)
+        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor.
+        # Also utilizes updated_at directly, as updated_at is guaranteed to be >= created_at.
+        filtered.sort(key=itemgetter('updated_at'), reverse=True)
 
     return filtered
 
