@@ -596,9 +596,14 @@
                 });
             }
 
+            // Global event delegation for copying to clipboard
+            // Using capturing phase (true) to prevent parent elements (like links or cards) from receiving the click
             document.addEventListener('click', function(event) {
                 const copyBtn = event.target.closest('[data-copy]');
                 if (!copyBtn) return;
+
+                event.preventDefault();
+                event.stopPropagation();
 
                 const textToCopy = copyBtn.getAttribute('data-copy');
                 if (!textToCopy) return;
@@ -612,6 +617,21 @@
                 }).catch(err => {
                     console.error('Error al copiar al portapapeles', err);
                 });
+            }, true);
+
+            // Progressive enhancement delegation for copy buttons' titles and ARIA labels
+            document.addEventListener('mouseover', function(event) {
+                const copyBtn = event.target.closest('[data-copy]');
+                if (!copyBtn) return;
+                if (!copyBtn.getAttribute('title')) {
+                    const label = copyBtn.getAttribute('aria-label');
+                    if (label) {
+                        copyBtn.setAttribute('title', label);
+                    } else {
+                        copyBtn.setAttribute('title', 'Copiar al portapapeles');
+                        copyBtn.setAttribute('aria-label', 'Copiar al portapapeles');
+                    }
+                }
             });
 
             injectCsrfTokens();
