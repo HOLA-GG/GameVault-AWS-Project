@@ -76,16 +76,26 @@ def configure_logging(app: Flask) -> None:
 
 
 def configure_sentry(app: Flask) -> None:
-    """Activa Sentry solo cuando hay DSN configurado."""
+    """Activa Sentry solo cuando hay DSN configurado con filtrado de seguridad."""
     sentry_dsn = os.environ.get('SENTRY_DSN', '').strip()
     if not sentry_dsn:
         return
+
+    from app.models import redact_sensitive_details
+
+    def before_send(event, hint):
+        try:
+            # Prevents leaking passwords, hashes, tokens, and PII to Sentry (Security hardening)
+            return redact_sensitive_details(event)
+        except Exception:
+            return event
 
     init_sentry_sdk(
         dsn=sentry_dsn,
         integrations=[FlaskIntegration()],
         traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.0')),
         environment=app.config['APP_ENV'],
+        before_send=before_send,
     )
 
 
@@ -194,7 +204,11 @@ def create_app() -> Flask:
 
     @app.before_request
     def assign_request_context() -> None:
-        g.request_id = request.headers.get('X-Request-Id') or str(uuid.uuid4())
+        req_id = request.headers.get('X-Request-Id') or ''
+        # Limit the length of custom request IDs to prevent memory-based DoS (Security hardening)
+        if len(req_id) > 100:
+            req_id = req_id[:100]
+        g.request_id = req_id or str(uuid.uuid4())
         # Generate cryptographic nonce for CSP (Security hardening)
         g.csp_nonce = base64.b64encode(os.urandom(16)).decode('utf-8')
 
