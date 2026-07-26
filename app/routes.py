@@ -1560,6 +1560,10 @@ def profile():
         # Protect against hashing DoS for extremely long input password
         if len(current_password) > 128:
             errores.append('La contraseña actual es demasiado larga (máximo 128 caracteres).')
+        elif len(password) > 128:
+            errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
+        elif len(confirm_password) > 128:
+            errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
         elif not check_password_hash(user['password_hash'], current_password):
             crear_log_audit(
                 user_id=session['user_id'],
@@ -1894,7 +1898,11 @@ def reset_password_with_email(token):
     password = request.form.get('password', '').strip()
     confirm_password = request.form.get('confirm_password', '').strip()
     errores = []
-    if user and check_password_hash(user['password_hash'], password):
+    if len(password) > 128:
+        errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
+    elif len(confirm_password) > 128:
+        errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
+    elif user and check_password_hash(user['password_hash'], password):
         crear_log_audit(
             user_id=token_validation['user_id'],
             action='PASSWORD_RESET',
