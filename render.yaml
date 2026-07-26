@@ -68,6 +68,8 @@ services:
         value: "10"
       - key: DB_POOL_RECYCLE
         value: "280"
+      - key: DB_POOL_TIMEOUT
+        value: "30"
       - key: LOCAL_UPLOAD_DIR
         sync: false
       - key: LOCAL_UPLOAD_URL_PATH
