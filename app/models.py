@@ -637,24 +637,41 @@ def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any
         if not metrics or metrics.total_games == 0:
             return results
 
-        # 2. Dominantes (Platform, Status, Category)
-        def get_dominant(column):
-            return session.execute(
-                select(column, func.count(Game.game_id))
-                .where(Game.user_id == user_id)
-                .group_by(column)
-                .order_by(func.count(Game.game_id).desc())
-                .limit(1)
-            ).first()
+        # 2. Dominantes (Platform, Status, Category) - Consolidated into a single query to eliminate 2 round-trips.
+        # We query the group combinations and aggregate their counts in-memory.
+        group_counts = session.execute(
+            select(
+                Game.plataforma,
+                Game.estado,
+                Game.categoria,
+                func.count(Game.game_id)
+            )
+            .where(Game.user_id == user_id)
+            .group_by(Game.plataforma, Game.estado, Game.categoria)
+        ).all()
 
-        dom_platform = get_dominant(Game.plataforma)
-        dom_status = get_dominant(Game.estado)
-        dom_category = get_dominant(Game.categoria)
+        platform_counts = {}
+        status_counts = {}
+        category_counts = {}
+
+        for plat, est, cat, count in group_counts:
+            # Replicate default visual label fallback if values are empty/None
+            plat_label = plat if plat else 'Sin plataforma'
+            est_label = est if est else 'N/A'
+            cat_label = cat if cat else 'Biblioteca'
+
+            platform_counts[plat_label] = platform_counts.get(plat_label, 0) + count
+            status_counts[est_label] = status_counts.get(est_label, 0) + count
+            category_counts[cat_label] = category_counts.get(cat_label, 0) + count
+
+        dom_platform_label = max(platform_counts, key=platform_counts.get) if platform_counts else 'Sin plataforma'
+        dom_status_label = max(status_counts, key=status_counts.get) if status_counts else 'N/A'
+        dom_category_label = max(category_counts, key=category_counts.get) if category_counts else 'Biblioteca'
 
         results.update({
-            'dominant_platform': {'label': dom_platform[0] if dom_platform else 'Sin plataforma', 'count': dom_platform[1] if dom_platform else 0},
-            'dominant_status': {'label': dom_status[0] if dom_status else 'N/A', 'count': dom_status[1] if dom_status else 0},
-            'dominant_category': {'label': dom_category[0] if dom_category else 'Biblioteca', 'count': dom_category[1] if dom_category else 0},
+            'dominant_platform': {'label': dom_platform_label, 'count': platform_counts.get(dom_platform_label, 0)},
+            'dominant_status': {'label': dom_status_label, 'count': status_counts.get(dom_status_label, 0)},
+            'dominant_category': {'label': dom_category_label, 'count': category_counts.get(dom_category_label, 0)},
         })
 
         # 3. Last updated y Next focus
