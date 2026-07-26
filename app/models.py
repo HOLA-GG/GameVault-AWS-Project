@@ -36,6 +36,7 @@ from sqlalchemy import (
     event,
     func,
     inspect,
+    literal_column,
     select,
     text,
 )
@@ -1762,11 +1763,14 @@ def obtener_resumenes_colecciones(
             query = query.where(User.collection_visibility == visibility)
 
         # Ordenamiento en SQL: Rating desc, Favoritos desc, Total desc, Actualización desc.
+        # Optimizacion Bolt: Se ordena directamente por los alias definidos en la lista de SELECT,
+        # lo cual evita que el motor de la base de datos re-ejecute las subconsultas correlacionadas
+        # en la fase de ordenamiento (reduciendo las subconsultas ejecutadas a la mitad).
         query = query.order_by(
-            func.coalesce(average_rating_sub, -1).desc(),
-            favorites_count_sub.desc(),
-            total_games_sub.desc(),
-            last_updated_sub.desc(),
+            literal_column('average_rating').desc().nulls_last(),
+            literal_column('favorites_count').desc(),
+            literal_column('total_games').desc(),
+            literal_column('last_updated_at').desc().nulls_last(),
         )
 
         if limit:
