@@ -274,6 +274,7 @@ def get_engine():
         kwargs['pool_size'] = int(os.environ.get('DB_POOL_SIZE', 5))
         kwargs['max_overflow'] = int(os.environ.get('DB_MAX_OVERFLOW', 10))
         kwargs['pool_recycle'] = int(os.environ.get('DB_POOL_RECYCLE', 280))
+        kwargs['pool_timeout'] = int(os.environ.get('DB_POOL_TIMEOUT', 30))
 
     _engine = create_engine(DATABASE_URL, **kwargs)
     return _engine
