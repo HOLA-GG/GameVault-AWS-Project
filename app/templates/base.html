@@ -18,7 +18,8 @@
             aria-expanded="false"
             aria-controls="accessibilityPanel"
             aria-label="Herramientas de accesibilidad"
-            title="Herramientas de accesibilidad"
+            title="Herramientas de accesibilidad (Alt + A)"
+            aria-keyshortcuts="Alt+A"
         >
             <svg viewBox="0 0 24 24" aria-hidden="true" class="accessibility-icon">
                 <path fill="currentColor" d="M12 2.75a1.75 1.75 0 1 1 0 3.5a1.75 1.75 0 0 1 0-3.5M8.35 7.5a1 1 0 0 0 0 2h2.65v3.2l-2.77 6.05a1 1 0 0 0 1.82.83L12 15.2l1.95 4.38a1 1 0 1 0 1.82-.83L13 12.7V9.5h2.65a1 1 0 1 0 0-2z"/>
@@ -573,12 +574,30 @@
                 if (event.key === 'Escape') {
                     toggleAccessibilityPanel(false);
                 }
-                if (event.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-                    const searchInput = document.getElementById('q');
-                    if (searchInput) {
+                if (event.altKey && (event.key === 'a' || event.key === 'A')) {
+                    const toggleBtn = document.getElementById('accessibilityToggle');
+                    if (toggleBtn) {
                         event.preventDefault();
-                        searchInput.focus();
-                        searchInput.select();
+                        toggleAccessibilityPanel();
+                    }
+                }
+                if (!['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                    if (event.key === '/') {
+                        const searchInput = document.getElementById('q');
+                        if (searchInput) {
+                            event.preventDefault();
+                            searchInput.focus();
+                            searchInput.select();
+                        }
+                    } else if (event.key === 'n' || event.key === 'N') {
+                        const titleInput = document.getElementById('titulo');
+                        if (titleInput && titleInput.form && titleInput.form.id === 'gameForm') {
+                            event.preventDefault();
+                            titleInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            titleInput.focus();
+                            titleInput.select();
+                            announceToScreenReader('Formulario de agregar nuevo juego enfocado');
+                        }
                     }
                 }
             });

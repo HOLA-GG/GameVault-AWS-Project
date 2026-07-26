@@ -93,8 +93,8 @@
         <input type="hidden" name="imagen_url" id="imagen_url">
         <div class="form-row">
             <div class="form-group">
-                <label for="titulo">Título</label>
-                <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required maxlength="255" class="select-on-focus">
+                <label for="titulo">Título <small id="title-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>N</kbd>)</small></label>
+                <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required maxlength="255" class="select-on-focus" aria-describedby="title-hint">
             </div>
             <div class="form-group">
                 <label for="plataforma">Plataforma</label>
