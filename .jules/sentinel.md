@@ -197,3 +197,8 @@
 **Vulnerability:** Allowing users to reuse their current password during password change or reset operations violates standard security recommendations (NIST SP 800-63B) and exposes accounts to continued risk if the existing password was compromised.
 **Learning:** Checking for password reuse requires querying the existing password hash from the database and performing a dynamic hash verification check (using `check_password_hash`) against the new password payload before updating the credentials, in both user-initiated (profile) and token-based (reset) paths.
 **Prevention:** Always validate that new password inputs do not match the currently stored password hash. Log unsuccessful reuse attempts as audited security failures (`status='FAILED'`) for better intrusion detection.
+
+## 2026-08-10 - CPU Exhaustion in Password-Reuse Hashing
+**Vulnerability:** Password-reuse check executed hashing on unchecked input length before input validation.
+**Learning:** Checking for password reuse requires calling `check_password_hash` on user-supplied passwords. However, if this is done prior to validating that the length is within a reasonable limit (e.g. 128 characters), an attacker can supply extremely long inputs (e.g. several megabytes) to consume CPU and cause a Denial of Service (DoS) attack.
+**Prevention:** Always place input length bounds checks strictly before any cryptographic processing of user parameters.
