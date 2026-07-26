@@ -145,7 +145,7 @@
 **Action:** Implement storage clients as singletons. Use a tiered configuration lookup: try `current_app.config` first for request-time overrides, and fall back to module-level constants (from `os.environ`) within a `try...except RuntimeError` block to maintain script compatibility.
 
 ## 2026-07-22 - SQL Projection for Partial User Lookups
-**Learning:** Fetching full records or using `select(Model.__table__)` in batch lookups (like `obtener_usuarios_por_ids`) introduces unnecessary database I/O and network overhead when only a few identity fields (ID, name, email) are needed for UI enrichment. Bypassing ORM hydration while still returning normalized dictionaries requires mapping helpers that can handle partial results.
+**Learning:** Fetching full records or using `select(Model.__table__)` in batch lookups (like `obtener_usuarios_por_ids`) introduces unnecessary database I/O and network overhead when only a few identity fields (ID, name, email) to UI enrichment. Bypassing ORM hydration while still returning normalized dictionaries requires mapping helpers that can handle partial results.
 **Action:** Add a `fields` parameter to batch fetchers to enable SQL projection. Update mapping helpers (like `_user_row_to_dict`) to safely handle both dictionary and object inputs, ensuring date normalization is applied only when relevant fields are present.
 
 ## 2026-07-15 - Hardening Row-to-Dict Helpers for Selective Projection
@@ -163,3 +163,7 @@
 ## 2026-07-31 - Fast String Lookup & Single-pass Dictionary Grouping
 **Learning:** Performing repeated `.upper()` case-folding on standard uppercase string constants inside rendering loops (like log tables) introduces unnecessary string allocations and CPU interpreter overhead. Additionally, performing double dictionary lookups (`if key not in d` followed by `d[key]`) during high-frequency collection grouping adds up to ~30% lookup overhead.
 **Action:** Always attempt a direct fast-path lookup first before applying string modifications. For collection grouping, use `.get(key)` to retrieve the bucket in a single lookup and conditionally assign it.
+
+## 2026-08-15 - Consolidating Categorical Dominants in-Memory
+**Learning:** Performing three separate database queries to calculate the dominant values of multiple categorical columns (like platforms, statuses, and categories) creates redundant database round-trips. Consolidating them into a single `GROUP BY` query over all columns and performing the frequency aggregation in-memory in Python reduces database latency and round-trips from 3 to 1.
+**Action:** Consolidate multiple independent categorical grouping/dominant queries into a single combined `GROUP BY` query and aggregate counts in-memory in Python when processing datasets of reasonable size.
