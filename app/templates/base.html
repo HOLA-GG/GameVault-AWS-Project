@@ -639,7 +639,7 @@
             }, true);
 
             // Progressive enhancement delegation for copy buttons' titles and ARIA labels
-            document.addEventListener('mouseover', function(event) {
+            const syncCopyTooltip = function(event) {
                 const copyBtn = event.target.closest('[data-copy]');
                 if (!copyBtn) return;
                 if (!copyBtn.getAttribute('title')) {
@@ -651,7 +651,9 @@
                         copyBtn.setAttribute('aria-label', 'Copiar al portapapeles');
                     }
                 }
-            });
+            };
+            document.addEventListener('mouseover', syncCopyTooltip);
+            document.addEventListener('focusin', syncCopyTooltip);
 
             injectCsrfTokens();
             setupCharacterCounters();

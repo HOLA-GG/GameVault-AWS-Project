@@ -32,3 +32,13 @@ def test_dashboard_title_shortcut_hint_rendered(client):
     assert '(Presiona <kbd>N</kbd>)' in html
     # Check that the Title input has the aria-describedby attribute linked to the hint
     assert 'aria-describedby="title-hint"' in html
+
+
+def test_copy_tooltip_delegation_rendered(client):
+    """Verify that both mouseover and focusin handlers are registered for the copy tooltip progressive helper."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "document.addEventListener('mouseover', syncCopyTooltip);" in html
+    assert "document.addEventListener('focusin', syncCopyTooltip);" in html
