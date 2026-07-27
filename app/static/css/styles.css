@@ -2349,7 +2349,7 @@ kbd {
 }
 .pw-toggle:hover { color: var(--primary-color); }
 .pw-toggle svg { width: 20px; height: 20px; }
-.form-group input[type="password"] { padding-right: 44px; }
+.pw-field-wrapper input { padding-right: 44px; }
 
 /* ================================
    PASSWORD STRENGTH METER
