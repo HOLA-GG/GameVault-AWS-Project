@@ -1709,40 +1709,37 @@ def obtener_resumenes_colecciones(
     offset: int | None = None,
     homepage_only: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Obtiene resúmenes de colecciones de usuarios (Optimización Bolt: Scalar subqueries)."""
+    """Obtiene resúmenes de colecciones de usuarios (Optimización Bolt: Joined grouped subqueries)."""
     ensure_tables()
     session_factory = get_session_factory()
 
     with session_factory() as session:
-        # Bolt Optimization: Correlated subqueries for games metrics.
-        # This avoids massive joins and group-bys on the main query, which is
-        # significantly more efficient for paginated admin and showcase views.
-        total_games_sub = (
-            select(func.count(Game.game_id))
-            .where(Game.user_id == User.user_id)
-            .correlate(User)
-            .scalar_subquery()
+        # Bolt Optimization: Consolidate scalar correlated subqueries into joined grouped subqueries.
+        # This reduces correlated subqueries from 7 to 1, greatly accelerating DB-level aggregations
+        # and reducing execution overhead as the collection and user base grow.
+        metrics_sub = (
+            select(
+                Game.user_id,
+                func.count(Game.game_id).label('total_games'),
+                func.coalesce(func.sum(case((Game.es_favorito.is_(True), 1), else_=0)), 0).label('favorites_count'),
+                func.avg(Game.calificacion).label('average_rating'),
+                func.max(Game.updated_at).label('last_updated_at')
+            )
+            .group_by(Game.user_id)
+            .subquery()
         )
-        favorites_count_sub = (
-            select(func.coalesce(func.sum(case((Game.es_favorito.is_(True), 1), else_=0)), 0))
-            .where(Game.user_id == User.user_id)
-            .correlate(User)
-            .scalar_subquery()
+
+        ratings_sub = (
+            select(
+                ShowcaseRating.subject_id,
+                func.avg(ShowcaseRating.rating).label('showcase_rating_average'),
+                func.count(ShowcaseRating.rating).label('showcase_votes_count')
+            )
+            .where(ShowcaseRating.subject_type == 'public')
+            .group_by(ShowcaseRating.subject_id)
+            .subquery()
         )
-        average_rating_sub = (
-            select(func.avg(Game.calificacion))
-            .where(Game.user_id == User.user_id)
-            .correlate(User)
-            .scalar_subquery()
-        )
-        last_updated_sub = (
-            # Bolt Optimization: Use Game.updated_at directly since updated_at is always >= created_at.
-            # This completely avoids func.coalesce(), allowing SQL query planner to leverage index on updated_at.
-            select(func.max(Game.updated_at))
-            .where(Game.user_id == User.user_id)
-            .correlate(User)
-            .scalar_subquery()
-        )
+
         dominant_platform_sub = (
             select(Game.plataforma)
             .where(Game.user_id == User.user_id)
@@ -1753,33 +1750,23 @@ def obtener_resumenes_colecciones(
             .scalar_subquery()
         )
 
-        # Bolt Optimization: Eagerly fetch showcase ratings in the same round-trip.
-        showcase_avg_sub = (
-            select(func.avg(ShowcaseRating.rating))
-            .where(ShowcaseRating.subject_id == User.user_id, ShowcaseRating.subject_type == 'public')
-            .correlate(User)
-            .scalar_subquery()
-        )
-        showcase_votes_sub = (
-            select(func.count(ShowcaseRating.rating))
-            .where(ShowcaseRating.subject_id == User.user_id, ShowcaseRating.subject_type == 'public')
-            .correlate(User)
-            .scalar_subquery()
-        )
-
         query = select(
             User.user_id,
             User.nombre,
             User.email,
             User.collection_visibility,
             User.homepage_showcase_opt_in,
-            func.coalesce(total_games_sub, 0).label('total_games'),
-            func.coalesce(favorites_count_sub, 0).label('favorites_count'),
-            average_rating_sub.label('average_rating'),
-            last_updated_sub.label('last_updated_at'),
+            func.coalesce(metrics_sub.c.total_games, 0).label('total_games'),
+            func.coalesce(metrics_sub.c.favorites_count, 0).label('favorites_count'),
+            metrics_sub.c.average_rating.label('average_rating'),
+            metrics_sub.c.last_updated_at.label('last_updated_at'),
             func.coalesce(dominant_platform_sub, 'Sin juegos').label('dominant_platform'),
-            showcase_avg_sub.label('showcase_rating_average'),
-            func.coalesce(showcase_votes_sub, 0).label('showcase_votes_count'),
+            ratings_sub.c.showcase_rating_average.label('showcase_rating_average'),
+            func.coalesce(ratings_sub.c.showcase_votes_count, 0).label('showcase_votes_count'),
+        ).outerjoin(
+            metrics_sub, User.user_id == metrics_sub.c.user_id
+        ).outerjoin(
+            ratings_sub, User.user_id == ratings_sub.c.subject_id
         )
 
         if homepage_only:
