@@ -772,7 +772,7 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
 
 def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
     """Convierte filtros de fecha simple a datetime UTC."""
-    if not value:
+    if not value or len(value) > 50:
         return None
     try:
         parsed = datetime.fromisoformat(value)
@@ -826,6 +826,9 @@ def is_valid_image_file(file_storage) -> tuple[bool, str | None]:
         return False, 'Debes seleccionar una imagen.'
 
     filename = secure_filename(file_storage.filename)
+    if len(filename) > 255:
+        return False, 'El nombre de archivo es demasiado largo.'
+
     extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
     if extension not in ALLOWED_IMAGE_EXTENSIONS:
         return False, 'Formato de imagen no permitido.'
@@ -1506,12 +1509,17 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwarg
         # Use select(AuditLog.__table__) to bypass ORM hydration
         query = select(AuditLog.__table__)
 
-    if filters.get('user_id'):
-        query = query.where(AuditLog.user_id == filters['user_id'])
-    if filters.get('action'):
-        query = query.where(AuditLog.action == filters['action'])
-    if filters.get('status'):
-        query = query.where(AuditLog.status == filters['status'])
+    user_id_filter = str(filters.get('user_id') or '').strip()
+    if user_id_filter and len(user_id_filter) <= 36:
+        query = query.where(AuditLog.user_id == user_id_filter)
+
+    action_filter = str(filters.get('action') or '').strip()
+    if action_filter and len(action_filter) <= 80:
+        query = query.where(AuditLog.action == action_filter)
+
+    status_filter = str(filters.get('status') or '').strip()
+    if status_filter and len(status_filter) <= 20:
+        query = query.where(AuditLog.status == status_filter)
 
     start_date = parse_date_filter(filters.get('start_date', ''))
     end_date = parse_date_filter(filters.get('end_date', ''), end=True)
@@ -1634,6 +1642,9 @@ def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, An
     """Obtiene múltiples usuarios por IDs (Optimización Bolt: bypass ORM hydration)."""
     if not user_ids:
         return []
+    user_ids = list(user_ids)
+    if len(user_ids) > 1000:
+        user_ids = user_ids[:1000]
     format_dates = kwargs.get('format_dates', True)
     # Bolt optimization: Allow fetching specific columns to reduce DB load.
     fields = kwargs.get('fields')
@@ -1887,6 +1898,9 @@ def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[
     """Obtiene valoraciones para múltiples IDs en una sola consulta (evita N+1)."""
     if not subject_ids:
         return {}
+    subject_ids = list(subject_ids)
+    if len(subject_ids) > 1000:
+        subject_ids = subject_ids[:1000]
 
     ensure_tables()
     session_factory = get_session_factory()

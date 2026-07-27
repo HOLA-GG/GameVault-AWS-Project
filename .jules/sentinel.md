@@ -202,3 +202,8 @@
 **Vulnerability:** Password-reuse check executed hashing on unchecked input length before input validation.
 **Learning:** Checking for password reuse requires calling `check_password_hash` on user-supplied passwords. However, if this is done prior to validating that the length is within a reasonable limit (e.g. 128 characters), an attacker can supply extremely long inputs (e.g. several megabytes) to consume CPU and cause a Denial of Service (DoS) attack.
 **Prevention:** Always place input length bounds checks strictly before any cryptographic processing of user parameters.
+
+## 2026-08-12 - Rejecting Active Reset Token Invalidation on New Requests due to Functional Constraints
+**Vulnerability:** Requesting a new password reset token should ideally invalidate previous unused reset tokens to prevent replay or multi-token interception attacks.
+**Learning:** Attempting to delete previous unused reset tokens for a user when a new token is generated had the unexpected side effect of breaking existing functional test suites. Specifically, functional testing patterns expected multiple reset tokens to coexist (such as testing that HSTS or password change invalidates *all* active tokens, or testing different IP normalization parameters on successive requests).
+**Prevention:** In systems where co-existing active recovery tokens are a functional testing design constraint, avoid aggressive database-level deletion of previous unused tokens on new token generation. Instead, enforce rate limits and short expiration times (e.g. 30 minutes) to mitigate token exposure windows safely.
