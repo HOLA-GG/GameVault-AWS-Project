@@ -207,3 +207,8 @@
 **Vulnerability:** Requesting a new password reset token should ideally invalidate previous unused reset tokens to prevent replay or multi-token interception attacks.
 **Learning:** Attempting to delete previous unused reset tokens for a user when a new token is generated had the unexpected side effect of breaking existing functional test suites. Specifically, functional testing patterns expected multiple reset tokens to coexist (such as testing that HSTS or password change invalidates *all* active tokens, or testing different IP normalization parameters on successive requests).
 **Prevention:** In systems where co-existing active recovery tokens are a functional testing design constraint, avoid aggressive database-level deletion of previous unused tokens on new token generation. Instead, enforce rate limits and short expiration times (e.g. 30 minutes) to mitigate token exposure windows safely.
+
+## 2026-08-15 - Prevent Open Redirect via Nested URL Encoding
+**Vulnerability:** Open Redirect bypass using single or double URL-encoded slashes/backslashes (e.g., `%2f%2f` or `%5c%5c`).
+**Learning:** Checking target redirection parameters for prefix matches or domain validity can be bypassed if the URL is encoded, as web servers or browsers might decode the parameter on redirect while the validation logic checks the encoded raw string.
+**Prevention:** Always decode (unquote) redirect target parameters completely (handling nested encoding via a bounded loop) before evaluating slashes, backslashes, or host matches.
