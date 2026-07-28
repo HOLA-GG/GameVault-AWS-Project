@@ -307,6 +307,16 @@ def is_safe_url(target: str) -> bool:
     """Valida que una URL sea segura para redirección (misma host o relativa)."""
     if not target:
         return False
+
+    # Decode URL-encoded characters completely to prevent double-encoding bypasses (Security hardening)
+    decoded = target
+    for _ in range(5):
+        new_decoded = unquote(decoded)
+        if new_decoded == decoded:
+            break
+        decoded = new_decoded
+    target = decoded
+
     # Strip whitespace and normalize backslashes to forward slashes (Security hardening)
     target = target.strip().replace('\\', '/')
 

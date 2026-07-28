@@ -95,6 +95,37 @@ def test_open_redirect_bypass_attempts(client):
         assert not response.headers['Location'].startswith('//malicious.com')
         assert not response.headers['Location'].startswith('\\malicious.com')
 
+def test_open_redirect_encoded_bypass_attempts(client):
+    """Verifies that URL-encoded redirect targets are decoded and validated correctly."""
+    # Register a user first
+    client.post('/registro', data={
+        'nombre': 'Encoded User',
+        'email': 'encoded_bypass@example.com',
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
+    })
+    client.post('/logout')
+
+    # Test URL-encoded bypass attempts
+    encoded_bypasses = [
+        '%2f%2fmalicious.com',
+        '%5c%5cmalicious.com',
+        '%2f%2f%2fmalicious.com',
+        '%5c%2f%2fmalicious.com',
+        '//%2fmalicious.com'
+    ]
+
+    for target in encoded_bypasses:
+        response = client.post(f'/login?next={target}', data={
+            'email': 'encoded_bypass@example.com',
+            'password': 'SecurePass123!'
+        })
+        assert response.status_code == 302
+        assert not response.headers['Location'].startswith('http://malicious.com')
+        assert not response.headers['Location'].startswith('https://malicious.com')
+        assert not response.headers['Location'].startswith('//malicious.com')
+        assert not response.headers['Location'].startswith('\\malicious.com')
+
 def test_forgot_password_manual_token_enumeration(client):
     app = client.application
     app.config['SHOW_RESET_DEBUG_TOKEN'] = False
