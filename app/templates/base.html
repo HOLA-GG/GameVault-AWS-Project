@@ -664,6 +664,7 @@
             setupRelativeTimes();
             setupFlashMessages();
             setupSelectOnFocus();
+            setupDirtyFormTracker();
             document.querySelectorAll('input[type="password"]').forEach(i => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'pw-field-wrapper';
@@ -690,6 +691,57 @@
                 };
             });
 
+        // Unsaved changes dirty form tracker
+        let isSubmitting = false;
+
+        function setupDirtyFormTracker() {
+            // Track initial values of select elements, since select does not have a default value attribute
+            document.querySelectorAll('form select').forEach(select => {
+                select.dataset.initialValue = select.value;
+            });
+
+            window.addEventListener('beforeunload', function(event) {
+                if (isSubmitting) return;
+
+                let isDirty = false;
+                document.querySelectorAll('form').forEach(form => {
+                    if (form.id === 'clearLogsForm') return; // Ignore clear logs form
+
+                    form.querySelectorAll('input, textarea, select').forEach(el => {
+                        if (el.type === 'hidden' || el.type === 'search' || el.type === 'file' || el.type === 'submit' || el.type === 'button') {
+                            return;
+                        }
+                        if (el.tagName === 'SELECT') {
+                            if (el.value !== el.dataset.initialValue) {
+                                isDirty = true;
+                            }
+                        } else if (el.type === 'checkbox' || el.type === 'radio') {
+                            if (el.checked !== el.defaultChecked) {
+                                isDirty = true;
+                            }
+                        } else {
+                            if (el.value !== el.defaultValue) {
+                                isDirty = true;
+                            }
+                        }
+                    });
+                });
+
+                if (isDirty) {
+                    event.preventDefault();
+                    event.returnValue = 'Tienes cambios sin guardar. ¿Seguro que deseas salir?';
+                    return event.returnValue;
+                }
+            });
+
+            // Prevent warnings during programmatic form.submit()
+            const originalSubmit = HTMLFormElement.prototype.submit;
+            HTMLFormElement.prototype.submit = function() {
+                isSubmitting = true;
+                originalSubmit.apply(this, arguments);
+            };
+        }
+
             document.addEventListener('submit', function(event) {
                 const form = event.target;
                 if (event.defaultPrevented || !form || (form.checkValidity && !form.checkValidity())) return;
@@ -700,6 +752,8 @@
                     event.preventDefault();
                     return;
                 }
+
+            isSubmitting = true;
 
                 const button = form.querySelector('button[type="submit"]:not([disabled])');
                 if (!button) return;
