@@ -42,3 +42,13 @@ def test_copy_tooltip_delegation_rendered(client):
 
     assert "document.addEventListener('mouseover', syncCopyTooltip);" in html
     assert "document.addEventListener('focusin', syncCopyTooltip);" in html
+
+
+def test_dirty_form_tracker_rendered(client):
+    """Verify that the dirty form tracker and its initialization are rendered on the page."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "function setupDirtyFormTracker()" in html
+    assert "setupDirtyFormTracker();" in html
