@@ -740,11 +740,14 @@ def filter_and_sort_games(juegos, filters):
                     t_low = (juego.get('titulo') or '').lower()
                     d_low = (juego.get('descripcion') or '').lower()
 
+                # Bolt Optimization: Prioritize checking 'titulo_lower' (t_low) and 'descripcion_lower' (d_low)
+                # first as users almost always search by title or description rather than platform or status.
+                # This maximizes short-circuiting on matching items, avoiding redundant substring searches.
                 if not (
-                    query in p_low or
-                    query in e_low or
                     query in t_low or
-                    query in d_low
+                    query in d_low or
+                    query in p_low or
+                    query in e_low
                 ):
                     continue
 
