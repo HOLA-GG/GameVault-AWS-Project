@@ -52,3 +52,21 @@ def test_dirty_form_tracker_rendered(client):
 
     assert "function setupDirtyFormTracker()" in html
     assert "setupDirtyFormTracker();" in html
+
+
+def test_shortcuts_group_and_listener_rendered(client):
+    """Verify that the Keyboard Shortcuts section and the '?' keydown listener are properly rendered in base.html."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check for shortcuts group header and items
+    assert 'id="shortcutsGroup"' in html
+    assert 'id="shortcutsLabel"' in html
+    assert 'Atajos de teclado' in html
+    assert '<kbd>Alt + A</kbd>' in html
+    assert '<kbd>?</kbd>' in html
+
+    # Check for the keydown handler registering the '?' and 'Help' key
+    assert "event.key === '?' || event.key === 'Help'" in html
+    assert "announceToScreenReader('Ayuda de atajos de teclado abierta');" in html

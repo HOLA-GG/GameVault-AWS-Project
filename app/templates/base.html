@@ -79,6 +79,32 @@
                 </div>
             </div>
 
+            <div class="accessibility-group" id="shortcutsGroup">
+                <span class="accessibility-label" id="shortcutsLabel" tabindex="-1" style="outline: none;">Atajos de teclado</span>
+                <div class="accessibility-shortcuts" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Abrir herramientas</span>
+                        <kbd>Alt + A</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Buscar en colección</span>
+                        <kbd>/</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Enfocar nuevo juego</span>
+                        <kbd>N</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Ver ayuda de atajos</span>
+                        <kbd>?</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Cerrar paneles</span>
+                        <kbd>Esc</kbd>
+                    </div>
+                </div>
+            </div>
+
             <div class="accessibility-group" style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px;">
                 <button type="button" class="accessibility-chip" id="accessibilityReset" style="width: 100%; justify-content: center; display: flex; gap: 8px;" aria-label="Restablecer ajustes de accesibilidad a los valores predeterminados" title="Restablecer ajustes">
                     <span aria-hidden="true">🔄</span> Restablecer ajustes
@@ -598,6 +624,11 @@
                             titleInput.select();
                             announceToScreenReader('Formulario de agregar nuevo juego enfocado');
                         }
+                    } else if (event.key === '?' || event.key === 'Help') {
+                        event.preventDefault();
+                        toggleAccessibilityPanel(true);
+                        document.getElementById('shortcutsLabel')?.focus();
+                        announceToScreenReader('Ayuda de atajos de teclado abierta');
                     }
                 }
             });
