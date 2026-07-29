@@ -256,8 +256,15 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
     if storage_backend == 'none':
         return False
     if storage_backend == 'local':
+        # Decode URL-encoded characters completely to prevent double/nested-encoding bypasses (Security hardening)
+        decoded = image_url
+        for _ in range(5):
+            new_decoded = unquote(decoded)
+            if new_decoded == decoded:
+                break
+            decoded = new_decoded
         # Normalize to prevent bypasses via backslashes, encoding, or multiple slashes
-        target = unquote(image_url).replace('\\', '/')
+        target = decoded.replace('\\', '/')
         if target.startswith('//'):
             return False
 
@@ -273,8 +280,15 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
         return norm_with_slash.startswith(prefix)
 
     parsed = urlparse(image_url)
+    # Decode URL-encoded characters completely to prevent double/nested-encoding bypasses (Security hardening)
+    decoded = parsed.path
+    for _ in range(5):
+        new_decoded = unquote(decoded)
+        if new_decoded == decoded:
+            break
+        decoded = new_decoded
     # Normalize to prevent bypasses via backslashes, encoding, or multiple slashes (Security hardening)
-    path = unquote(parsed.path).replace('\\', '/').lstrip('/')
+    path = decoded.replace('\\', '/').lstrip('/')
     # os.path.normpath collapses redundancies like '..' and '.' (Security hardening)
     normalized_path = os.path.normpath(path).replace('\\', '/')
 

@@ -970,8 +970,15 @@ def obtener_key_desde_url(imagen_url):
         return None
     try:
         parsed = urlparse(imagen_url)
+        # Decode URL-encoded characters completely to prevent double/nested-encoding bypasses (Security hardening)
+        decoded = parsed.path
+        for _ in range(5):
+            new_decoded = unquote(decoded)
+            if new_decoded == decoded:
+                break
+            decoded = new_decoded
         # Normalize to prevent bypasses via backslashes, encoding, or multiple slashes (Security hardening)
-        path = unquote(parsed.path).replace('\\', '/').lstrip('/')
+        path = decoded.replace('\\', '/').lstrip('/')
         # os.path.normpath collapses redundancies like '..' and '.' (Security hardening)
         normalized_path = os.path.normpath(path).replace('\\', '/')
 
