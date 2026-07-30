@@ -167,3 +167,7 @@
 ## 2026-08-15 - Consolidating Categorical Dominants in-Memory
 **Learning:** Performing three separate database queries to calculate the dominant values of multiple categorical columns (like platforms, statuses, and categories) creates redundant database round-trips. Consolidating them into a single `GROUP BY` query over all columns and performing the frequency aggregation in-memory in Python reduces database latency and round-trips from 3 to 1.
 **Action:** Consolidate multiple independent categorical grouping/dominant queries into a single combined `GROUP BY` query and aggregate counts in-memory in Python when processing datasets of reasonable size.
+
+## 2026-08-20 - Deduplicating IN-List Identifiers
+**Learning:** Querying a database with duplicate parameters inside an SQL `IN` expression lists causes the query compilation/optimizer plans to be slightly larger and compile slower, while forcing the DB engine to perform redundant identifier matching comparisons per row. Deduplicating lists of IDs (using `list(dict.fromkeys(ids))`) prior to query building keeps SQL strings minimal and maximizes query plan cache hit rates.
+**Action:** Always deduplicate sequence inputs in bulk select-in fetching routines before passing them to SQLAlchemy's `.in_()` constructs.
