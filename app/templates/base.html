@@ -503,6 +503,21 @@
             confirmInput.addEventListener('input', checkMatch);
         }
 
+        function setupDragAndDropFeedback() {
+            document.querySelectorAll('input[type="file"]').forEach(input => {
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    input.addEventListener(eventName, function() {
+                        input.classList.add('is-dragover');
+                    }, false);
+                });
+                ['dragleave', 'drop'].forEach(eventName => {
+                    input.addEventListener(eventName, function() {
+                        input.classList.remove('is-dragover');
+                    }, false);
+                });
+            });
+        }
+
         function setupSelectOnFocus() {
             document.querySelectorAll('.select-on-focus').forEach(el => {
                 el.addEventListener('focus', function() {
@@ -696,6 +711,7 @@
             setupFlashMessages();
             setupSelectOnFocus();
             setupDirtyFormTracker();
+            setupDragAndDropFeedback();
             document.querySelectorAll('input[type="password"]').forEach(i => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'pw-field-wrapper';

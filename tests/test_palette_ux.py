@@ -70,3 +70,19 @@ def test_shortcuts_group_and_listener_rendered(client):
     # Check for the keydown handler registering the '?' and 'Help' key
     assert "event.key === '?' || event.key === 'Help'" in html
     assert "announceToScreenReader('Ayuda de atajos de teclado abierta');" in html
+
+
+def test_drag_and_drop_feedback_rendered(client):
+    """Verify that the drag-and-drop feedback helper and CSS rules are rendered."""
+    # Check base.html contains the helper function
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'function setupDragAndDropFeedback()' in html
+    assert 'setupDragAndDropFeedback();' in html
+
+    # Check styles.css contains the dragover styles
+    response_css = client.get('/static/css/styles.css')
+    assert response_css.status_code == 200
+    css = response_css.get_data(as_text=True)
+    assert 'input[type="file"].is-dragover' in css
