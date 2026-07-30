@@ -879,6 +879,12 @@ header p {
     background: rgba(233, 69, 96, 0.1);
 }
 
+.form-group input[type="file"].is-dragover {
+    border-color: var(--electric-color) !important;
+    background: rgba(var(--primary-color-rgb), 0.12) !important;
+    box-shadow: var(--shadow-electric) !important;
+}
+
 .form-group textarea {
     resize: none;
     min-height: 100px;
