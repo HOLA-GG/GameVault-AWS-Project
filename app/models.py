@@ -1649,7 +1649,9 @@ def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, An
     """Obtiene múltiples usuarios por IDs (Optimización Bolt: bypass ORM hydration)."""
     if not user_ids:
         return []
-    user_ids = list(user_ids)
+    # Bolt Optimization: Remove duplicate IDs to keep SQL 'IN' expressions minimal
+    # and improve query cache hit rate / execution plan efficiency.
+    user_ids = list(dict.fromkeys(user_ids))
     if len(user_ids) > 1000:
         user_ids = user_ids[:1000]
     format_dates = kwargs.get('format_dates', True)
@@ -1892,7 +1894,9 @@ def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[
     """Obtiene valoraciones para múltiples IDs en una sola consulta (evita N+1)."""
     if not subject_ids:
         return {}
-    subject_ids = list(subject_ids)
+    # Bolt Optimization: Remove duplicate IDs to keep SQL 'IN' expressions minimal
+    # and improve query cache hit rate / execution plan efficiency.
+    subject_ids = list(dict.fromkeys(subject_ids))
     if len(subject_ids) > 1000:
         subject_ids = subject_ids[:1000]
 
