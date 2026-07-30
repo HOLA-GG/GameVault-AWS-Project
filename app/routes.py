@@ -250,7 +250,7 @@ def require_admin(view):
 
 def is_valid_presigned_image_url(image_url: str) -> bool:
     """Acepta solo URLs del backend de storage configurado para evitar referencias arbitrarias."""
-    if not image_url:
+    if not image_url or len(image_url) > 2048:
         return False
     storage_backend = current_app.config.get('STORAGE_BACKEND')
     if storage_backend == 'none':

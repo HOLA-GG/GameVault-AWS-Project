@@ -395,6 +395,14 @@ def create_app() -> Flask:
         )
         return (html_content, 500)
 
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        """Releases database connections back to the pool to prevent resource exhaustion (DoS)."""
+        from app.models import get_session_factory
+        session_factory = get_session_factory()
+        if session_factory:
+            session_factory.remove()
+
     from app.models import ensure_bootstrap_admin, init_database
     from app.routes import main_bp
 
