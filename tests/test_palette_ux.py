@@ -86,3 +86,15 @@ def test_drag_and_drop_feedback_rendered(client):
     assert response_css.status_code == 200
     css = response_css.get_data(as_text=True)
     assert 'input[type="file"].is-dragover' in css
+
+
+def test_active_dismiss_multiplier_badge_rendered(client):
+    """Verify that the active game badges render the dismiss multiplier symbol (times/x)."""
+    login_session(client)
+    # Get the dashboard with filters enabled
+    response = client.get('/dashboard?plataforma=PC&estado=Nuevo&categoria=Biblioteca&favoritos=solo')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # When filters are active, the active badges should render "&times;" or "×" to indicate they can be dismissed
+    assert '&times;' in html
