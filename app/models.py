@@ -1724,7 +1724,8 @@ def obtener_resumenes_colecciones(
 
     with session_factory() as session:
         # Bolt Optimization: Consolidate scalar correlated subqueries into joined grouped subqueries.
-        # This reduces correlated subqueries from 7 to 1, greatly accelerating DB-level aggregations
+        # This reduces correlated subqueries to zero by pre-computing dominant platforms
+        # with a window-function-based subquery, greatly accelerating DB-level aggregations
         # and reducing execution overhead as the collection and user base grow.
         metrics_sub = (
             select(
@@ -1749,14 +1750,25 @@ def obtener_resumenes_colecciones(
             .subquery()
         )
 
+        # Pre-compute the platform counts and rank them per user using a window function
+        platform_counts_cte = (
+            select(
+                Game.user_id,
+                Game.plataforma,
+                func.row_number().over(
+                    partition_by=Game.user_id,
+                    order_by=func.count(Game.game_id).desc()
+                ).label('rn')
+            )
+            .group_by(Game.user_id, Game.plataforma)
+            .cte('platform_counts')
+        )
+
+        # Filter to only the top ranked platform per user
         dominant_platform_sub = (
-            select(Game.plataforma)
-            .where(Game.user_id == User.user_id)
-            .group_by(Game.plataforma)
-            .order_by(func.count(Game.game_id).desc())
-            .limit(1)
-            .correlate(User)
-            .scalar_subquery()
+            select(platform_counts_cte.c.user_id, platform_counts_cte.c.plataforma)
+            .where(platform_counts_cte.c.rn == 1)
+            .subquery()
         )
 
         query = select(
@@ -1769,13 +1781,15 @@ def obtener_resumenes_colecciones(
             func.coalesce(metrics_sub.c.favorites_count, 0).label('favorites_count'),
             metrics_sub.c.average_rating.label('average_rating'),
             metrics_sub.c.last_updated_at.label('last_updated_at'),
-            func.coalesce(dominant_platform_sub, 'Sin juegos').label('dominant_platform'),
+            func.coalesce(dominant_platform_sub.c.plataforma, 'Sin juegos').label('dominant_platform'),
             ratings_sub.c.showcase_rating_average.label('showcase_rating_average'),
             func.coalesce(ratings_sub.c.showcase_votes_count, 0).label('showcase_votes_count'),
         ).outerjoin(
             metrics_sub, User.user_id == metrics_sub.c.user_id
         ).outerjoin(
             ratings_sub, User.user_id == ratings_sub.c.subject_id
+        ).outerjoin(
+            dominant_platform_sub, User.user_id == dominant_platform_sub.c.user_id
         )
 
         if homepage_only:
