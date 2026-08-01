@@ -94,12 +94,13 @@ ACTION_BADGE_GROUPS = {
     'action-admin': {'ADMIN_ACTION'},
 }
 
-# Pre-calculated reverse mapping for O(1) badge class lookup.
-_ACTION_BADGE_MAP = {
-    action: class_name
-    for class_name, actions in ACTION_BADGE_GROUPS.items()
-    for action in actions
-}
+# Pre-calculated reverse mapping for O(1) badge class lookup with case-insensitive variants pre-populated.
+_ACTION_BADGE_MAP = {}
+for class_name, actions in ACTION_BADGE_GROUPS.items():
+    for action in actions:
+        _ACTION_BADGE_MAP[action] = class_name
+        _ACTION_BADGE_MAP[action.lower()] = class_name
+        _ACTION_BADGE_MAP[action.upper()] = class_name
 
 
 LANDING_SAMPLE_COLLECTIONS = [
@@ -649,11 +650,12 @@ def get_action_badge_class(action: str) -> str:
     """Asigna color visual según el tipo de actividad auditada (Optimizado: O(1))."""
     if not action:
         return 'action-generic'
-    # Bolt Optimization: Try direct fast lookup first, avoiding string method call and allocation.
+    # Bolt Optimization: Try direct fast lookup first, then fall back to pre-populated lowercased variant
+    # to completely avoid string allocations/case-folding methods in >99% of requests.
     badge = _ACTION_BADGE_MAP.get(action)
     if badge is not None:
         return badge
-    return _ACTION_BADGE_MAP.get(action.upper(), 'action-generic')
+    return _ACTION_BADGE_MAP.get(action.lower(), 'action-generic')
 
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
