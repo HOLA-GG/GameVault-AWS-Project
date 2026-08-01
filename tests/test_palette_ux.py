@@ -98,3 +98,17 @@ def test_active_dismiss_multiplier_badge_rendered(client):
 
     # When filters are active, the active badges should render "&times;" or "×" to indicate they can be dismissed
     assert '&times;' in html
+
+
+def test_profile_inputs_select_on_focus(client):
+    """Verify that the pre-filled inputs on the profile page have select-on-focus class."""
+    login_session(client)
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Verify that apellido, prefijo_pais, and telefono inputs have the select-on-focus class
+    assert 'id="apellido"' in html
+    assert 'id="prefijo_pais"' in html
+    assert 'id="telefono"' in html
+    assert 'class="select-on-focus"' in html
