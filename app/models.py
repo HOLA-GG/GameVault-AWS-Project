@@ -435,8 +435,9 @@ def user_to_dict(user: User | None, format_dates: bool = True) -> Optional[Dict[
 
 def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de User a un diccionario (Optimización Bolt)."""
-    # Bolt Optimization: Use _mapping dictionary view of Row when available to avoid expensive getattr/AttributeError overhead.
-    if hasattr(row, '_mapping'):
+    # Bolt Optimization: Use EAFP pattern (try-except) to access _mapping dictionary view of Row
+    # when available to avoid expensive hasattr() and getattr/AttributeError overhead.
+    try:
         m = row._mapping
         _MIN_DATE = MIN_DATE
         cre = m.get('created_at', _MIN_DATE) or _MIN_DATE
@@ -462,6 +463,8 @@ def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
             'created_at': cre,
             'updated_at': upd,
         }
+    except AttributeError:
+        pass
 
     _MIN_DATE = MIN_DATE
     cre = getattr(row, 'created_at', _MIN_DATE) or _MIN_DATE
@@ -498,8 +501,9 @@ def game_to_dict(game: Game | None, format_dates: bool = True) -> Optional[Dict[
 
 def _game_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de Game a un diccionario (Optimización Bolt)."""
-    # Bolt Optimization: Use _mapping dictionary view of Row when available to avoid expensive getattr/AttributeError overhead.
-    if hasattr(row, '_mapping'):
+    # Bolt Optimization: Use EAFP pattern (try-except) to access _mapping dictionary view of Row
+    # when available to avoid expensive hasattr() and getattr/AttributeError overhead.
+    try:
         m = row._mapping
         _MIN_DATE = MIN_DATE
         cre = m.get('created_at') or _MIN_DATE
@@ -534,6 +538,8 @@ def _game_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
             'created_at': cre,
             'updated_at': upd,
         }
+    except AttributeError:
+        pass
 
     # Centralized normalization to UTC-aware datetimes for consistency.
     _MIN_DATE = MIN_DATE
@@ -726,8 +732,9 @@ def audit_log_to_dict(item: AuditLog | None, format_dates: bool = True) -> Optio
 
 def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de AuditLog a un diccionario (Optimización Bolt)."""
-    # Bolt Optimization: Use _mapping dictionary view of Row when available to avoid expensive getattr/AttributeError overhead.
-    if hasattr(row, '_mapping'):
+    # Bolt Optimization: Use EAFP pattern (try-except) to access _mapping dictionary view of Row
+    # when available to avoid expensive hasattr() and getattr/AttributeError overhead.
+    try:
         m = row._mapping
         ts = m.get('timestamp', MIN_DATE) or MIN_DATE
         if ts.tzinfo is None:
@@ -748,6 +755,8 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
             'details': m.get('details', {}) or {},
             'status': m.get('status', 'SUCCESS'),
         }
+    except AttributeError:
+        pass
 
     ts = getattr(row, 'timestamp', MIN_DATE) or MIN_DATE
     if ts.tzinfo is None:
