@@ -66,17 +66,17 @@
             </div>
             <div class="form-group">
                 <label for="apellido">Apellidos</label>
-                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" maxlength="120">
+                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" maxlength="120" class="select-on-focus">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="prefijo_pais">Prefijo país</label>
-                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10">
+                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10" class="select-on-focus">
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567" maxlength="20">
+                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567" maxlength="20" class="select-on-focus">
             </div>
         </div>
         <div class="form-group">
