@@ -1742,42 +1742,54 @@ def obtener_resumenes_colecciones(
         # This reduces correlated subqueries to zero by pre-computing dominant platforms
         # with a window-function-based subquery, greatly accelerating DB-level aggregations
         # and reducing execution overhead as the collection and user base grow.
-        metrics_sub = (
-            select(
-                Game.user_id,
-                func.count(Game.game_id).label('total_games'),
-                func.coalesce(func.sum(case((Game.es_favorito.is_(True), 1), else_=0)), 0).label('favorites_count'),
-                func.avg(Game.calificacion).label('average_rating'),
-                func.max(Game.updated_at).label('last_updated_at')
-            )
-            .group_by(Game.user_id)
-            .subquery()
-        )
+        # Bolt Optimization: Push the active filters down into the subqueries.
+        # By joining User in the subqueries and applying visibility/homepage-only filters,
+        # we prevent the database engine from executing full-table scans or groupings.
+        # It only aggregates games and ratings for the specific subset of matching users.
+        metrics_query = select(
+            Game.user_id,
+            func.count(Game.game_id).label('total_games'),
+            func.coalesce(func.sum(case((Game.es_favorito.is_(True), 1), else_=0)), 0).label('favorites_count'),
+            func.avg(Game.calificacion).label('average_rating'),
+            func.max(Game.updated_at).label('last_updated_at')
+        ).join(User, Game.user_id == User.user_id)
 
-        ratings_sub = (
-            select(
-                ShowcaseRating.subject_id,
-                func.avg(ShowcaseRating.rating).label('showcase_rating_average'),
-                func.count(ShowcaseRating.rating).label('showcase_votes_count')
-            )
-            .where(ShowcaseRating.subject_type == 'public')
-            .group_by(ShowcaseRating.subject_id)
-            .subquery()
-        )
+        if homepage_only:
+            metrics_query = metrics_query.where(User.homepage_showcase_opt_in.is_(True))
+        if visibility:
+            metrics_query = metrics_query.where(User.collection_visibility == visibility)
+
+        metrics_sub = metrics_query.group_by(Game.user_id).subquery()
+
+        ratings_query = select(
+            ShowcaseRating.subject_id,
+            func.avg(ShowcaseRating.rating).label('showcase_rating_average'),
+            func.count(ShowcaseRating.rating).label('showcase_votes_count')
+        ).where(ShowcaseRating.subject_type == 'public').join(User, ShowcaseRating.subject_id == User.user_id)
+
+        if homepage_only:
+            ratings_query = ratings_query.where(User.homepage_showcase_opt_in.is_(True))
+        if visibility:
+            ratings_query = ratings_query.where(User.collection_visibility == visibility)
+
+        ratings_sub = ratings_query.group_by(ShowcaseRating.subject_id).subquery()
 
         # Pre-compute the platform counts and rank them per user using a window function
-        platform_counts_cte = (
-            select(
-                Game.user_id,
-                Game.plataforma,
-                func.row_number().over(
-                    partition_by=Game.user_id,
-                    order_by=func.count(Game.game_id).desc()
-                ).label('rn')
-            )
-            .group_by(Game.user_id, Game.plataforma)
-            .cte('platform_counts')
-        )
+        platform_counts_query = select(
+            Game.user_id,
+            Game.plataforma,
+            func.row_number().over(
+                partition_by=Game.user_id,
+                order_by=func.count(Game.game_id).desc()
+            ).label('rn')
+        ).join(User, Game.user_id == User.user_id)
+
+        if homepage_only:
+            platform_counts_query = platform_counts_query.where(User.homepage_showcase_opt_in.is_(True))
+        if visibility:
+            platform_counts_query = platform_counts_query.where(User.collection_visibility == visibility)
+
+        platform_counts_cte = platform_counts_query.group_by(Game.user_id, Game.plataforma).cte('platform_counts')
 
         # Filter to only the top ranked platform per user
         dominant_platform_sub = (

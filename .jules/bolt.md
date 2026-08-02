@@ -1,3 +1,7 @@
+## 2026-08-26 - Pushing Active Filter Clauses into Grouped Subqueries/CTEs
+**Learning:** Performing databaseaggregates via grouped subqueries/CTEs (like metrics or counts) over an entire database table (`Game`, `ShowcaseRating`) is a major database bottleneck as the application scales. Outer joining these subqueries with the `User` table to apply filters subsequently forces full-table scans/groupings. Pushing active filtering clauses (like `visibility` or `homepage_only`) directly inside the subqueries' `join` and `where` definitions reduces the dataset prior to aggregation, restricting work only to users matching the criteria and transforming O(N) database aggregate scans to O(M) where M is the matching user size.
+**Action:** Always push parent filtering constraints directly down into nested subqueries/CTEs when performing grouped aggregates on heavily populated tables.
+
 ## 2026-08-25 - EAFP Pattern vs hasattr() in Row-to-Dict Helpers
 **Learning:** Checking `hasattr(row, '_mapping')` inside high-frequency row-to-dictionary converters (like `_user_row_to_dict`, `_game_row_to_dict`, and `_audit_log_row_to_dict`) is relatively slow in Python. Transitioning to an EAFP (Easier to Ask for Forgiveness than Permission) pattern using a simple `try-except AttributeError` block yields a ~35% speedup when SQLAlchemy Row objects (which have `_mapping`) are processed.
 **Action:** Prefer try-except blocks over conditional attributes/hasattr checks on hot paths where mapping attributes are normally expected.
