@@ -318,6 +318,14 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
     return parsed.scheme == 'https' and parsed.netloc == expected_host and normalized_path.startswith('covers/')
 
 
+def is_valid_id(val: str | None) -> bool:
+    """Valida que un ID (game_id o user_id) tenga una estructura y longitud seguras."""
+    if not val:
+        return False
+    s = str(val)
+    return len(s) <= 36 and all(c.isalnum() or c in '-_' for c in s)
+
+
 def is_safe_url(target: str) -> bool:
     """Valida que una URL sea segura para redirección (misma host o relativa)."""
     if not target:
@@ -1012,12 +1020,12 @@ def dashboard():
     user_id = session['user_id']
 
     filters = {
-        'q': request.args.get('q', ''),
-        'plataforma': request.args.get('plataforma', ''),
-        'estado': request.args.get('estado', ''),
-        'categoria': request.args.get('categoria', ''),
-        'favoritos': request.args.get('favoritos', ''),
-        'sort': request.args.get('sort', 'updated_desc'),
+        'q': request.args.get('q', '').strip()[:100],
+        'plataforma': request.args.get('plataforma', '').strip()[:100],
+        'estado': request.args.get('estado', '').strip()[:100],
+        'categoria': request.args.get('categoria', '').strip()[:100],
+        'favoritos': request.args.get('favoritos', '').strip()[:50],
+        'sort': request.args.get('sort', 'updated_desc').strip()[:50],
     }
     page = request.args.get('page', 1, type=int)
 
@@ -1200,6 +1208,10 @@ def agregar_juego():
 @limiter.limit('10 per minute')
 def eliminar_juego_ruta(game_id):
     """Elimina un juego del usuario autenticado."""
+    if not is_valid_id(game_id):
+        flash('Juego no encontrado o sin permisos.', 'error')
+        return redirect(url_for('main.dashboard'))
+
     user_id = session['user_id']
     juego = obtener_juego_por_id(user_id, game_id)
     if juego is None:
@@ -1238,6 +1250,10 @@ def eliminar_juego_ruta(game_id):
 @limiter.limit('10 per minute', methods=['POST'])
 def editar_juego_ruta(game_id):
     """Edita un juego existente."""
+    if not is_valid_id(game_id):
+        flash('Juego no encontrado o sin permisos.', 'error')
+        return redirect(url_for('main.dashboard'))
+
     user_id = session['user_id']
     juego = obtener_juego_por_id(user_id, game_id)
     if juego is None:
@@ -2054,6 +2070,10 @@ def admin_collections():
 @limiter.limit('10 per minute')
 def admin_eliminar_usuario(user_id):
     """Elimina un usuario salvo al propio admin actual y otros administradores."""
+    if not is_valid_id(user_id):
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('main.admin_panel'))
+
     if session.get('user_id') == user_id:
         flash('No puedes eliminar tu propia cuenta desde el panel.', 'error')
         return redirect(url_for('main.admin_panel'))
@@ -2105,6 +2125,10 @@ def admin_eliminar_usuario(user_id):
 @limiter.limit('10 per minute')
 def admin_editar_usuario(user_id):
     """Edita el nombre principal de un usuario."""
+    if not is_valid_id(user_id):
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('main.admin_panel'))
+
     # Prevent administrators from editing other admins to avoid privilege abuse and impersonation (Security hardening)
     target_user = obtener_usuario_por_id(user_id, format_dates=False)
     if target_user and target_user.get('role') == 'admin':
@@ -2205,6 +2229,9 @@ def admin_logs():
             group['latest_timestamp'] = group['items'][0]['timestamp']
 
     selected_user_id = request.args.get('selected_user_id', '').strip()
+    if selected_user_id and selected_user_id != 'system' and not is_valid_id(selected_user_id):
+        selected_user_id = ''
+
     selected_group = None
     if pagination['items']:
         selected_group = next(
