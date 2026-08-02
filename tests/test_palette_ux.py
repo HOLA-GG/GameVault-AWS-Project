@@ -112,3 +112,15 @@ def test_profile_inputs_select_on_focus(client):
     assert 'id="prefijo_pais"' in html
     assert 'id="telefono"' in html
     assert 'class="select-on-focus"' in html
+
+
+def test_scroll_to_top_rendered(client):
+    """Verify that the Scroll to Top button and its JS initializer are rendered on the page."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="scrollToTopBtn"' in html
+    assert 'aria-label="Volver arriba"' in html
+    assert 'function setupScrollToTop()' in html
+    assert 'setupScrollToTop();' in html
