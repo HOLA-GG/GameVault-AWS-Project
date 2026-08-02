@@ -222,3 +222,8 @@
 **Vulnerability:** Risk of database connection pool leaks causing availability disruption / DoS, and CPU-exhaustion when parsing extremely large image URL strings.
 **Learning:** Custom SQLAlchemy scoped sessions without explicit teardown registrations in Flask apps can leak active database connections. Additionally, allowing unbounded input URL lengths can lead to high resource consumption during regex/unquote parsing.
 **Prevention:** Always register a `@app.teardown_appcontext` hook calling `.remove()` on SQLAlchemy scoped session factories to cleanly return connections back to the pool. Enforce strict character limits (e.g., 2048) on incoming URL values.
+
+## 2026-08-22 - Prevent Resource Exhaustion via ID Validation and Query Bounding
+**Vulnerability:** CPU and database query exhaustion/Denial of Service (DoS) via unbounded, malformed, or extremely large route and query parameters (such as `game_id`, `user_id`, or `q` search terms).
+**Learning:** Route path parameters (like `<game_id>`) can receive arbitrary-length strings which are directly passed to database indexes and filters, resulting in overhead. Similarly, unbounded search query strings (`q`) can trigger expensive substring search loops in Python on hot dashboard rendering paths.
+**Prevention:** Enforce strict alphanumeric and character-length (maximum 36 characters) constraints on all resource identifiers at the route layer. Implement strict character-length limits (e.g., 100 characters max) on all user-controlled search/filter query parameters before executing comparison or sorting loops.
