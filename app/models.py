@@ -272,10 +272,16 @@ def get_engine():
             kwargs['poolclass'] = StaticPool
     else:
         # Optimizaciones para Neon Postgres en Render
-        kwargs['pool_size'] = int(os.environ.get('DB_POOL_SIZE', 5))
-        kwargs['max_overflow'] = int(os.environ.get('DB_MAX_OVERFLOW', 10))
-        kwargs['pool_recycle'] = int(os.environ.get('DB_POOL_RECYCLE', 280))
-        kwargs['pool_timeout'] = int(os.environ.get('DB_POOL_TIMEOUT', 30))
+        # Si la URL contiene '-pooler' o se configura DB_USE_NULLPOOL=true, usamos NullPool para delegar el pooling a Neon (PgBouncer)
+        use_nullpool = os.environ.get('DB_USE_NULLPOOL', 'false').strip().lower() in {'1', 'true', 'yes', 'on'} or '-pooler' in DATABASE_URL
+        if use_nullpool:
+            from sqlalchemy.pool import NullPool
+            kwargs['poolclass'] = NullPool
+        else:
+            kwargs['pool_size'] = int(os.environ.get('DB_POOL_SIZE', 5))
+            kwargs['max_overflow'] = int(os.environ.get('DB_MAX_OVERFLOW', 10))
+            kwargs['pool_recycle'] = int(os.environ.get('DB_POOL_RECYCLE', 280))
+            kwargs['pool_timeout'] = int(os.environ.get('DB_POOL_TIMEOUT', 30))
 
     _engine = create_engine(DATABASE_URL, **kwargs)
     return _engine
