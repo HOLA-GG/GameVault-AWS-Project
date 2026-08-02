@@ -10,6 +10,20 @@
 <body>
     <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
+    <!-- Botón Volver arriba (Scroll to Top) -->
+    <button
+        type="button"
+        class="scroll-to-top"
+        id="scrollToTopBtn"
+        aria-label="Volver arriba"
+        title="Volver arriba"
+        hidden
+    >
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="scroll-to-top-icon">
+            <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+        </svg>
+    </button>
+
     <div class="accessibility-fab" data-position="bottom-right">
         <button
             type="button"
@@ -712,6 +726,7 @@
             setupSelectOnFocus();
             setupDirtyFormTracker();
             setupDragAndDropFeedback();
+            setupScrollToTop();
             document.querySelectorAll('input[type="password"]').forEach(i => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'pw-field-wrapper';
@@ -737,6 +752,43 @@
                     announceToScreenReader(isPassword ? 'Contraseña visible' : 'Contraseña oculta');
                 };
             });
+
+        // Botón Volver arriba (Scroll to Top)
+        function setupScrollToTop() {
+            const btn = document.getElementById('scrollToTopBtn');
+            if (!btn) return;
+
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 300) {
+                    btn.hidden = false;
+                    btn.classList.add('is-visible');
+                } else {
+                    btn.classList.remove('is-visible');
+                    // Delay setting hidden to allow fade-out transition to complete
+                    setTimeout(() => {
+                        if (window.scrollY <= 300) {
+                            btn.hidden = true;
+                        }
+                    }, 200);
+                }
+            });
+
+            btn.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+
+                // Keyboard accessibility: return focus to the main content container
+                const mainContent = document.getElementById('main-content');
+                if (mainContent) {
+                    mainContent.focus();
+                }
+
+                // Programmatic ARIA live announcement
+                announceToScreenReader('Pantalla desplazada al inicio');
+            });
+        }
 
         // Unsaved changes dirty form tracker
         let isSubmitting = false;
