@@ -53,3 +53,7 @@
 ## 2026-07-30 - Interactive Drag & Drop Visual Affordance
 **Learning:** Dashed borders on file input components are standard signifiers for drag-and-drop support, but without active state transitions during the drag interaction, users cannot be certain the drop action is recognized. Toggling a stateful class (e.g., `is-dragover`) via global event listeners and styling it with high-contrast glowing shadows or distinct colors provides immediate, high-fidelity visual affirmation.
 **Action:** Always register stateful drag/drop event listeners on file inputs to provide immediate state feedback, styling the active hover zone using theme-consistent CSS variables (such as glowing shadows or color shifts) to boost delight and clarity.
+
+## 2026-08-03 - Unified Dismissible Active Filters Row
+**Learning:** Having active filters scattered across dynamic elements (such as game cards) creates an accessibility and interaction dead-end: if a search returns 0 results, those dynamic elements are not rendered, preventing users from seeing or dismissing individual filters. Implementing a centralized, static active-filters row above the results area solves this dead-end, provides clear visual status, and empowers keyboard and screen-reader users to refine their state step-by-step.
+**Action:** Always provide a centralized summary of active search/filter states near the results count, ensuring individual dismiss controls remain keyboard-accessible even when results are empty. Style dismiss links using standard badge system classes with clear `aria-label` instructions.
