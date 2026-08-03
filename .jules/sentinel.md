@@ -227,3 +227,8 @@
 **Vulnerability:** CPU and database query exhaustion/Denial of Service (DoS) via unbounded, malformed, or extremely large route and query parameters (such as `game_id`, `user_id`, or `q` search terms).
 **Learning:** Route path parameters (like `<game_id>`) can receive arbitrary-length strings which are directly passed to database indexes and filters, resulting in overhead. Similarly, unbounded search query strings (`q`) can trigger expensive substring search loops in Python on hot dashboard rendering paths.
 **Prevention:** Enforce strict alphanumeric and character-length (maximum 36 characters) constraints on all resource identifiers at the route layer. Implement strict character-length limits (e.g., 100 characters max) on all user-controlled search/filter query parameters before executing comparison or sorting loops.
+
+## 2026-08-25 - Prevent Abuse and DB Scan Exhaustion on Showcase Ratings
+**Vulnerability:** Potential abuse, database index scan overhead, or malformed parameter probing in public showcase rating endpoint via the `subject_id` field.
+**Learning:** Public endpoints accepting client-supplied resource identifiers (like user or collection UUIDs) without strict structural verification allow malicious actors to probe databases with arbitrary strings, leading to redundant queries and potential performance degradation.
+**Prevention:** Strictly enforce a regex/alphanumeric structure and exact character-length bounds (e.g. using `is_valid_id`) on all identifier payloads in public endpoints prior to executing database queries.
