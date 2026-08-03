@@ -914,6 +914,24 @@ def rate_showcase():
         if subject_id not in valid_ids:
             return jsonify({'error': 'Colección de ejemplo no encontrada.'}), 404
     else:
+        # Check that public subject_id is a valid UUID/ID structure before query (Security enhancement)
+        if not is_valid_id(subject_id):
+            crear_log_audit(
+                user_id=None,
+                action='RATE_SHOWCASE',
+                resource='showcase_ratings',
+                details={
+                    'subject_type': subject_type,
+                    'subject_id': subject_id[:200],
+                    'rating': rating,
+                    'reason': 'invalid_public_subject_id',
+                },
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return jsonify({'error': 'Colección pública no disponible para portada.'}), 404
+
         # Bolt Optimization: Use verification helper instead of fetching top 100 collections.
         # This fixes a 404 bug for valid public collections beyond the first 100.
         if not verificar_coleccion_publica(subject_id):
