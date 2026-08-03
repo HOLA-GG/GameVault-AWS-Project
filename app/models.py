@@ -1931,15 +1931,44 @@ def obtener_rating_showcase(subject_type: str, subject_id: str) -> Dict[str, Any
         return {'average': round(float(result[0]), 1), 'votes_count': int(result[1])}
 
 
+_SAMPLE_RATINGS_CACHE: Dict[str, tuple[float, Dict[str, Any]]] = {}
+_SAMPLE_RATINGS_TTL: float = 30.0  # segundos (Time To Live para coherencia en entornos multi-proceso)
+
+
 def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[str, Dict[str, Any]]:
     """Obtiene valoraciones para múltiples IDs en una sola consulta (evita N+1)."""
     if not subject_ids:
         return {}
+
+    global _SAMPLE_RATINGS_CACHE
+    import time
+    now = time.time()
+
+    mapped = {}
+    missing_ids = []
+
+    # Optimización Bolt: Cache por subject_id con validación de TTL para evitar
+    # consultas a base de datos redundantes en visitas recurrentes a la landing page.
+    if subject_type == 'sample':
+        for sid in subject_ids:
+            cached_item = _SAMPLE_RATINGS_CACHE.get(sid)
+            if cached_item is not None:
+                cached_time, data = cached_item
+                if now - cached_time < _SAMPLE_RATINGS_TTL:
+                    mapped[sid] = dict(data)
+                    continue
+            missing_ids.append(sid)
+    else:
+        missing_ids = subject_ids
+
+    if not missing_ids:
+        return mapped
+
     # Bolt Optimization: Remove duplicate IDs to keep SQL 'IN' expressions minimal
     # and improve query cache hit rate / execution plan efficiency.
-    subject_ids = list(dict.fromkeys(subject_ids))
-    if len(subject_ids) > 1000:
-        subject_ids = subject_ids[:1000]
+    missing_ids = list(dict.fromkeys(missing_ids))
+    if len(missing_ids) > 1000:
+        missing_ids = missing_ids[:1000]
 
     ensure_tables()
     session_factory = get_session_factory()
@@ -1952,17 +1981,30 @@ def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[
             )
             .where(
                 ShowcaseRating.subject_type == subject_type,
-                ShowcaseRating.subject_id.in_(subject_ids),
+                ShowcaseRating.subject_id.in_(missing_ids),
             )
             .group_by(ShowcaseRating.subject_id)
         ).all()
 
-        mapped = {}
         for row in results:
-            mapped[str(row[0])] = {
+            sid_str = str(row[0])
+            data = {
                 'average': round(float(row[1]), 1) if row[1] is not None else None,
                 'votes_count': int(row[2]),
             }
+            mapped[sid_str] = data
+            if subject_type == 'sample':
+                _SAMPLE_RATINGS_CACHE[sid_str] = (now, dict(data))
+
+        # Rellenar con entradas vacías para los IDs no encontrados y así evitar
+        # consultas repetitivas de base de datos para IDs no existentes.
+        if subject_type == 'sample':
+            for sid in missing_ids:
+                if sid not in mapped:
+                    empty_data = {'average': None, 'votes_count': 0}
+                    mapped[sid] = empty_data
+                    _SAMPLE_RATINGS_CACHE[sid] = (now, dict(empty_data))
+
         return mapped
 
 
@@ -2034,6 +2076,11 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
     ensure_tables()
     if rating not in {1, 2, 3, 4, 5}:
         return {'success': False, 'duplicate': False, 'error': 'La valoración debe estar entre 1 y 5.'}
+
+    # Optimización Bolt: Invalidar el caché de valoraciones de ejemplo ante una nueva valoración.
+    global _SAMPLE_RATINGS_CACHE
+    if subject_type == 'sample':
+        _SAMPLE_RATINGS_CACHE.pop(subject_id, None)
 
     session_factory = get_session_factory()
     safe_ip = (ip_address or 'unknown')[:64]
