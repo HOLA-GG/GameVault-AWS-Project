@@ -244,6 +244,39 @@
             <a href="{{ url_for('main.dashboard') }}" style="margin-left:8px; font-size: 0.9em; text-decoration: underline;">(Limpiar filtros)</a>
         {% endif %}
     </p>
+    {% if filters.q or filters.plataforma or filters.estado or filters.categoria or filters.favoritos %}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;" class="active-filters">
+            <span style="color: var(--text-secondary); font-size: 0.9em;">Filtros activos:</span>
+            {% if filters.q %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(q=None, page=None)) }}" class="badge" style="text-decoration: none; background: var(--border-color); color: var(--text-primary);" aria-label="Quitar filtro de búsqueda: {{ filters.q }}" title="Quitar filtro de búsqueda: {{ filters.q }}">
+                    Búsqueda: "{{ filters.q }}" &times;
+                </a>
+            {% endif %}
+            {% if filters.plataforma %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None, page=None)) }}" class="badge plataforma is-active" style="text-decoration: none;" aria-label="Quitar filtro de plataforma: {{ filters.plataforma }}" title="Quitar filtro de plataforma: {{ filters.plataforma }}">
+                    {{ filters.plataforma }} &times;
+                </a>
+            {% endif %}
+            {% if filters.estado %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None, page=None)) }}" class="badge estado is-active" style="text-decoration: none;" aria-label="Quitar filtro de estado: {{ filters.estado }}" title="Quitar filtro de estado: {{ filters.estado }}">
+                    {{ filters.estado }} &times;
+                </a>
+            {% endif %}
+            {% if filters.categoria %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None, page=None)) }}" class="badge categoria is-active" style="text-decoration: none;" aria-label="Quitar filtro de categoría: {{ filters.categoria }}" title="Quitar filtro de categoría: {{ filters.categoria }}">
+                    {{ filters.categoria }} &times;
+                </a>
+            {% endif %}
+            {% if filters.favoritos == 'solo' %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None, page=None)) }}" class="badge favorito is-active" style="text-decoration: none;" aria-label="Quitar filtro de solo favoritos" title="Quitar filtro de solo favoritos">
+                    Favorito &times;
+                </a>
+            {% endif %}
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small" style="padding: 2px 8px; font-size: 0.8em;" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros">
+                Limpiar todos
+            </a>
+        </div>
+    {% endif %}
     <div class="section-note">
         La actividad reciente ahora vive en tu perfil para que la colección se mantenga más limpia y enfocada.
         <a href="{{ url_for('main.profile') }}">Ver actividad</a>

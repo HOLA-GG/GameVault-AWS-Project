@@ -124,3 +124,31 @@ def test_scroll_to_top_rendered(client):
     assert 'aria-label="Volver arriba"' in html
     assert 'function setupScrollToTop()' in html
     assert 'setupScrollToTop();' in html
+
+
+def test_dashboard_active_filters_rendered(client):
+    """Verify that the active filters row is rendered correctly on the dashboard with proper accessibility attributes."""
+    login_session(client)
+    response = client.get('/dashboard?plataforma=PC&estado=Nuevo&q=chrono')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check for the main row and title
+    assert 'class="active-filters"' in html
+    assert 'Filtros activos:' in html
+
+    # Check for search query active badge
+    assert 'Búsqueda: "chrono"' in html
+    assert 'aria-label="Quitar filtro de búsqueda: chrono"' in html
+
+    # Check for platform active badge
+    assert 'class="badge plataforma is-active"' in html
+    assert 'aria-label="Quitar filtro de plataforma: PC"' in html
+
+    # Check for status active badge
+    assert 'class="badge estado is-active"' in html
+    assert 'aria-label="Quitar filtro de estado: Nuevo"' in html
+
+    # Check for "Limpiar todos" button
+    assert 'aria-label="Limpiar todos los filtros"' in html
+    assert 'Limpiar todos' in html
