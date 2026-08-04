@@ -108,6 +108,20 @@
                         <span>Enfocar nuevo juego</span>
                         <kbd>N</kbd>
                     </div>
+                    {% if session.get('role') != 'admin' %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Ir a Colección</span>
+                        <kbd>C</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Ir a Perfil</span>
+                        <kbd>P</kbd>
+                    </div>
+                    {% endif %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Ir a Inicio</span>
+                        <kbd>I</kbd>
+                    </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                         <span>Ver ayuda de atajos</span>
                         <kbd>?</kbd>
@@ -658,6 +672,24 @@
                         toggleAccessibilityPanel(true);
                         document.getElementById('shortcutsLabel')?.focus();
                         announceToScreenReader('Ayuda de atajos de teclado abierta');
+                    } else if (event.key === 'c' || event.key === 'C') {
+                        const link = document.querySelector('a[href*="/dashboard"]');
+                        if (link) {
+                            event.preventDefault();
+                            link.click();
+                        }
+                    } else if (event.key === 'p' || event.key === 'P') {
+                        const link = document.querySelector('a[href*="/perfil"]');
+                        if (link) {
+                            event.preventDefault();
+                            link.click();
+                        }
+                    } else if (event.key === 'i' || event.key === 'I') {
+                        const link = document.querySelector('a[href$="/"], a.logo-link');
+                        if (link) {
+                            event.preventDefault();
+                            link.click();
+                        }
                     }
                 }
             });
