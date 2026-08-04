@@ -1942,6 +1942,10 @@ def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[
     if not subject_ids:
         return {}
 
+    # Bolt Optimization: Deduplicate input subject_ids early to keep cache lookups,
+    # list appends, and downstream SQL 'IN' expressions minimal.
+    subject_ids = list(dict.fromkeys(subject_ids))
+
     global _SAMPLE_RATINGS_CACHE
     import time
     now = time.time()
@@ -1966,9 +1970,6 @@ def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[
     if not missing_ids:
         return mapped
 
-    # Bolt Optimization: Remove duplicate IDs to keep SQL 'IN' expressions minimal
-    # and improve query cache hit rate / execution plan efficiency.
-    missing_ids = list(dict.fromkeys(missing_ids))
     if len(missing_ids) > 1000:
         missing_ids = missing_ids[:1000]
 
