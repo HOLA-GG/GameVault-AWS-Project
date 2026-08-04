@@ -950,11 +950,13 @@ def eliminar_imagen_s3(imagen_url):
         relative_path = imagen_url.replace(local_upload_url_path + '/', '', 1).lstrip('/')
         destination = os.path.abspath(os.path.join(local_upload_dir, relative_path))
         upload_root = os.path.abspath(local_upload_dir)
-        if destination.startswith(upload_root) and os.path.exists(destination):
-            try:
+        try:
+            # Prevent partial path traversal / prefix bypass and parent-directory escape (Security Hardening)
+            common = os.path.commonpath([upload_root, destination])
+            if common == upload_root and destination != upload_root and os.path.exists(destination):
                 os.remove(destination)
-            except OSError:
-                return False
+        except (ValueError, OSError):
+            return False
         return True
 
     if storage_backend in {'r2', 's3'}:

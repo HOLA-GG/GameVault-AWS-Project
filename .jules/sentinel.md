@@ -232,3 +232,8 @@
 **Vulnerability:** Potential abuse, database index scan overhead, or malformed parameter probing in public showcase rating endpoint via the `subject_id` field.
 **Learning:** Public endpoints accepting client-supplied resource identifiers (like user or collection UUIDs) without strict structural verification allow malicious actors to probe databases with arbitrary strings, leading to redundant queries and potential performance degradation.
 **Prevention:** Strictly enforce a regex/alphanumeric structure and exact character-length bounds (e.g. using `is_valid_id`) on all identifier payloads in public endpoints prior to executing database queries.
+
+## 2026-08-28 - Prevent Sibling-Folder and Parent-Directory Escape Path Traversal on Local Image Deletions
+**Vulnerability:** Incomplete path verification during local cover image deletion allowed potential arbitrary file deletions.
+**Learning:** Checking local file deletion paths using simple `startswith` prefixes on string paths (e.g., `destination.startswith(upload_root)`) is vulnerable to prefix-based folder overlaps (e.g., matching a sibling directory `/app/static/uploads-sibling` when the root directory is `/app/static/uploads`).
+**Prevention:** Always validate local file deletions by calculating the actual common prefix using `os.path.commonpath([upload_root, destination]) == upload_root` and ensuring that `destination != upload_root` before invoking dynamic file removal.
