@@ -28,9 +28,48 @@
             <div class="form-group">
                 <label for="imagen">Imagen</label>
                 <input type="file" id="imagen" name="imagen" accept="image/*" required>
+                <div id="demoImagePreviewContainer" class="image-preview-container" style="display:none;">
+                    <img id="demoImagePreview" src="" alt="Vista previa de la imagen de la demo" class="image-preview">
+                    <button type="button" id="demoRemoveImageButton" class="btn btn-secondary btn-small" aria-label="Quitar imagen seleccionada">Quitar</button>
+                </div>
             </div>
         </div>
         <button type="submit" class="btn-submit">Procesar demo</button>
     </form>
 </section>
+
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        const fileInput = document.getElementById('imagen');
+        const previewContainer = document.getElementById('demoImagePreviewContainer');
+        const previewImage = document.getElementById('demoImagePreview');
+        const removeButton = document.getElementById('demoRemoveImageButton');
+
+        if (fileInput && previewContainer && previewImage && removeButton) {
+            fileInput.addEventListener('change', function() {
+                const file = fileInput.files[0];
+                if (file) {
+                    if (previewImage.src && previewImage.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(previewImage.src);
+                    }
+                    previewImage.src = URL.createObjectURL(file);
+                    previewContainer.style.display = 'flex';
+                    window.announceToScreenReader?.(`Imagen seleccionada: ${file.name}`);
+                } else {
+                    previewContainer.style.display = 'none';
+                }
+            });
+
+            removeButton.addEventListener('click', function() {
+                if (previewImage.src && previewImage.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(previewImage.src);
+                }
+                fileInput.value = '';
+                previewContainer.style.display = 'none';
+                previewImage.src = '';
+                window.announceToScreenReader?.('Imagen seleccionada quitada');
+            });
+        }
+    });
+</script>
 {% endblock %}

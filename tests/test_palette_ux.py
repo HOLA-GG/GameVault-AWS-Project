@@ -114,6 +114,18 @@ def test_profile_inputs_select_on_focus(client):
     assert 'class="select-on-focus"' in html
 
 
+def test_demo_form_image_preview_rendered(client):
+    """Verify that the demo form page renders the image preview elements and script."""
+    response = client.get('/demo')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="demoImagePreviewContainer"' in html
+    assert 'id="demoImagePreview"' in html
+    assert 'id="demoRemoveImageButton"' in html
+    assert 'window.announceToScreenReader?.(`Imagen seleccionada: ${file.name}`);' in html
+
+
 def test_scroll_to_top_rendered(client):
     """Verify that the Scroll to Top button and its JS initializer are rendered on the page."""
     response = client.get('/')
