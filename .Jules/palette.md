@@ -57,3 +57,7 @@
 ## 2026-08-03 - Unified Dismissible Active Filters Row
 **Learning:** Having active filters scattered across dynamic elements (such as game cards) creates an accessibility and interaction dead-end: if a search returns 0 results, those dynamic elements are not rendered, preventing users from seeing or dismissing individual filters. Implementing a centralized, static active-filters row above the results area solves this dead-end, provides clear visual status, and empowers keyboard and screen-reader users to refine their state step-by-step.
 **Action:** Always provide a centralized summary of active search/filter states near the results count, ensuring individual dismiss controls remain keyboard-accessible even when results are empty. Style dismiss links using standard badge system classes with clear `aria-label` instructions.
+
+## 2026-08-05 - CSP Compatibility for Client-Side Image Previews
+**Learning:** Implementing progressive client-side image previews using `URL.createObjectURL` is a fantastic UX improvement, but will fail with a broken image icon if the server's Content Security Policy (CSP) `img-src` directive does not explicitly permit the `blob:` schema. Security-hardened CSP definitions must balance defense-in-depth with legitimate client-side progressive enhancement requirements.
+**Action:** When utilizing `URL.createObjectURL` for immediate client-side UI feedback or image thumbnails, always ensure that `blob:` is explicitly whitelisted in the CSP `img-src` header to prevent silent visual regressions.

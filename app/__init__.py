@@ -277,7 +277,7 @@ def create_app() -> Flask:
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), hid=(), serial=()'
 
         # Harden CSP by restricting S3/R2 access to the specific bucket host (Security enhancement)
-        img_sources = ["'self'", "data:"]
+        img_sources = ["'self'", "data:", "blob:"]
         connect_sources = ["'self'"]
         storage_backend = app.config.get('STORAGE_BACKEND')
         if storage_backend and storage_backend not in {'none', 'local'}:
