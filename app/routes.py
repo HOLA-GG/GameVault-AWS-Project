@@ -1413,7 +1413,7 @@ def registro():
         errores.append('El formato o la longitud del email no son válidos.')
     if not password:
         errores.append('La contraseña es requerida.')
-    elif not validar_password(password):
+    elif not validar_password(password, email=email):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
     if prefijo_pais and len(prefijo_pais) > 10:
         errores.append('El prefijo de país es demasiado largo (máximo 10 caracteres).')
@@ -1649,7 +1649,7 @@ def profile():
                 status='FAILED',
             )
             errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
-        if not validar_password(password):
+        if not validar_password(password, email=user.get('email')):
             errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
         if len(confirm_password) > 128:
             errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
@@ -1976,7 +1976,7 @@ def reset_password_with_email(token):
             status='FAILED',
         )
         errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
-    if not validar_password(password):
+    if not validar_password(password, email=email):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
     if len(confirm_password) > 128:
         errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
