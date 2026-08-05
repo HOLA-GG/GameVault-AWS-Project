@@ -237,3 +237,8 @@
 **Vulnerability:** Incomplete path verification during local cover image deletion allowed potential arbitrary file deletions.
 **Learning:** Checking local file deletion paths using simple `startswith` prefixes on string paths (e.g., `destination.startswith(upload_root)`) is vulnerable to prefix-based folder overlaps (e.g., matching a sibling directory `/app/static/uploads-sibling` when the root directory is `/app/static/uploads`).
 **Prevention:** Always validate local file deletions by calculating the actual common prefix using `os.path.commonpath([upload_root, destination]) == upload_root` and ensuring that `destination != upload_root` before invoking dynamic file removal.
+
+## 2026-08-30 - Prevent Credential-Based Password Guessing via Email Validation
+**Vulnerability:** Users could choose passwords that contain or match their email or the local part of their email (username), leaving them highly susceptible to credential-based automated guessing and brute-force attacks.
+**Learning:** Checking for standard complexity (uppercase, lowercase, numbers, length) is insufficient to block predictable, credential-derived passwords. Security validation must explicitly compare password payloads against other registration/profile inputs like email.
+**Prevention:** Extend the core `validar_password` utility to accept an optional `email` parameter. If provided, normalize the email and safely extract its local part (enforcing a minimum length of 4 characters to avoid false-positives on very short usernames), then verify neither exists as a substring within the password before hashing.
