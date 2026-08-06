@@ -1024,8 +1024,16 @@ def obtener_key_desde_url(imagen_url):
         return None
 
 
+# Bounded In-Memory Cache for Presigned Image URLs (Bolt Performance Optimization)
+import threading
+_SIGNED_URLS_CACHE: Dict[str, tuple[float, float, str]] = {}
+_SIGNED_URLS_MAX_CAPACITY: int = 5000
+_SIGNED_URLS_CACHE_LOCK = threading.Lock()
+
+
 def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
-    """Genera una URL firmada para lectura si el backend es R2/S3, o devuelve la URL original."""
+    """Genera una URL firmada para lectura si el backend es R2/S3, o devuelve la URL original.
+    Optimización Bolt: Cachea en memoria las URLs firmadas para evitar la latencia de hashing criptográfico."""
     if not imagen_url or not imagen_url.startswith('http'):
         return imagen_url or ''
 
@@ -1035,6 +1043,21 @@ def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
         storage_backend = STORAGE_BACKEND
     if storage_backend not in {'r2', 's3'}:
         return imagen_url
+
+    # Intentar obtener de la cache en memoria antes de contactar a boto3/cryptography
+    global _SIGNED_URLS_CACHE
+    import time
+    now = time.time()
+    cache_key = f"{imagen_url}:{expires_in}"
+
+    with _SIGNED_URLS_CACHE_LOCK:
+        cached_item = _SIGNED_URLS_CACHE.get(cache_key)
+
+    if cached_item is not None:
+        cached_time, absolute_expiry, signed_url = cached_item
+        # Usar la URL firmada solo si queda tiempo suficiente antes de su expiración absoluta (con un colchón de 60 segundos)
+        if now < absolute_expiry - 60.0:
+            return signed_url
 
     try:
         r2_bucket_name = os.environ.get('R2_BUCKET_NAME')
@@ -1054,6 +1077,15 @@ def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
             Params={'Bucket': r2_bucket_name, 'Key': key},
             ExpiresIn=expires_in
         )
+
+        absolute_expiry = now + expires_in
+        with _SIGNED_URLS_CACHE_LOCK:
+            # Evicción FIFO simple si se excede la capacidad máxima
+            if len(_SIGNED_URLS_CACHE) >= _SIGNED_URLS_MAX_CAPACITY:
+                first_key = next(iter(_SIGNED_URLS_CACHE))
+                _SIGNED_URLS_CACHE.pop(first_key, None)
+
+            _SIGNED_URLS_CACHE[cache_key] = (now, absolute_expiry, signed_url)
         return signed_url
     except Exception:
         return imagen_url
