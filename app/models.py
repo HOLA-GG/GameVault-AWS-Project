@@ -68,6 +68,8 @@ _SENSITIVE_PATTERNS = {
     'id_token', 'authorization', 'bearer', 'nif', 'nie', 'curp'
 }
 _SENSITIVE_RE = re.compile('|'.join(map(re.escape, _SENSITIVE_PATTERNS)), re.I)
+_RESET_TOKEN_URL_RE = re.compile(r'/reset-password/[a-zA-Z0-9_-]+')
+_TOKEN_QUERY_RE = re.compile(r'([\?&]token=)[a-zA-Z0-9_-]+', re.I)
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|', '`')
 _COMMON_WEAK_PASSWORDS = {
     'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
@@ -1423,6 +1425,8 @@ def redact_sensitive_details(data: Any, depth: int = 0) -> Any:
     if isinstance(data, (str, bytes)):
         # Handle bytes safely and truncate strings to prevent storage-based DoS
         val = data.decode('utf-8', errors='replace') if isinstance(data, bytes) else data
+        val = _RESET_TOKEN_URL_RE.sub('/reset-password/[REDACTED]', val)
+        val = _TOKEN_QUERY_RE.sub(r'\1[REDACTED]', val)
         return val[:1024]
 
     if isinstance(data, (int, float, bool)):

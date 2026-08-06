@@ -242,3 +242,8 @@
 **Vulnerability:** Users could choose passwords that contain or match their email or the local part of their email (username), leaving them highly susceptible to credential-based automated guessing and brute-force attacks.
 **Learning:** Checking for standard complexity (uppercase, lowercase, numbers, length) is insufficient to block predictable, credential-derived passwords. Security validation must explicitly compare password payloads against other registration/profile inputs like email.
 **Prevention:** Extend the core `validar_password` utility to accept an optional `email` parameter. If provided, normalize the email and safely extract its local part (enforcing a minimum length of 4 characters to avoid false-positives on very short usernames), then verify neither exists as a substring within the password before hashing.
+
+## 2026-09-02 - Prevent Sensitive Reset Token Leakage in Logging and Tracing Sinks
+**Vulnerability:** Sensitive password reset tokens in URL paths (e.g. `/reset-password/<token>`) or query parameters (e.g. `?token=<token>`) can easily leak to internal audit logs and external tracing sinks like Sentry via exception metadata or request URLs.
+**Learning:** Dictionary key-based redaction blocklists fail to capture sensitive values embedded within plain string properties or request parameters, leaving a significant exposure vector.
+**Prevention:** Enhance the global `redact_sensitive_details` recursion function to compile pattern-matching regexes and substitute sensitive URL-embedded tokens and query values with `[REDACTED]` within any string or byte payload.
