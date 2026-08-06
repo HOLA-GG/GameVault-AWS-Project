@@ -164,3 +164,18 @@ def test_dashboard_active_filters_rendered(client):
     # Check for "Limpiar todos" button
     assert 'aria-label="Limpiar todos los filtros"' in html
     assert 'Limpiar todos' in html
+
+
+def test_search_input_escape_key_clears_or_blurs(client):
+    """Verify that the base template script contains the Escape keydown handler for the search input (#q)."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check that base.html defines the Escape key logic for #q
+    assert "document.getElementById('q')" in html
+    assert "document.activeElement === searchInput" in html
+    assert "searchInput.value = '';" in html
+    assert "searchInput.dispatchEvent(new Event('input'));" in html
+    assert "announceToScreenReader('Búsqueda borrada');" in html
+    assert "searchInput.blur();" in html
