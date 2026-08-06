@@ -641,6 +641,18 @@
             });
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
+                    const searchInput = document.getElementById('q');
+                    if (searchInput && document.activeElement === searchInput) {
+                        event.preventDefault();
+                        if (searchInput.value) {
+                            searchInput.value = '';
+                            searchInput.dispatchEvent(new Event('input'));
+                            announceToScreenReader('Búsqueda borrada');
+                        } else {
+                            searchInput.blur();
+                        }
+                        return;
+                    }
                     toggleAccessibilityPanel(false);
                 }
                 if (event.altKey && (event.key === 'a' || event.key === 'A')) {
