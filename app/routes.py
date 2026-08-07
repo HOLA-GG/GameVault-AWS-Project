@@ -343,6 +343,11 @@ def is_safe_url(target: str) -> bool:
     # Strip whitespace and normalize backslashes to forward slashes (Security hardening)
     target = target.strip().replace('\\', '/')
 
+    # Reject any URLs containing control characters or embedded/internal whitespace (Security hardening)
+    for char in target:
+        if ord(char) < 32 or ord(char) == 127 or char.isspace():
+            return False
+
     # Avoid protocol-relative URLs (e.g. //evil.com) or multiple leading slashes (e.g. ///evil.com)
     # which some browsers interpret as cross-domain redirects (Security hardening).
     if target.startswith('//'):

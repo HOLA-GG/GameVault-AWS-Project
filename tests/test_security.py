@@ -95,6 +95,40 @@ def test_open_redirect_bypass_attempts(client):
         assert not response.headers['Location'].startswith('//malicious.com')
         assert not response.headers['Location'].startswith('\\malicious.com')
 
+
+def test_open_redirect_control_chars_and_whitespace(client):
+    """Verifies that redirect targets with embedded control characters or whitespace are rejected."""
+    # Register a user first
+    client.post('/registro', data={
+        'nombre': 'Control User',
+        'email': 'control_user@example.com',
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
+    })
+    client.post('/logout')
+
+    # Test bypass attempts using tabs, newlines, null bytes or other control chars inside the URL target
+    control_and_whitespace_targets = [
+        '/%09/malicious.com',  # Tab inside path
+        '//\tmalicious.com',   # Tab inside netloc
+        '//malicious.com%0d%0asomething', # CRLF injection in path
+        '//evil.com\r\n',      # CRLF at the end (urlparse might keep it if not stripped correctly)
+        '/java%00script:alert(1)', # Null byte inside path
+    ]
+
+    for target in control_and_whitespace_targets:
+        response = client.post(f'/login?next={target}', data={
+            'email': 'control_user@example.com',
+            'password': 'SecurePass123!'
+        })
+        assert response.status_code == 302
+        # Location header should either point to dashboard or default, never the external/manipulated domain
+        assert not response.headers['Location'].startswith('http://malicious.com')
+        assert not response.headers['Location'].startswith('https://malicious.com')
+        assert not response.headers['Location'].startswith('//malicious.com')
+        assert not response.headers['Location'].startswith('\\malicious.com')
+        assert not response.headers['Location'].startswith('//evil.com')
+
 def test_open_redirect_encoded_bypass_attempts(client):
     """Verifies that URL-encoded redirect targets are decoded and validated correctly."""
     # Register a user first
