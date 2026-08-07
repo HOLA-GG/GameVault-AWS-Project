@@ -247,3 +247,8 @@
 **Vulnerability:** Sensitive password reset tokens in URL paths (e.g. `/reset-password/<token>`) or query parameters (e.g. `?token=<token>`) can easily leak to internal audit logs and external tracing sinks like Sentry via exception metadata or request URLs.
 **Learning:** Dictionary key-based redaction blocklists fail to capture sensitive values embedded within plain string properties or request parameters, leaving a significant exposure vector.
 **Prevention:** Enhance the global `redact_sensitive_details` recursion function to compile pattern-matching regexes and substitute sensitive URL-embedded tokens and query values with `[REDACTED]` within any string or byte payload.
+
+## 2026-09-05 - Harden Redirect URL Validation Against Control and Whitespace Characters
+**Vulnerability:** Advanced open redirect bypasses and potential HTTP response splitting via embedded control characters or internal whitespace inside target redirect URLs (e.g., tabs `%09`, carriage returns `%0d`, or line feeds `%0a`).
+**Learning:** Checking only trailing spaces/slashes is insufficient. Browsers automatically strip or ignore embedded control/whitespace characters in redirect destinations, which could allow malicious hosts to bypass domain and scheme validations checked by `urlparse` or `startswith` comparisons.
+**Prevention:** Strictly inspect target URLs post-decoding and reject any string that contains control characters (ASCII < 32 or DEL 127) or any internal whitespace characters (`char.isspace()`) before performing safety evaluations.
