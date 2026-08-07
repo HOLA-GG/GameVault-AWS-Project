@@ -114,6 +114,30 @@ def test_profile_inputs_select_on_focus(client):
     assert 'class="select-on-focus"' in html
 
 
+def test_palette_placeholders_and_loading_text(client):
+    """Verify newly added placeholders and data-loading-text attributes."""
+    login_session(client)
+
+    # 1. Edit game page
+    # Since we need a game, let's just make a GET request or check general rendering if page requires ID.
+    # We can check placeholders in profile.html first
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'placeholder="Ej: Juan"' in html
+    assert 'placeholder="Ej: Pérez"' in html
+    assert 'placeholder="Tu contraseña actual"' in html
+    assert 'placeholder="Mínimo 8 caracteres (letras y números)"' in html
+    assert 'placeholder="Repite tu nueva contraseña"' in html
+
+    # 2. Admin logs page (login as admin)
+    login_session(client, role='admin')
+    response = client.get('/admin/logs')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'placeholder="Email, nombre o ID de usuario"' in html
+
+
 def test_demo_form_image_preview_rendered(client):
     """Verify that the demo form page renders the image preview elements and script."""
     response = client.get('/demo')

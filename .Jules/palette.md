@@ -61,3 +61,7 @@
 ## 2026-08-05 - CSP Compatibility for Client-Side Image Previews
 **Learning:** Implementing progressive client-side image previews using `URL.createObjectURL` is a fantastic UX improvement, but will fail with a broken image icon if the server's Content Security Policy (CSP) `img-src` directive does not explicitly permit the `blob:` schema. Security-hardened CSP definitions must balance defense-in-depth with legitimate client-side progressive enhancement requirements.
 **Action:** When utilizing `URL.createObjectURL` for immediate client-side UI feedback or image thumbnails, always ensure that `blob:` is explicitly whitelisted in the CSP `img-src` header to prevent silent visual regressions.
+
+## 2026-08-07 - Contextual Form Constraints & Loading Feedback
+**Learning:** Blank input and textarea fields across critical user/game forms can feel cold or confusing without guidance. Consistently providing contextual Spanish examples as placeholders (e.g., 'Ej: Juan') eases cognitive load, while pairing actions with 'data-loading-text' attributes on form submissions guarantees immediate visual feedback that reduces perceived latency.
+**Action:** Always define helpful, culturally aligned placeholder attributes for standard form inputs, and include descriptive 'data-loading-text' values on submit buttons to communicate ongoing backend processing.

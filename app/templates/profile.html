@@ -62,11 +62,11 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" required maxlength="120" autofocus class="select-on-focus">
+                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" placeholder="Ej: Juan" required maxlength="120" autofocus class="select-on-focus">
             </div>
             <div class="form-group">
                 <label for="apellido">Apellidos</label>
-                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" maxlength="120" class="select-on-focus">
+                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" placeholder="Ej: Pérez" maxlength="120" class="select-on-focus">
             </div>
         </div>
         <div class="form-row">
@@ -113,18 +113,18 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="current_password">Contraseña actual</label>
-                <input type="password" id="current_password" name="current_password" required autocomplete="current-password" maxlength="128">
+                <input type="password" id="current_password" name="current_password" placeholder="Tu contraseña actual" required autocomplete="current-password" maxlength="128">
             </div>
             <div class="form-group">
                 <label for="password">Nueva contraseña</label>
-                <input type="password" id="password" name="password" required autocomplete="new-password" maxlength="128">
+                <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres (letras y números)" required autocomplete="new-password" maxlength="128">
                 <div class="strength-meter"><div class="strength-meter-bar"></div></div>
                 <small class="strength-text" aria-live="polite"></small>
             </div>
         </div>
         <div class="form-group">
             <label for="confirm_password">Confirmar nueva contraseña</label>
-            <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password" maxlength="128">
+            <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite tu nueva contraseña" required autocomplete="new-password" maxlength="128">
         </div>
         <button type="submit" class="btn-submit" id="passwordSubmitButton" data-loading-text="Actualizando contraseña...">Actualizar contraseña</button>
     </form>
