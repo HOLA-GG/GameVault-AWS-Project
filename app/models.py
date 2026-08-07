@@ -1125,6 +1125,7 @@ def crear_juego(
         )
         session.add(game)
         session.commit()
+        clear_public_collections_cache()
         return game_to_dict(game)
 
 
@@ -1172,6 +1173,7 @@ def eliminar_juego(user_id, game_id):
         eliminar_imagen_s3(game.imagen_url)
         session.delete(game)
         session.commit()
+        clear_public_collections_cache()
         return {'success': True, 'juego': juego_dict, 's3_eliminada': True}
 
 
@@ -1215,6 +1217,7 @@ def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
         game.updated_at = utcnow()
         session.commit()
         session.refresh(game)
+        clear_public_collections_cache()
         return {'success': True, 'juego': game_to_dict(game), 'error': None}
 
 
@@ -1308,6 +1311,7 @@ def eliminar_usuario(user_id):
             return {'success': False, 'error': 'Usuario no encontrado'}
         session.delete(user)
         session.commit()
+        clear_public_collections_cache()
         return {'success': True, 'error': None}
 
 
@@ -1754,6 +1758,7 @@ def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str
             user.homepage_showcase_opt_in = bool(cambios.get('homepage_showcase_opt_in'))
         user.updated_at = utcnow()
         session.commit()
+        clear_public_collections_cache()
         return {'success': True, 'error': None}
 
 
@@ -1939,9 +1944,37 @@ def contar_resumenes_colecciones(
         return session.scalar(query) or 0
 
 
+_PUBLIC_COLLECTIONS_CACHE: Dict[int, tuple[float, List[Dict[str, Any]]]] = {}
+_PUBLIC_COLLECTIONS_CACHE_LOCK = threading.Lock()
+_PUBLIC_COLLECTIONS_TTL: float = 15.0  # seconds (Time To Live for public collections)
+
+
+def clear_public_collections_cache() -> None:
+    """Vacía el caché de colecciones públicas."""
+    global _PUBLIC_COLLECTIONS_CACHE
+    with _PUBLIC_COLLECTIONS_CACHE_LOCK:
+        _PUBLIC_COLLECTIONS_CACHE.clear()
+
+
 def obtener_colecciones_publicas(limit: int = 6) -> List[Dict[str, Any]]:
     """Devuelve colecciones públicas con algo real que mostrar (ahora optimizado)."""
-    return obtener_resumenes_colecciones(visibility='public', limit=limit, homepage_only=True)
+    global _PUBLIC_COLLECTIONS_CACHE
+    import time
+    now = time.time()
+
+    with _PUBLIC_COLLECTIONS_CACHE_LOCK:
+        cached_item = _PUBLIC_COLLECTIONS_CACHE.get(limit)
+        if cached_item is not None:
+            cached_time, data = cached_item
+            if now - cached_time < _PUBLIC_COLLECTIONS_TTL:
+                return [dict(item) for item in data]
+
+    data = obtener_resumenes_colecciones(visibility='public', limit=limit, homepage_only=True)
+
+    with _PUBLIC_COLLECTIONS_CACHE_LOCK:
+        _PUBLIC_COLLECTIONS_CACHE[limit] = (now, [dict(item) for item in data])
+
+    return data
 
 
 def verificar_coleccion_publica(user_id: str) -> bool:
@@ -2130,6 +2163,8 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
     global _SAMPLE_RATINGS_CACHE
     if subject_type == 'sample':
         _SAMPLE_RATINGS_CACHE.pop(subject_id, None)
+    elif subject_type == 'public':
+        clear_public_collections_cache()
 
     session_factory = get_session_factory()
     safe_ip = (ip_address or 'unknown')[:64]
