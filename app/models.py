@@ -1618,7 +1618,19 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwarg
 def obtener_estadisticas_logs() -> Dict[str, Any]:
     """Calcula estadísticas simples de auditoría usando agregaciones en base de datos.
     Optimización Bolt: Se eliminaron las consultas de action_counts y daily_activity
-    ya que no se utilizan en las plantillas actuales, ahorrando 2 roundtrips a la DB."""
+    ya que no se utilizan en las plantillas actuales, ahorrando 2 roundtrips a la DB.
+    Optimización Bolt: Cachea en memoria las estadísticas con un TTL de 15 segundos para evitar
+    re-ejecutar agregaciones pesadas sobre la tabla de logs completa en visitas/actualizaciones frecuentes."""
+    global _LOG_STATS_CACHE
+    import time
+    now = time.time()
+
+    with _LOG_STATS_CACHE_LOCK:
+        if _LOG_STATS_CACHE is not None:
+            cached_time, data = _LOG_STATS_CACHE
+            if now - cached_time < _LOG_STATS_TTL:
+                return dict(data)
+
     ensure_tables()
     session_factory = get_session_factory()
 
@@ -1631,12 +1643,15 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         total_logs = sum(status_counts.values())
 
         if total_logs == 0:
-            return {
+            res = {
                 'total_logs': 0,
                 'status_counts': {},
                 'top_users': [],
                 'success_rate': 100.0,
             }
+            with _LOG_STATS_CACHE_LOCK:
+                _LOG_STATS_CACHE = (now, dict(res))
+            return res
 
         # 2. Top users
         user_results = session.execute(
@@ -1650,12 +1665,16 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
         success_count = status_counts.get('SUCCESS', 0)
         success_rate = round((success_count / total_logs * 100), 2)
 
-        return {
+        res = {
             'total_logs': total_logs,
             'status_counts': status_counts,
             'top_users': top_users,
             'success_rate': success_rate,
         }
+
+        with _LOG_STATS_CACHE_LOCK:
+            _LOG_STATS_CACHE = (now, dict(res))
+        return res
 
 
 def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
@@ -1678,6 +1697,7 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
         result = session.execute(stmt)
         deleted = result.rowcount
         session.commit()
+        clear_log_stats_cache()
         return {'deleted': deleted, 'error': None}
 
 
@@ -2020,6 +2040,19 @@ def obtener_rating_showcase(subject_type: str, subject_id: str) -> Dict[str, Any
 
 _SAMPLE_RATINGS_CACHE: Dict[str, tuple[float, Dict[str, Any]]] = {}
 _SAMPLE_RATINGS_TTL: float = 30.0  # segundos (Time To Live para coherencia en entornos multi-proceso)
+
+
+# Bounded In-Memory Cache for Audit Log Statistics (Bolt Performance Optimization)
+_LOG_STATS_CACHE: Optional[tuple[float, Dict[str, Any]]] = None
+_LOG_STATS_CACHE_LOCK = threading.Lock()
+_LOG_STATS_TTL: float = 15.0  # seconds
+
+
+def clear_log_stats_cache() -> None:
+    """Vacía el caché de estadísticas de logs."""
+    global _LOG_STATS_CACHE
+    with _LOG_STATS_CACHE_LOCK:
+        _LOG_STATS_CACHE = None
 
 
 def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[str, Dict[str, Any]]:
