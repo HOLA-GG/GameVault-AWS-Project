@@ -252,3 +252,8 @@
 **Vulnerability:** Advanced open redirect bypasses and potential HTTP response splitting via embedded control characters or internal whitespace inside target redirect URLs (e.g., tabs `%09`, carriage returns `%0d`, or line feeds `%0a`).
 **Learning:** Checking only trailing spaces/slashes is insufficient. Browsers automatically strip or ignore embedded control/whitespace characters in redirect destinations, which could allow malicious hosts to bypass domain and scheme validations checked by `urlparse` or `startswith` comparisons.
 **Prevention:** Strictly inspect target URLs post-decoding and reject any string that contains control characters (ASCII < 32 or DEL 127) or any internal whitespace characters (`char.isspace()`) before performing safety evaluations.
+
+## 2026-08-08 - Harden Password Complexity against Identity-Derived Guessing
+**Vulnerability:** Weak password validation policies could allow users to register or change their password to values that contain their own first or last name, making their accounts highly susceptible to identity-based dictionary attacks.
+**Learning:** Basic complexity guidelines (checking only numbers, casing, and common dictionary blocklists) still overlook personalized, identity-derived guessable passwords. Modern NIST SP 800-63B standards require checking password payloads against other pieces of user-supplied identity information.
+**Prevention:** Always extend password validation functions to accept optional user identity details (like the user's name), and reject any passwords containing those details if they meet a minimal length threshold.

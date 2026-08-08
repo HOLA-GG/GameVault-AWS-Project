@@ -918,7 +918,7 @@ def subir_imagen_a_s3(archivo):
         return None
 
 
-def validar_password(password, email=None):
+def validar_password(password, email=None, nombre=None):
     """Valida que la contraseña tenga una longitud segura (8-128) y complejidad requerida (A-Z, a-z, 0-9)."""
     # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
     if not (8 <= len(password) <= 128):
@@ -936,6 +936,12 @@ def validar_password(password, email=None):
         # Evitar contraseñas que contengan la parte local del correo (ej: "juan" en "juan@gmail.com")
         local_part = email_lower.split('@')[0] if '@' in email_lower else email_lower
         if len(local_part) >= 4 and local_part in password.lower():
+            return False
+
+    if nombre:
+        nombre_lower = nombre.lower().strip()
+        # Evitar contraseñas que contengan el nombre del usuario
+        if len(nombre_lower) >= 4 and nombre_lower in password.lower():
             return False
 
     # Requerir al menos una mayúscula, una minúscula y un número (Seguridad mejorada: Sentinel Hardening)
