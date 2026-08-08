@@ -10,7 +10,7 @@
     <form action="{{ url_for('main.verify_token') }}" method="POST" id="validateTokenForm">
         <div class="form-group">
             <label for="token">Token</label>
-            <input type="text" id="token" name="token" placeholder="Pega el token aquí" required autocomplete="off" autofocus>
+            <input type="text" id="token" name="token" placeholder="Pega el token aquí" required autocomplete="off" autofocus class="select-on-focus">
         </div>
         <button type="submit" class="btn-submit" id="validateTokenSubmitButton" style="width:100%;" data-loading-text="Validando token...">Validar token</button>
     </form>

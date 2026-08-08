@@ -203,3 +203,33 @@ def test_search_input_escape_key_clears_or_blurs(client):
     assert "searchInput.dispatchEvent(new Event('input'));" in html
     assert "announceToScreenReader('Búsqueda borrada');" in html
     assert "searchInput.blur();" in html
+
+
+def test_palette_new_select_on_focus_and_placeholders(client):
+    """Verify that the new forms have select-on-focus behavior and consistent Spanish placeholders."""
+    # 1. Login page
+    response = client.get('/login')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="select-on-focus"' in html
+    assert 'placeholder="Ej: coleccionista@email.com"' in html
+
+    # 2. Registro page
+    response = client.get('/registro')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="select-on-focus"' in html
+
+    # 3. Forgot password page
+    response = client.get('/forgot-password')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="select-on-focus"' in html
+    assert 'placeholder="Ej: juan@ejemplo.com"' in html
+
+    # 4. Forgot password manual page
+    response = client.get('/forgot-password/manual')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="select-on-focus"' in html
+    assert 'placeholder="Ej: 5551234567"' in html
