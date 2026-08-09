@@ -668,6 +668,10 @@ def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any
         status_counts = {}
         category_counts = {}
 
+        plataformas_set = set()
+        estados_set = set()
+        categorias_set = set()
+
         for plat, est, cat, count in group_counts:
             # Replicate default visual label fallback if values are empty/None
             plat_label = plat if plat else 'Sin plataforma'
@@ -677,6 +681,13 @@ def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any
             platform_counts[plat_label] = platform_counts.get(plat_label, 0) + count
             status_counts[est_label] = status_counts.get(est_label, 0) + count
             category_counts[cat_label] = category_counts.get(cat_label, 0) + count
+
+            if plat is not None and plat != 'Sin plataforma':
+                plataformas_set.add(plat)
+            if est is not None and est != 'N/A':
+                estados_set.add(est)
+            if cat is not None:
+                categorias_set.add(cat)
 
         dom_platform_label = max(platform_counts, key=platform_counts.get) if platform_counts else 'Sin plataforma'
         dom_status_label = max(status_counts, key=status_counts.get) if status_counts else 'N/A'
@@ -705,11 +716,11 @@ def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any
         })
 
         # 4. Filter Options (Excluyendo valores por defecto para coincidir con la lógica previa)
-        # Bolt Optimization: Remove redundant list() constructors as .all() already returns a list.
+        # Bolt Optimization: Extracted in-memory from group_counts to completely eliminate 3 database round-trips.
         results['filter_options'] = {
-            'plataformas': session.scalars(select(func.distinct(Game.plataforma)).where(Game.user_id == user_id, Game.plataforma.isnot(None), Game.plataforma != 'Sin plataforma').order_by(Game.plataforma)).all(),
-            'estados': session.scalars(select(func.distinct(Game.estado)).where(Game.user_id == user_id, Game.estado.isnot(None), Game.estado != 'N/A').order_by(Game.estado)).all(),
-            'categorias': session.scalars(select(func.distinct(Game.categoria)).where(Game.user_id == user_id).order_by(Game.categoria)).all(),
+            'plataformas': sorted(plataformas_set),
+            'estados': sorted(estados_set),
+            'categorias': sorted(categorias_set),
         }
 
         return results
