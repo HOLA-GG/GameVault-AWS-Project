@@ -257,3 +257,8 @@
 **Vulnerability:** Weak password validation policies could allow users to register or change their password to values that contain their own first or last name, making their accounts highly susceptible to identity-based dictionary attacks.
 **Learning:** Basic complexity guidelines (checking only numbers, casing, and common dictionary blocklists) still overlook personalized, identity-derived guessable passwords. Modern NIST SP 800-63B standards require checking password payloads against other pieces of user-supplied identity information.
 **Prevention:** Always extend password validation functions to accept optional user identity details (like the user's name), and reject any passwords containing those details if they meet a minimal length threshold.
+
+## 2026-09-08 - Prevent Identity-Derived Password Guessing via Surname and Phone Number Validation
+**Vulnerability:** Weak password validation policies allowed users to select passwords containing their surname or phone number, leaving accounts highly vulnerable to customized dictionary/brute-force attacks.
+**Learning:** Preventing email and first-name similarity checks is standard, but attackers also leverage easily obtainable identity metadata like last names and telephone numbers. Security validation needs to inspect all user identity attributes.
+**Prevention:** Extend the core `validar_password` utility to accept optional `apellido` and `telefono` parameters. Reject passwords that contain the surname (case-insensitive, length >= 4) or phone number (digits-only search, length >= 4), and update registration, profile-update, and reset flows to enforce these restrictions.
