@@ -233,3 +233,20 @@ def test_palette_new_select_on_focus_and_placeholders(client):
     html = response.get_data(as_text=True)
     assert 'class="select-on-focus"' in html
     assert 'placeholder="Ej: 5551234567"' in html
+
+
+def test_palette_star_rating_accessibility(client):
+    """Verify that the landing page's star rating buttons have descriptive aria-labels and sync aria-pressed attributes."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Verify descriptive action labels exist on star buttons
+    assert 'aria-label="Valorar con 1 estrella"' in html
+    assert 'aria-label="Valorar con 5 estrellas"' in html
+
+    # Verify aria-pressed attributes are initially populated
+    assert 'aria-pressed="true"' in html or 'aria-pressed="false"' in html
+
+    # Verify script dynamically syncs aria-pressed
+    assert "star.setAttribute('aria-pressed', isFilled ? 'true' : 'false')" in html
