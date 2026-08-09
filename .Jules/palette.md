@@ -65,3 +65,7 @@
 ## 2026-08-07 - Contextual Form Constraints & Loading Feedback
 **Learning:** Blank input and textarea fields across critical user/game forms can feel cold or confusing without guidance. Consistently providing contextual Spanish examples as placeholders (e.g., 'Ej: Juan') eases cognitive load, while pairing actions with 'data-loading-text' attributes on form submissions guarantees immediate visual feedback that reduces perceived latency.
 **Action:** Always define helpful, culturally aligned placeholder attributes for standard form inputs, and include descriptive 'data-loading-text' values on submit buttons to communicate ongoing backend processing.
+
+## 2026-08-09 - Accessible Interactive Rating Star Components
+**Learning:** Rating star components are often implemented with generic labels (e.g., "1 estrella") which fail to describe the underlying action to screen-reader users, and lack toggle-state representation. Wrapping star buttons with an active "Valorar con..." action-oriented label and syncing the `aria-pressed` attribute dynamically on hover, focus, and submission provides screen-reader and keyboard users with real-time status clarity.
+**Action:** Always enhance rating components with action-oriented aria-labels and sync `aria-pressed` both on initial server-side rendering and during client-side state adjustments.

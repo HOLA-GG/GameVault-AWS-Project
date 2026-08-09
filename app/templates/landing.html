@@ -82,7 +82,9 @@
                     </div>
                     <div class="collection-stars" role="group" aria-label="Califica esta colección de ejemplo">
                         {% for star in range(1, 6) %}
-                            <button type="button" class="star-chip {% if star <= (collection.showcase_rating_average or 0)|round(0, 'common')|int %}is-filled{% endif %}" data-rating="{{ star }}" aria-label="{{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}" title="{{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}">★</button>
+                            {% set average_int = (collection.showcase_rating_average or 0)|round(0, 'common')|int %}
+                            {% set is_filled = star <= average_int %}
+                            <button type="button" class="star-chip {% if is_filled %}is-filled{% endif %}" data-rating="{{ star }}" aria-label="Valorar con {{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}" title="Valorar con {{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}" aria-pressed="{{ 'true' if is_filled else 'false' }}">★</button>
                         {% endfor %}
                     </div>
                     <small>Votación abierta: una IP puede valorar una vez cada colección para evitar abuso.</small>
@@ -133,7 +135,9 @@
                     </div>
                     <div class="collection-stars" role="group" aria-label="Califica esta colección pública">
                         {% for star in range(1, 6) %}
-                            <button type="button" class="star-chip {% if star <= (collection.showcase_rating_average or 0)|round(0, 'common')|int %}is-filled{% endif %}" data-rating="{{ star }}" aria-label="{{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}" title="{{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}">★</button>
+                            {% set average_int = (collection.showcase_rating_average or 0)|round(0, 'common')|int %}
+                            {% set is_filled = star <= average_int %}
+                            <button type="button" class="star-chip {% if is_filled %}is-filled{% endif %}" data-rating="{{ star }}" aria-label="Valorar con {{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}" title="Valorar con {{ star }} {{ 'estrella' if star == 1 else 'estrellas' }}" aria-pressed="{{ 'true' if is_filled else 'false' }}">★</button>
                         {% endfor %}
                     </div>
                     <small>Solo se muestra aquí si el autor la hizo pública y autorizó su aparición en portada.</small>
@@ -219,7 +223,9 @@
 
             function paintStars(rating) {
                 stars.forEach((star) => {
-                    star.classList.toggle('is-filled', Number(star.dataset.rating) <= rating);
+                    const isFilled = Number(star.dataset.rating) <= rating;
+                    star.classList.toggle('is-filled', isFilled);
+                    star.setAttribute('aria-pressed', isFilled ? 'true' : 'false');
                 });
             }
 
