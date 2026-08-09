@@ -1,6 +1,13 @@
 import os
 import sys
 from urllib.parse import urlparse
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from app import create_app
 from app.models import get_engine, database_healthcheck
 
@@ -71,6 +78,10 @@ with app.app_context():
             print(f"       * DB_MAX_OVERFLOW: {app.config.get('DB_MAX_OVERFLOW')}")
             print(f"       * DB_POOL_RECYCLE: {app.config.get('DB_POOL_RECYCLE')}s")
             print(f"       * DB_POOL_TIMEOUT: {app.config.get('DB_POOL_TIMEOUT')}s")
+            if is_neon:
+                print("    -> [TIP] Since you are using a Neon database on Render, consider setting DB_USE_NULLPOOL=true")
+                print("            or using a pooled connection string (with '-pooler') to delegate connection pooling")
+                print("            to Neon's PgBouncer, preventing connection leaks and limit exhaustion.")
     except Exception as e:
         print(f"  - [ERROR] Could not inspect SQLAlchemy Engine details: {e}")
     print()
