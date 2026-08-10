@@ -376,3 +376,20 @@ def test_unhandled_exception_secure_response(app):
         # Assert that HTML injection in request ID was successfully sanitized
         assert b"<script>alert(\"xss\")</script>" not in response.data
         assert b"&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;" in response.data
+
+
+def test_sqlite_file_permissions(app):
+    """Verifies that the SQLite database file is created with secure permissions (0o600)."""
+    import os
+    import stat
+    from app.models import init_database, DATABASE_URL
+
+    if DATABASE_URL.startswith('sqlite') and ':memory:' not in DATABASE_URL:
+        parts = DATABASE_URL.split(':///', 1)
+        if len(parts) > 1:
+            db_path = parts[1]
+            if db_path and os.path.exists(db_path):
+                init_database()
+                mode = os.stat(db_path).st_mode
+                # Check that group and other permissions are completely revoked (only owner read/write, usually 0o600)
+                assert (mode & 0o077) == 0

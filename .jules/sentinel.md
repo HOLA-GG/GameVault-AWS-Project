@@ -262,3 +262,8 @@
 **Vulnerability:** Weak password validation policies allowed users to select passwords containing their surname or phone number, leaving accounts highly vulnerable to customized dictionary/brute-force attacks.
 **Learning:** Preventing email and first-name similarity checks is standard, but attackers also leverage easily obtainable identity metadata like last names and telephone numbers. Security validation needs to inspect all user identity attributes.
 **Prevention:** Extend the core `validar_password` utility to accept optional `apellido` and `telefono` parameters. Reject passwords that contain the surname (case-insensitive, length >= 4) or phone number (digits-only search, length >= 4), and update registration, profile-update, and reset flows to enforce these restrictions.
+
+## 2026-09-10 - Secure SQLite Database File Permissions
+**Vulnerability:** Default database file permissions allowed other local users or processes on the host to read/write the SQLite database file, potentially exposing passwords, reset tokens, and audit logs.
+**Learning:** Standard SQLite file creation relies on the system umask, which can be overly permissive (e.g. 0644), making sensitive local databases readable by other co-located users on shared servers.
+**Prevention:** Always restrict SQLite database file permissions to `0o600` (read/write only by owner) immediately after database initialization using `os.chmod`.

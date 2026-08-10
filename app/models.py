@@ -345,6 +345,18 @@ def init_database() -> None:
         # de inicialización única para evitar inspecciones costosas en cada consulta.
         Base.metadata.create_all(get_engine())
         ensure_schema_compatibility()
+
+        # Enforce secure file permissions (0o600) on local SQLite database file to prevent unauthorized local reading (Security Hardening)
+        if DATABASE_URL.startswith('sqlite') and ':memory:' not in DATABASE_URL:
+            parts = DATABASE_URL.split(':///', 1)
+            if len(parts) > 1:
+                db_path = parts[1]
+                if db_path and os.path.exists(db_path):
+                    try:
+                        os.chmod(db_path, 0o600)
+                    except OSError:
+                        pass
+
         _database_initialized = True
 
 
