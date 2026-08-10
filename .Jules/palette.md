@@ -69,3 +69,7 @@
 ## 2026-08-09 - Accessible Interactive Rating Star Components
 **Learning:** Rating star components are often implemented with generic labels (e.g., "1 estrella") which fail to describe the underlying action to screen-reader users, and lack toggle-state representation. Wrapping star buttons with an active "Valorar con..." action-oriented label and syncing the `aria-pressed` attribute dynamically on hover, focus, and submission provides screen-reader and keyboard users with real-time status clarity.
 **Action:** Always enhance rating components with action-oriented aria-labels and sync `aria-pressed` both on initial server-side rendering and during client-side state adjustments.
+
+## 2026-08-10 - Real-Time Visual Status Tags in Accessibility Panels
+**Learning:** Drawer panels containing multiple settings (such as accessibility control groups) require significant visual search effort to understand which settings are currently active. Adding clean, dynamic, right-aligned status tags directly next to the section headers (e.g., "Tema: Gamer") provides an elegant and immediate overview of current active configurations, reducing cognitive load and improving accessibility.
+**Action:** In settings drawers or panel interfaces, pair action triggers with dynamic visual status labels next to group headers, and keep them synchronized in real-time.

@@ -47,7 +47,7 @@
             </div>
 
             <div class="accessibility-group">
-                <span class="accessibility-label">Tema</span>
+                <span class="accessibility-label">Tema <span id="activeThemeLabel" style="float: right; text-transform: none; font-weight: normal; font-size: 0.8rem; color: var(--text-primary);">Oscuro</span></span>
                 <div class="accessibility-row">
                     <button type="button" class="theme-btn active" data-theme="dark" data-label="Oscuro" title="Modo Oscuro" aria-label="Cambiar a tema oscuro" aria-pressed="true">🌙</button>
                     <button type="button" class="theme-btn" data-theme="light" data-label="Claro" title="Modo Claro" aria-label="Cambiar a tema claro" aria-pressed="false">☀️</button>
@@ -56,7 +56,7 @@
             </div>
 
             <div class="accessibility-group">
-                <span class="accessibility-label">Texto</span>
+                <span class="accessibility-label">Texto <span id="activeTextScaleLabel" style="float: right; text-transform: none; font-weight: normal; font-size: 0.8rem; color: var(--text-primary);">100%</span></span>
                 <div class="font-scale-control">
                     <div class="font-scale-preview">
                         <span class="font-scale-preview__min">A</span>
@@ -77,14 +77,14 @@
             </div>
 
             <div class="accessibility-group">
-                <span class="accessibility-label">Movimiento</span>
+                <span class="accessibility-label">Movimiento <span id="activeMotionLabel" style="float: right; text-transform: none; font-weight: normal; font-size: 0.8rem; color: var(--text-primary);">Estándar</span></span>
                 <div class="accessibility-row">
                     <button type="button" class="accessibility-chip" id="motionToggle" aria-pressed="false">Reducir animación</button>
                 </div>
             </div>
 
             <div class="accessibility-group">
-                <span class="accessibility-label">Ubicación del panel</span>
+                <span class="accessibility-label">Ubicación del panel <span id="activePanelPositionLabel" style="float: right; text-transform: none; font-weight: normal; font-size: 0.8rem; color: var(--text-primary);">Inferior der.</span></span>
                 <div class="accessibility-grid">
                     <button type="button" class="accessibility-chip" data-panel-position="top-left" aria-pressed="false">↖ Superior izq.</button>
                     <button type="button" class="accessibility-chip" data-panel-position="top-right" aria-pressed="false">↗ Superior der.</button>
@@ -202,6 +202,11 @@
                 btn.classList.toggle('active', isActive);
                 btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             });
+            const themeLabels = { 'dark': 'Oscuro', 'light': 'Claro', 'gamer': 'Gamer' };
+            const labelEl = document.getElementById('activeThemeLabel');
+            if (labelEl) {
+                labelEl.textContent = themeLabels[theme] || theme;
+            }
         }
 
         function applyFontScale(scale) {
@@ -210,13 +215,17 @@
             localStorage.setItem('gamevault-font-scale', normalized.toFixed(2));
             const slider = document.getElementById('fontScaleSlider');
             const preview = document.getElementById('fontScalePreview');
+            const pct = Math.round(normalized * 100);
             if (slider) {
-                const pct = Math.round(normalized * 100);
                 slider.value = String(pct);
                 slider.setAttribute('aria-valuetext', `${pct}%`);
             }
             if (preview) {
                 preview.style.fontSize = `${normalized}rem`;
+            }
+            const labelEl = document.getElementById('activeTextScaleLabel');
+            if (labelEl) {
+                labelEl.textContent = `${pct}%`;
             }
         }
 
@@ -228,6 +237,10 @@
                 toggle.classList.toggle('active', enabled);
                 toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
                 toggle.textContent = enabled ? 'Animación reducida activada' : 'Reducir animación';
+            }
+            const labelEl = document.getElementById('activeMotionLabel');
+            if (labelEl) {
+                labelEl.textContent = enabled ? 'Reducido' : 'Estándar';
             }
         }
 
@@ -241,6 +254,16 @@
                 btn.classList.toggle('active', isActive);
                 btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             });
+            const positionLabels = {
+                'top-left': 'Superior izq.',
+                'top-right': 'Superior der.',
+                'bottom-left': 'Inferior izq.',
+                'bottom-right': 'Inferior der.'
+            };
+            const labelEl = document.getElementById('activePanelPositionLabel');
+            if (labelEl) {
+                labelEl.textContent = positionLabels[position] || position;
+            }
         }
 
         function toggleAccessibilityPanel(forceOpen = null) {
