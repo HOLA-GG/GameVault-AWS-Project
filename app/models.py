@@ -439,11 +439,13 @@ def ensure_tables() -> None:
 
 
 def as_iso(value: datetime | None) -> str | None:
+    # Bolt Optimization: Avoid costly .replace(tzinfo=timezone.utc) if the datetime is already timezone-aware,
+    # which is the case for most query results in Postgres/Neon. This saves object allocation in hot loops.
     if value is None:
         return None
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.isoformat()
+    if value.tzinfo is not None:
+        return value.isoformat()
+    return value.replace(tzinfo=timezone.utc).isoformat()
 
 
 def user_to_dict(user: User | None, format_dates: bool = True) -> Optional[Dict[str, Any]]:

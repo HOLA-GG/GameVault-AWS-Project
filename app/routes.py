@@ -663,12 +663,12 @@ def get_action_badge_class(action: str) -> str:
     """Asigna color visual según el tipo de actividad auditada (Optimizado: O(1))."""
     if not action:
         return 'action-generic'
-    # Bolt Optimization: Try direct fast lookup first, then fall back to pre-populated lowercased variant
-    # to completely avoid string allocations/case-folding methods in >99% of requests.
-    badge = _ACTION_BADGE_MAP.get(action)
-    if badge is not None:
-        return badge
-    return _ACTION_BADGE_MAP.get(action.lower(), 'action-generic')
+    # Bolt Optimization: Try direct fast dictionary lookup first via EAFP (try-except)
+    # to completely avoid .get() method call overhead and string allocation/case-folding.
+    try:
+        return _ACTION_BADGE_MAP[action]
+    except KeyError:
+        return _ACTION_BADGE_MAP.get(action.lower(), 'action-generic')
 
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
@@ -679,9 +679,11 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
     for log in logs:
         # Bolt Optimization: Use bracket access for keys guaranteed by the data layer.
         user_id = log['user_id'] or 'system'
-        # Bolt Optimization: Use dictionary get() for a single lookup instead of "not in" followed by lookup.
-        bucket = grouped.get(user_id)
-        if bucket is None:
+        # Bolt Optimization: Use EAFP (try-except KeyError) to access existing buckets in grouped.
+        # Since logs are highly repetitive per user, this is faster than .get() lookup.
+        try:
+            bucket = grouped[user_id]
+        except KeyError:
             bucket = grouped[user_id] = {
                 'user_id': user_id,
                 # Placeholders to be filled only for the visible page in the route.
