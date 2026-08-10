@@ -250,3 +250,22 @@ def test_palette_star_rating_accessibility(client):
 
     # Verify script dynamically syncs aria-pressed
     assert "star.setAttribute('aria-pressed', isFilled ? 'true' : 'false')" in html
+
+
+def test_palette_accessibility_panel_status_labels(client):
+    """Verify that the accessibility panel rendered in the base template includes dynamic status labels."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check that header status labels exist
+    assert 'id="activeThemeLabel"' in html
+    assert 'id="activeTextScaleLabel"' in html
+    assert 'id="activeMotionLabel"' in html
+    assert 'id="activePanelPositionLabel"' in html
+
+    # Check JS sync logic exists for all 4 labels
+    assert 'activeThemeLabel' in html
+    assert 'activeTextScaleLabel' in html
+    assert 'activeMotionLabel' in html
+    assert 'activePanelPositionLabel' in html
