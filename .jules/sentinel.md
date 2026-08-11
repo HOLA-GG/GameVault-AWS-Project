@@ -267,3 +267,8 @@
 **Vulnerability:** Default database file permissions allowed other local users or processes on the host to read/write the SQLite database file, potentially exposing passwords, reset tokens, and audit logs.
 **Learning:** Standard SQLite file creation relies on the system umask, which can be overly permissive (e.g. 0644), making sensitive local databases readable by other co-located users on shared servers.
 **Prevention:** Always restrict SQLite database file permissions to `0o600` (read/write only by owner) immediately after database initialization using `os.chmod`.
+
+## 2026-09-12 - Outstanding Reset Token Invalidation on Successful Authentication
+**Vulnerability:** Active, outstanding password reset tokens remained valid in the database after a user successfully authenticated via the login flow.
+**Learning:** If a user requests a recovery link but later remembers their password and logs in normally, leaving the generated reset token active in the database leaves an unneeded, high-risk window for account compromise if the link or token is ever intercepted.
+**Prevention:** Always invalidate and delete all active, outstanding password reset tokens for a user immediately upon successful login.
