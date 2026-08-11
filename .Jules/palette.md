@@ -73,3 +73,7 @@
 ## 2026-08-10 - Real-Time Visual Status Tags in Accessibility Panels
 **Learning:** Drawer panels containing multiple settings (such as accessibility control groups) require significant visual search effort to understand which settings are currently active. Adding clean, dynamic, right-aligned status tags directly next to the section headers (e.g., "Tema: Gamer") provides an elegant and immediate overview of current active configurations, reducing cognitive load and improving accessibility.
 **Action:** In settings drawers or panel interfaces, pair action triggers with dynamic visual status labels next to group headers, and keep them synchronized in real-time.
+
+## 2026-08-12 - Tactile Range Slider Flanking Controls
+**Learning:** HTML5 range input sliders are standard but introduce accessibility bottlenecks for screen-readers, motor-impaired individuals, or users on small screens who lack high-precision pointer control. Flanking range sliders with tactile increment/decrement buttons (`-` and `+`) offers alternative precise click/touch targets, dramatically lowering friction while ensuring screen reader users can trigger direct, real-time live region updates.
+**Action:** For all system settings using range sliders, flank the input control with discrete, accessible tactile step buttons (`-` and `+`) and tie them to programmatic slider state changes and ARIA live region announcements.

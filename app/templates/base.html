@@ -63,16 +63,21 @@
                         <div class="font-scale-preview__current" id="fontScalePreview" aria-hidden="true">A</div>
                         <span class="font-scale-preview__max">A</span>
                     </div>
-                    <input
-                        type="range"
-                        id="fontScaleSlider"
-                        class="font-scale-slider"
-                        min="95"
-                        max="125"
-                        step="5"
-                        value="100"
-                        aria-label="Tamaño del texto"
-                    >
+                    <div class="font-scale-slider-container" style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                        <button type="button" class="btn btn-secondary btn-small" id="fontScaleDecrease" style="padding: 4px 10px; font-weight: bold; font-size: 0.9rem; line-height: 1;" aria-label="Disminuir tamaño del texto" title="Disminuir tamaño del texto">-</button>
+                        <input
+                            type="range"
+                            id="fontScaleSlider"
+                            class="font-scale-slider"
+                            min="95"
+                            max="125"
+                            step="5"
+                            value="100"
+                            aria-label="Tamaño del texto"
+                            style="flex: 1; min-width: 0;"
+                        >
+                        <button type="button" class="btn btn-secondary btn-small" id="fontScaleIncrease" style="padding: 4px 10px; font-weight: bold; font-size: 0.9rem; line-height: 1;" aria-label="Aumentar tamaño del texto" title="Aumentar tamaño del texto">+</button>
+                    </div>
                 </div>
             </div>
 
@@ -621,11 +626,38 @@
                 });
             });
 
+            const scaleSlider = document.getElementById('fontScaleSlider');
             document.getElementById('fontScaleSlider')?.addEventListener('input', function() {
                 applyFontScale(parseFloat(this.value || '100') / 100);
             });
             document.getElementById('fontScaleSlider')?.addEventListener('change', function() {
                 announceToScreenReader(`Tamaño de texto ajustado al ${this.value}%`);
+            });
+
+            document.getElementById('fontScaleDecrease')?.addEventListener('click', function() {
+                if (!scaleSlider) return;
+                const currentVal = parseInt(scaleSlider.value, 10);
+                const minVal = parseInt(scaleSlider.min, 10);
+                const step = parseInt(scaleSlider.step, 10);
+                if (currentVal > minVal) {
+                    const newVal = currentVal - step;
+                    scaleSlider.value = String(newVal);
+                    applyFontScale(newVal / 100);
+                    announceToScreenReader(`Tamaño de texto disminuido al ${newVal}%`);
+                }
+            });
+
+            document.getElementById('fontScaleIncrease')?.addEventListener('click', function() {
+                if (!scaleSlider) return;
+                const currentVal = parseInt(scaleSlider.value, 10);
+                const maxVal = parseInt(scaleSlider.max, 10);
+                const step = parseInt(scaleSlider.step, 10);
+                if (currentVal < maxVal) {
+                    const newVal = currentVal + step;
+                    scaleSlider.value = String(newVal);
+                    applyFontScale(newVal / 100);
+                    announceToScreenReader(`Tamaño de texto aumentado al ${newVal}%`);
+                }
             });
 
             document.querySelectorAll('[data-panel-position]').forEach(btn => {
