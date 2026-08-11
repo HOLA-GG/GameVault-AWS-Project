@@ -1536,6 +1536,15 @@ def login():
     # Pin session to current User-Agent (Security enhancement)
     session['_user_agent'] = request.headers.get('User-Agent', 'unknown')
 
+    # Invalidate all active reset tokens for this user upon a successful login (Security enhancement)
+    # This prevents any outstanding/intercepted reset token from being used once the user has safely authenticated.
+    from app.models import PasswordResetToken, get_session_factory
+    from sqlalchemy import delete
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        db_session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == usuario['user_id']))
+        db_session.commit()
+
     crear_log_audit(
         user_id=usuario['user_id'],
         action='LOGIN',
