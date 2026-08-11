@@ -269,3 +269,24 @@ def test_palette_accessibility_panel_status_labels(client):
     assert 'activeTextScaleLabel' in html
     assert 'activeMotionLabel' in html
     assert 'activePanelPositionLabel' in html
+
+
+def test_palette_font_scale_buttons_rendered(client):
+    """Verify that the accessibility panel font scale control has - and + precise adjustments buttons with correct ARIA attributes."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check for decrease button
+    assert 'id="fontScaleDecrease"' in html
+    assert 'aria-label="Disminuir tamaño del texto"' in html
+
+    # Check for increase button
+    assert 'id="fontScaleIncrease"' in html
+    assert 'aria-label="Aumentar tamaño del texto"' in html
+
+    # Check for JS handlers linking the buttons
+    assert 'fontScaleDecrease' in html
+    assert 'fontScaleIncrease' in html
+    assert 'Tamaño de texto disminuido al' in html
+    assert 'Tamaño de texto aumentado al' in html
