@@ -222,3 +222,8 @@
 **Vulnerability:** Risk of database connection pool leaks causing availability disruption / DoS, and CPU-exhaustion when parsing extremely large image URL strings.
 **Learning:** Custom SQLAlchemy scoped sessions without explicit teardown registrations in Flask apps can leak active database connections. Additionally, allowing unbounded input URL lengths can lead to high resource consumption during regex/unquote parsing.
 **Prevention:** Always register a `@app.teardown_appcontext` hook calling `.remove()` on SQLAlchemy scoped session factories to cleanly return connections back to the pool. Enforce strict character limits (e.g., 2048) on incoming URL values.
+
+## 2026-08-25 - Prevent DoS via Unbounded Input in Demo Route
+**Vulnerability:** Denial of Service (DoS) and potential memory exhaustion via an unbounded `titulo` form parameter in the public unauthenticated `/demo` endpoint.
+**Learning:** Standard size-limit configurations like `MAX_CONTENT_LENGTH` only restrict body payload size for uploads. However, a standard form parameter like `titulo` could still contain excessively long strings if not explicitly capped in the view, leading to memory bloat on rendering or logging.
+**Prevention:** Always enforce explicit input length validation bounds (such as `len(titulo) > 255`) on all user-supplied text parameters in route handlers, particularly on public unauthenticated views.

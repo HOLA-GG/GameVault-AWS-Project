@@ -962,6 +962,10 @@ def demo():
             flash('El título es requerido.', 'error')
             return redirect(url_for('main.demo'))
 
+        if len(titulo) > 255:
+            flash('El título es demasiado largo (máximo 255 caracteres).', 'error')
+            return redirect(url_for('main.demo'))
+
         valid, error = is_valid_image_file(imagen)
         if not valid:
             flash(error, 'error')
