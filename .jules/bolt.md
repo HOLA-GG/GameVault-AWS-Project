@@ -1,3 +1,7 @@
+## 2026-09-01 - Caching request.args in Request-Scoped Context (g) for Link Builders
+**Learning:** In Flask templates, helper functions like `build_query_args` can be called dozens or hundreds of times per page load to render paginated lists, filters, sort headers, and category tags. Each call to `dict(request.args)` incurs measurable overhead from resolving Flask's `LocalProxy` wrapper and converting/copying the underlying `MultiDict`. Caching the dictionary representation once in the request-scoped context `g` (`g._query_args_base`) and using a fast `.copy()` on subsequent calls completely eliminates `LocalProxy` resolving and iteration overhead, providing a clean O(1) performance improvement.
+**Action:** Cache the dictionary representation of request query parameters on request-scoped global states (like Flask's `g` or other context locals) when building multiple links inside dynamic loops or templates, and fallback gracefully with context-free checks.
+
 ## 2026-08-31 - EAFP Dictionary Lookups and Timezone short-circuiting in hot path helpers
 **Learning:** Using standard dict `.get()` calls or checking keys via `if key in dict` before accessing them in hot loops (like grouping 500 audit logs or converting action badges) introduces function call overhead and double lookup overhead. Leveraging the EAFP (Easier to Ask for Forgiveness than Permission) pattern with a `try-except KeyError` block on highly repetitive keys reduces lookup latency by up to ~33%. Additionally, short-circuiting `as_iso` datetime formatting if `value.tzinfo` is already present avoids redundant `.replace(tzinfo=timezone.utc)` calls, preventing unnecessary Python object allocations.
 **Action:** Use EAFP (`try-except KeyError`) instead of `.get()` or membership testing in loops when keys are highly likely to exist, and short-circuit `tzinfo is not None` checks for aware datetimes.
@@ -34,7 +38,7 @@
 **Learning:** Functions like `limpiar_logs_antiguos` and `eliminar_tokens_expirados` fetched all matching records into memory and deleted them one-by-one. This causes O(N) database round-trips and high memory pressure. Batch deletions using SQLAlchemy's `delete()` construct perform the operation in O(1) round-trips and avoid loading objects.
 **Action:** Use `sqlalchemy.delete` for any maintenance or cleanup tasks involving multiple records to ensure efficient execution and low memory overhead.
 
-## 2025-06-15 - In-memory List Aggregation and Sorting
+## 2025-06-15 - In-memory Summary Aggregation and Sorting
 **Learning:** Functions like `obtener_resumenes_colecciones` that fetch all items (via `selectinload`) to calculate averages, counts, and perform complex multi-criteria sorting in Python create a massive O(N) memory and CPU bottleneck. SQL is significantly faster at grouping, aggregating, and sorting.
 **Action:** Always offload summary metrics (avg, count, sum) and multi-column sorting to SQL subqueries. Use batch fetching for attributes that require mode calculation (like dominant platform) to maintain O(1) query complexity for the returned page.
 
@@ -69,6 +73,7 @@
 ## 2025-08-01 - Consolidating Global Counts with Status Grouping
 **Learning:** Calculating a total table count separately from a `GROUP BY` query on a categorical column (like `status`) creates a redundant database roundtrip. Since the sum of individual group counts (including `NULL` if handled or known to be non-null) equals the total count, the scalar query can be eliminated.
 **Action:** Always derive total counts from existing categorical grouping results in Python to reduce roundtrips in dashboard and statistics routes.
+
 ## 2026-06-12 - Consolidating Aggregation Queries
 **Learning:** Performing a standalone `COUNT` query followed by a `GROUP BY` query on the same table is often redundant if the grouped results cover all possible values. Summing the grouped counts in Python saves a database round-trip without compromising data accuracy.
 **Action:** Always check if a total count can be derived from existing grouped aggregations in the same transaction to reduce database latency.
@@ -98,8 +103,9 @@
 **Action:** Defer date serialization to the last possible moment (template enrichment layer). Ensure consistent use of UTC-aware datetimes when comparing against `now()` to avoid `TypeError` in heterogeneous environments (e.g., SQLite vs Postgres).
 
 ## 2026-06-16 - Breaking Contracts for Performance
-**Learning:** Attempting to optimize  by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
+**Learning:** Attempting to optimize by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
 **Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
+
 ## 2025-08-05 - Breaking Contracts for Performance
 **Learning:** Attempting to optimize `build_dashboard_insights` by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
 **Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
@@ -134,10 +140,6 @@
 
 ## 2025-05-23 - Micro-optimizations in Dashboard Insights Loop
 **Learning:** In hot loops (N=1000+), extracting helper functions to the module level and removing redundant normalization calls (like ) significantly reduces CPU overhead. Replacing  with  and using  over  checks further streamlines execution.
-**Action:** Always verify that the data layer provides normalized types to avoid redundant checks in view-layer loops. Move inner helper functions to module level to avoid re-definition overhead.
-
-## 2025-05-23 - Micro-optimizations in Dashboard Insights Loop
-**Learning:** In hot loops (N=1000+), extracting helper functions to the module level and removing redundant normalization calls (like ensure_dt) significantly reduces CPU overhead. Replacing .get() with if key in dict and using isinstance() over __class__ checks further streamlines execution.
 **Action:** Always verify that the data layer provides normalized types to avoid redundant checks in view-layer loops. Move inner helper functions to module level to avoid re-definition overhead.
 
 ## 2026-07-29 - Attribute Lookup Overhead in SQLAlchemy Row

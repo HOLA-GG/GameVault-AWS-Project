@@ -701,8 +701,23 @@ def build_admin_log_groups(logs: list[dict]) -> list[dict]:
 
 
 def build_query_args(**updates) -> dict:
-    """Conserva filtros activos al paginar o cambiar orden."""
-    args = dict(request.args)
+    """Conserva filtros activos al paginar o cambiar orden.
+    Optimización Bolt: Cachea en el objeto 'g' de Flask la representación en diccionario de
+    request.args para evitar la sobrecarga de LocalProxy y conversión MultiDict en cientos de
+    llamadas recurrentes por plantilla."""
+    try:
+        base_args = g._query_args_base
+    except (AttributeError, RuntimeError):
+        try:
+            base_args = dict(request.args)
+            try:
+                g._query_args_base = base_args
+            except (AttributeError, RuntimeError):
+                pass
+        except RuntimeError:
+            base_args = {}
+
+    args = base_args.copy()
     for key, value in updates.items():
         if value in (None, '', []):
             args.pop(key, None)
