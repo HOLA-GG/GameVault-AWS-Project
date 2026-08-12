@@ -290,3 +290,27 @@ def test_palette_font_scale_buttons_rendered(client):
     assert 'fontScaleIncrease' in html
     assert 'Tamaño de texto disminuido al' in html
     assert 'Tamaño de texto aumentado al' in html
+
+
+def test_palette_prefijo_pais_datalist_rendered(client):
+    """Verify that both registration and profile pages render the country prefix datalist to enhance prefijo_pais inputs."""
+    # 1. Registration page
+    response = client.get('/registro')
+    assert response.status_code == 200
+    html_reg = response.get_data(as_text=True)
+    assert 'id="prefijo_pais"' in html_reg
+    assert 'list="prefijos_lista"' in html_reg
+    assert 'id="prefijos_lista"' in html_reg
+    assert '<option value="+34">España (+34)</option>' in html_reg
+    assert '<option value="+57">Colombia (+57)</option>' in html_reg
+
+    # 2. Profile page
+    login_session(client)
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html_prof = response.get_data(as_text=True)
+    assert 'id="prefijo_pais"' in html_prof
+    assert 'list="prefijos_lista"' in html_prof
+    assert 'id="prefijos_lista"' in html_prof
+    assert '<option value="+34">España (+34)</option>' in html_prof
+    assert '<option value="+57">Colombia (+57)</option>' in html_prof
