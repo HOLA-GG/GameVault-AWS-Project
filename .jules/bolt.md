@@ -167,3 +167,7 @@
 ## 2026-08-15 - Consolidating Categorical Dominants in-Memory
 **Learning:** Performing three separate database queries to calculate the dominant values of multiple categorical columns (like platforms, statuses, and categories) creates redundant database round-trips. Consolidating them into a single `GROUP BY` query over all columns and performing the frequency aggregation in-memory in Python reduces database latency and round-trips from 3 to 1.
 **Action:** Consolidate multiple independent categorical grouping/dominant queries into a single combined `GROUP BY` query and aggregate counts in-memory in Python when processing datasets of reasonable size.
+
+## 2026-08-20 - Bypassing ORM Hydration for Hot Path Individual Lookups
+**Learning:** In `obtener_metricas_coleccion` (`app/models.py`), querying individual games (like `last_updated` and `next_focus`) via full ORM selection (`select(Game)`) triggered expensive SQLAlchemy ORM entity hydration and added those elements to the identity map. Switching to `select(Game.__table__)` bypasses hydration overhead entirely on this high-frequency read hot path.
+**Action:** Always prefer `select(Model.__table__)` with row mappers like `_game_row_to_dict` to fetch single or limited entities for display/read-only purposes when model state tracking is not needed.
