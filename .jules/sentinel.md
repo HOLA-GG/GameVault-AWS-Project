@@ -223,57 +223,7 @@
 **Learning:** Custom SQLAlchemy scoped sessions without explicit teardown registrations in Flask apps can leak active database connections. Additionally, allowing unbounded input URL lengths can lead to high resource consumption during regex/unquote parsing.
 **Prevention:** Always register a `@app.teardown_appcontext` hook calling `.remove()` on SQLAlchemy scoped session factories to cleanly return connections back to the pool. Enforce strict character limits (e.g., 2048) on incoming URL values.
 
-## 2026-08-22 - Prevent Resource Exhaustion via ID Validation and Query Bounding
-**Vulnerability:** CPU and database query exhaustion/Denial of Service (DoS) via unbounded, malformed, or extremely large route and query parameters (such as `game_id`, `user_id`, or `q` search terms).
-**Learning:** Route path parameters (like `<game_id>`) can receive arbitrary-length strings which are directly passed to database indexes and filters, resulting in overhead. Similarly, unbounded search query strings (`q`) can trigger expensive substring search loops in Python on hot dashboard rendering paths.
-**Prevention:** Enforce strict alphanumeric and character-length (maximum 36 characters) constraints on all resource identifiers at the route layer. Implement strict character-length limits (e.g., 100 characters max) on all user-controlled search/filter query parameters before executing comparison or sorting loops.
-
-## 2026-08-25 - Prevent Abuse and DB Scan Exhaustion on Showcase Ratings
-**Vulnerability:** Potential abuse, database index scan overhead, or malformed parameter probing in public showcase rating endpoint via the `subject_id` field.
-**Learning:** Public endpoints accepting client-supplied resource identifiers (like user or collection UUIDs) without strict structural verification allow malicious actors to probe databases with arbitrary strings, leading to redundant queries and potential performance degradation.
-**Prevention:** Strictly enforce a regex/alphanumeric structure and exact character-length bounds (e.g. using `is_valid_id`) on all identifier payloads in public endpoints prior to executing database queries.
-
-## 2026-08-28 - Prevent Sibling-Folder and Parent-Directory Escape Path Traversal on Local Image Deletions
-**Vulnerability:** Incomplete path verification during local cover image deletion allowed potential arbitrary file deletions.
-**Learning:** Checking local file deletion paths using simple `startswith` prefixes on string paths (e.g., `destination.startswith(upload_root)`) is vulnerable to prefix-based folder overlaps (e.g., matching a sibling directory `/app/static/uploads-sibling` when the root directory is `/app/static/uploads`).
-**Prevention:** Always validate local file deletions by calculating the actual common prefix using `os.path.commonpath([upload_root, destination]) == upload_root` and ensuring that `destination != upload_root` before invoking dynamic file removal.
-
-## 2026-08-30 - Prevent Credential-Based Password Guessing via Email Validation
-**Vulnerability:** Users could choose passwords that contain or match their email or the local part of their email (username), leaving them highly susceptible to credential-based automated guessing and brute-force attacks.
-**Learning:** Checking for standard complexity (uppercase, lowercase, numbers, length) is insufficient to block predictable, credential-derived passwords. Security validation must explicitly compare password payloads against other registration/profile inputs like email.
-**Prevention:** Extend the core `validar_password` utility to accept an optional `email` parameter. If provided, normalize the email and safely extract its local part (enforcing a minimum length of 4 characters to avoid false-positives on very short usernames), then verify neither exists as a substring within the password before hashing.
-
-## 2026-09-02 - Prevent Sensitive Reset Token Leakage in Logging and Tracing Sinks
-**Vulnerability:** Sensitive password reset tokens in URL paths (e.g. `/reset-password/<token>`) or query parameters (e.g. `?token=<token>`) can easily leak to internal audit logs and external tracing sinks like Sentry via exception metadata or request URLs.
-**Learning:** Dictionary key-based redaction blocklists fail to capture sensitive values embedded within plain string properties or request parameters, leaving a significant exposure vector.
-**Prevention:** Enhance the global `redact_sensitive_details` recursion function to compile pattern-matching regexes and substitute sensitive URL-embedded tokens and query values with `[REDACTED]` within any string or byte payload.
-
-## 2026-09-05 - Harden Redirect URL Validation Against Control and Whitespace Characters
-**Vulnerability:** Advanced open redirect bypasses and potential HTTP response splitting via embedded control characters or internal whitespace inside target redirect URLs (e.g., tabs `%09`, carriage returns `%0d`, or line feeds `%0a`).
-**Learning:** Checking only trailing spaces/slashes is insufficient. Browsers automatically strip or ignore embedded control/whitespace characters in redirect destinations, which could allow malicious hosts to bypass domain and scheme validations checked by `urlparse` or `startswith` comparisons.
-**Prevention:** Strictly inspect target URLs post-decoding and reject any string that contains control characters (ASCII < 32 or DEL 127) or any internal whitespace characters (`char.isspace()`) before performing safety evaluations.
-
-## 2026-08-08 - Harden Password Complexity against Identity-Derived Guessing
-**Vulnerability:** Weak password validation policies could allow users to register or change their password to values that contain their own first or last name, making their accounts highly susceptible to identity-based dictionary attacks.
-**Learning:** Basic complexity guidelines (checking only numbers, casing, and common dictionary blocklists) still overlook personalized, identity-derived guessable passwords. Modern NIST SP 800-63B standards require checking password payloads against other pieces of user-supplied identity information.
-**Prevention:** Always extend password validation functions to accept optional user identity details (like the user's name), and reject any passwords containing those details if they meet a minimal length threshold.
-
-## 2026-09-08 - Prevent Identity-Derived Password Guessing via Surname and Phone Number Validation
-**Vulnerability:** Weak password validation policies allowed users to select passwords containing their surname or phone number, leaving accounts highly vulnerable to customized dictionary/brute-force attacks.
-**Learning:** Preventing email and first-name similarity checks is standard, but attackers also leverage easily obtainable identity metadata like last names and telephone numbers. Security validation needs to inspect all user identity attributes.
-**Prevention:** Extend the core `validar_password` utility to accept optional `apellido` and `telefono` parameters. Reject passwords that contain the surname (case-insensitive, length >= 4) or phone number (digits-only search, length >= 4), and update registration, profile-update, and reset flows to enforce these restrictions.
-
-## 2026-09-10 - Secure SQLite Database File Permissions
-**Vulnerability:** Default database file permissions allowed other local users or processes on the host to read/write the SQLite database file, potentially exposing passwords, reset tokens, and audit logs.
-**Learning:** Standard SQLite file creation relies on the system umask, which can be overly permissive (e.g. 0644), making sensitive local databases readable by other co-located users on shared servers.
-**Prevention:** Always restrict SQLite database file permissions to `0o600` (read/write only by owner) immediately after database initialization using `os.chmod`.
-
-## 2026-09-12 - Outstanding Reset Token Invalidation on Successful Authentication
-**Vulnerability:** Active, outstanding password reset tokens remained valid in the database after a user successfully authenticated via the login flow.
-**Learning:** If a user requests a recovery link but later remembers their password and logs in normally, leaving the generated reset token active in the database leaves an unneeded, high-risk window for account compromise if the link or token is ever intercepted.
-**Prevention:** Always invalidate and delete all active, outstanding password reset tokens for a user immediately upon successful login.
-
-## 2026-09-15 - Expanded Password Blocklist for Common-but-Complex Passwords
-**Vulnerability:** Weak default or predictable passwords could pass basic complexity checks (like length, casing, and digits) and remain vulnerable to brute-forcing.
-**Learning:** Complexity validation (letters + numbers + casing) does not stop users from choosing highly predictable common passwords such as 'password123!' or 'admin123!'. Expanding blocklists with predictable patterns ensures they are rejected.
-**Prevention:** Maintain an extensive, case-insensitive blocklist containing predictable password patterns with symbols or suffix variations to harden credential requirements.
+## 2026-08-25 - Prevent DoS via Unbounded Input in Demo Route
+**Vulnerability:** Denial of Service (DoS) and potential memory exhaustion via an unbounded `titulo` form parameter in the public unauthenticated `/demo` endpoint.
+**Learning:** Standard size-limit configurations like `MAX_CONTENT_LENGTH` only restrict body payload size for uploads. However, a standard form parameter like `titulo` could still contain excessively long strings if not explicitly capped in the view, leading to memory bloat on rendering or logging.
+**Prevention:** Always enforce explicit input length validation bounds (such as `len(titulo) > 255`) on all user-supplied text parameters in route handlers, particularly on public unauthenticated views.
