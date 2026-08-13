@@ -41,3 +41,39 @@
 ## 2026-07-06 - Interactive Access Keyboard Shortcuts & Progressive Hints
 **Learning:** Keyboard shortcuts (`Alt + Key` or single keys like `N`) significantly improve navigation speed and accessibility for power and assistive technology users. However, they must be announced to screen readers via an active live region (`announceToScreenReader`) and paired with visible hints (like the `<kbd>` tag) for discoverability. Crucially, shortcut event listeners must ignore input elements (e.g., `INPUT`, `TEXTAREA`) to prevent hijacking normal user typing.
 **Action:** Implement `aria-keyshortcuts` on interactive triggers and bind key listeners on `keydown`, ignoring typing in text fields. Pair with screen reader announcements and elegant visual keyboard hints to achieve perfect discoverability.
+
+## 2026-07-07 - Lightweight and Generic Unsaved Changes Tracker
+**Learning:** Tracking dirty forms to prevent data loss on accidental navigation or tab closure is a critical micro-UX feature. To avoid heavy dependencies or complex state machines, checking the browser's native `defaultValue` and `defaultChecked` values provides a remarkably lightweight, reliable, and accessible solution. To prevent false positives, we must dynamically map and track select inputs on load, ignore search or hidden fields, and safely hook both standard submit events and programmatic `form.submit()` calls.
+**Action:** Build lightweight, ID-independent form trackers utilizing native DOM properties (`defaultValue`, `defaultChecked`). Always proxy programmatic form submissions to avoid warning prompts on valid automated/background submissions.
+
+## 2026-07-08 - Keyboard Shortcut Discoverability & Guided Focus
+**Learning:** Supporting power-user keyboard shortcuts (like Alt+A, /, N) is fantastic for efficiency, but they remain completely invisible unless there is a centralized, discoverable cheat sheet. Integrating an "Atajos de teclado" list directly inside an existing accessibility drawer makes it highly accessible. Mapping the standard `?` key to dynamically open this drawer and programmatically shift focus to the shortcuts header (with real-time ARIA live region announcements) provides immediate keyboard context without visual clutter on the page.
+**Action:** Always provide a visual summary of available keyboard shortcuts. Bind the standard `?` key as a universal help trigger that safely avoids text input fields, opens the accessibility tools, and places focus directly on the shortcuts guide.
+
+## 2026-07-30 - Interactive Drag & Drop Visual Affordance
+**Learning:** Dashed borders on file input components are standard signifiers for drag-and-drop support, but without active state transitions during the drag interaction, users cannot be certain the drop action is recognized. Toggling a stateful class (e.g., `is-dragover`) via global event listeners and styling it with high-contrast glowing shadows or distinct colors provides immediate, high-fidelity visual affirmation.
+**Action:** Always register stateful drag/drop event listeners on file inputs to provide immediate state feedback, styling the active hover zone using theme-consistent CSS variables (such as glowing shadows or color shifts) to boost delight and clarity.
+
+## 2026-08-03 - Unified Dismissible Active Filters Row
+**Learning:** Having active filters scattered across dynamic elements (such as game cards) creates an accessibility and interaction dead-end: if a search returns 0 results, those dynamic elements are not rendered, preventing users from seeing or dismissing individual filters. Implementing a centralized, static active-filters row above the results area solves this dead-end, provides clear visual status, and empowers keyboard and screen-reader users to refine their state step-by-step.
+**Action:** Always provide a centralized summary of active search/filter states near the results count, ensuring individual dismiss controls remain keyboard-accessible even when results are empty. Style dismiss links using standard badge system classes with clear `aria-label` instructions.
+
+## 2026-08-05 - CSP Compatibility for Client-Side Image Previews
+**Learning:** Implementing progressive client-side image previews using `URL.createObjectURL` is a fantastic UX improvement, but will fail with a broken image icon if the server's Content Security Policy (CSP) `img-src` directive does not explicitly permit the `blob:` schema. Security-hardened CSP definitions must balance defense-in-depth with legitimate client-side progressive enhancement requirements.
+**Action:** When utilizing `URL.createObjectURL` for immediate client-side UI feedback or image thumbnails, always ensure that `blob:` is explicitly whitelisted in the CSP `img-src` header to prevent silent visual regressions.
+
+## 2026-08-07 - Contextual Form Constraints & Loading Feedback
+**Learning:** Blank input and textarea fields across critical user/game forms can feel cold or confusing without guidance. Consistently providing contextual Spanish examples as placeholders (e.g., 'Ej: Juan') eases cognitive load, while pairing actions with 'data-loading-text' attributes on form submissions guarantees immediate visual feedback that reduces perceived latency.
+**Action:** Always define helpful, culturally aligned placeholder attributes for standard form inputs, and include descriptive 'data-loading-text' values on submit buttons to communicate ongoing backend processing.
+
+## 2026-08-09 - Accessible Interactive Rating Star Components
+**Learning:** Rating star components are often implemented with generic labels (e.g., "1 estrella") which fail to describe the underlying action to screen-reader users, and lack toggle-state representation. Wrapping star buttons with an active "Valorar con..." action-oriented label and syncing the `aria-pressed` attribute dynamically on hover, focus, and submission provides screen-reader and keyboard users with real-time status clarity.
+**Action:** Always enhance rating components with action-oriented aria-labels and sync `aria-pressed` both on initial server-side rendering and during client-side state adjustments.
+
+## 2026-08-10 - Real-Time Visual Status Tags in Accessibility Panels
+**Learning:** Drawer panels containing multiple settings (such as accessibility control groups) require significant visual search effort to understand which settings are currently active. Adding clean, dynamic, right-aligned status tags directly next to the section headers (e.g., "Tema: Gamer") provides an elegant and immediate overview of current active configurations, reducing cognitive load and improving accessibility.
+**Action:** In settings drawers or panel interfaces, pair action triggers with dynamic visual status labels next to group headers, and keep them synchronized in real-time.
+
+## 2026-08-12 - Tactile Range Slider Flanking Controls
+**Learning:** HTML5 range input sliders are standard but introduce accessibility bottlenecks for screen-readers, motor-impaired individuals, or users on small screens who lack high-precision pointer control. Flanking range sliders with tactile increment/decrement buttons (`-` and `+`) offers alternative precise click/touch targets, dramatically lowering friction while ensuring screen reader users can trigger direct, real-time live region updates.
+**Action:** For all system settings using range sliders, flank the input control with discrete, accessible tactile step buttons (`-` and `+`) and tie them to programmatic slider state changes and ARIA live region announcements.

@@ -157,3 +157,75 @@ def test_bulk_lists_iterable_types(app):
     gen_ids = (f"id-{i}" for i in range(5))
     results_gen = obtener_usuarios_por_ids(gen_ids)
     assert isinstance(results_gen, list)
+
+def test_sentinel_uuid_and_query_validation(app):
+    """Verifica la validación estricta de UUID en rutas y la limitación de parámetros de filtros."""
+    from app.models import crear_usuario
+    from werkzeug.security import generate_password_hash
+    import hashlib
+    import uuid
+
+    client = app.test_client()
+
+    # 1. Crear usuario de prueba
+    pw_hash = generate_password_hash("Password123!")
+    user = crear_usuario(
+        nombre="Test User",
+        apellido="User",
+        email="test_user@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=pw_hash
+    )
+    assert user is not None
+
+    # 2. Iniciar sesión como usuario
+    with client.session_transaction() as sess:
+        sess['user_id'] = user['user_id']
+        sess['email'] = user['email']
+        sess['nombre'] = user['nombre']
+        sess['role'] = 'user'
+        sess['_pw_hash'] = hashlib.sha256(pw_hash.encode('utf-8')).hexdigest()
+
+    # 3. Intentar acceder a editar_juego_ruta con un UUID inválido
+    resp = client.post('/edit/invalid-uuid-format', data={'titulo': 'New Title'})
+    assert resp.status_code == 302
+    assert resp.location.endswith('/dashboard')
+
+    # 4. Intentar eliminar_juego_ruta con un UUID inválido
+    resp = client.post('/delete/invalid-uuid-format')
+    assert resp.status_code == 302
+    assert resp.location.endswith('/dashboard')
+
+    # 5. Intentar acceder a admin rutas con UUID inválido (debe loguearse como admin primero)
+    from app.models import get_session_factory, User
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        db_user = session.get(User, user['user_id'])
+        db_user.role = 'admin'
+        session.commit()
+
+    with client.session_transaction() as sess:
+        sess['role'] = 'admin'
+
+    resp = client.post('/admin/delete/invalid-uuid-format')
+    assert resp.status_code == 302
+    assert resp.location.endswith('/admin')
+
+    resp = client.post('/admin/edit/invalid-uuid-format', data={'nombre': 'New Name'})
+    assert resp.status_code == 302
+    assert resp.location.endswith('/admin')
+
+    # 6. Probar truncamiento de filtros en dashboard
+    # Volver a rol 'user'
+    with session_factory() as session:
+        db_user = session.get(User, user['user_id'])
+        db_user.role = 'user'
+        session.commit()
+
+    with client.session_transaction() as sess:
+        sess['role'] = 'user'
+
+    long_query = 'a' * 500
+    resp = client.get(f'/dashboard?q={long_query}&plataforma={long_query}')
+    assert resp.status_code == 200

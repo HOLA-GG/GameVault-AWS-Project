@@ -109,3 +109,7 @@
 ## 2026-07-24 - [Real-time Screen Reader Feedback for File Actions]
 **Learning:** Dynamic layout modifications triggered by custom file upload or removal buttons (such as selecting a game cover or clearing the selection) are entirely non-visual interactions that can leave screen reader users without immediate structural awareness of the state change. Utilizing `window.announceToScreenReader` to broadcast localized confirmation messages (e.g., "Imagen seleccionada: [filename]" and "Imagen seleccionada quitada") bridges the sensory gap and guarantees assistive technology users receive real-time, matching feedback.
 **Action:** Always bind programmatic screen reader announcements to asynchronous or client-side file selection and clearing workflows, ensuring complete interactive parity.
+
+## 2026-08-06 - [Escape to Clear or Blur Search Input]
+**Learning:** For keyboard-heavy interfaces with dedicated search boxes, trapping the keyboard focus inside an active search field creates a navigation barrier. Allowing the `Escape` key to clear any active query on the first press, and to blur/unfocus the empty input on the second press, provides a frictionless, semantic way for users to exit the focus state and immediately resume using single-key page-wide keyboard shortcuts.
+**Action:** When implementing focused search bars or query fields, bind the `Escape` key to sequentially clear query values (with an `aria-live` announcement) and blur the field to restore global keyboard navigation.

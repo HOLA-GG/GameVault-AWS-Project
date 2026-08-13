@@ -244,6 +244,39 @@
             <a href="{{ url_for('main.dashboard') }}" style="margin-left:8px; font-size: 0.9em; text-decoration: underline;">(Limpiar filtros)</a>
         {% endif %}
     </p>
+    {% if filters.q or filters.plataforma or filters.estado or filters.categoria or filters.favoritos %}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;" class="active-filters">
+            <span style="color: var(--text-secondary); font-size: 0.9em;">Filtros activos:</span>
+            {% if filters.q %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(q=None, page=None)) }}" class="badge" style="text-decoration: none; background: var(--border-color); color: var(--text-primary);" aria-label="Quitar filtro de búsqueda: {{ filters.q }}" title="Quitar filtro de búsqueda: {{ filters.q }}">
+                    Búsqueda: "{{ filters.q }}" &times;
+                </a>
+            {% endif %}
+            {% if filters.plataforma %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None, page=None)) }}" class="badge plataforma is-active" style="text-decoration: none;" aria-label="Quitar filtro de plataforma: {{ filters.plataforma }}" title="Quitar filtro de plataforma: {{ filters.plataforma }}">
+                    {{ filters.plataforma }} &times;
+                </a>
+            {% endif %}
+            {% if filters.estado %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None, page=None)) }}" class="badge estado is-active" style="text-decoration: none;" aria-label="Quitar filtro de estado: {{ filters.estado }}" title="Quitar filtro de estado: {{ filters.estado }}">
+                    {{ filters.estado }} &times;
+                </a>
+            {% endif %}
+            {% if filters.categoria %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None, page=None)) }}" class="badge categoria is-active" style="text-decoration: none;" aria-label="Quitar filtro de categoría: {{ filters.categoria }}" title="Quitar filtro de categoría: {{ filters.categoria }}">
+                    {{ filters.categoria }} &times;
+                </a>
+            {% endif %}
+            {% if filters.favoritos == 'solo' %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None, page=None)) }}" class="badge favorito is-active" style="text-decoration: none;" aria-label="Quitar filtro de solo favoritos" title="Quitar filtro de solo favoritos">
+                    Favorito &times;
+                </a>
+            {% endif %}
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small" style="padding: 2px 8px; font-size: 0.8em;" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros">
+                Limpiar todos
+            </a>
+        </div>
+    {% endif %}
     <div class="section-note">
         La actividad reciente ahora vive en tu perfil para que la colección se mantenga más limpia y enfocada.
         <a href="{{ url_for('main.profile') }}">Ver actividad</a>
@@ -267,14 +300,14 @@
                         </a>
                     <div class="game-badges">
                         {% set plat_active = filters.plataforma and filters.plataforma == juego.plataforma %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None if plat_active else juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" title="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None if plat_active else juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" title="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}{% if plat_active %} &times;{% endif %}</a>
                         {% set status_active = filters.estado and filters.estado == juego.estado %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None if status_active else juego.estado, page=None)) }}" class="badge estado {{ 'is-active' if status_active }}" aria-label="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" title="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" {{ 'aria-current="true"'|safe if status_active }}>{{ juego.estado or 'N/A' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None if status_active else juego.estado, page=None)) }}" class="badge estado {{ 'is-active' if status_active }}" aria-label="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" title="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" {{ 'aria-current="true"'|safe if status_active }}>{{ juego.estado or 'N/A' }}{% if status_active %} &times;{% endif %}</a>
                         {% set cat_active = filters.categoria and filters.categoria == juego.categoria %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if cat_active else juego.categoria, page=None)) }}" class="badge categoria {{ 'is-active' if cat_active }}" aria-label="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" title="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" {{ 'aria-current="true"'|safe if cat_active }}>{{ juego.categoria or 'Biblioteca' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if cat_active else juego.categoria, page=None)) }}" class="badge categoria {{ 'is-active' if cat_active }}" aria-label="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" title="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" {{ 'aria-current="true"'|safe if cat_active }}>{{ juego.categoria or 'Biblioteca' }}{% if cat_active %} &times;{% endif %}</a>
                         {% if juego.es_favorito %}
                             {% set fav_active = filters.favoritos == 'solo' %}
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None if fav_active else 'solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" title="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" {{ 'aria-current="true"'|safe if fav_active }}>Favorito</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None if fav_active else 'solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" title="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" {{ 'aria-current="true"'|safe if fav_active }}>Favorito{% if fav_active %} &times;{% endif %}</a>
                         {% endif %}
                         {% if is_next_focus %}
                             <span class="badge badge-next-focus">🎯 Siguiente foco</span>

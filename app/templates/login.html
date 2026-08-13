@@ -21,11 +21,11 @@
     <form action="{{ url_for('main.login') }}" method="POST" id="loginForm">
         <div class="form-group">
             <label for="email">Correo electrónico</label>
-            <input type="email" id="email" name="email" placeholder="coleccionista@email.com" required autocomplete="email" maxlength="255" autofocus>
+            <input type="email" id="email" name="email" placeholder="Ej: coleccionista@email.com" required autocomplete="email" maxlength="255" autofocus class="select-on-focus">
         </div>
         <div class="form-group">
             <label for="password">Contraseña</label>
-            <input type="password" id="password" name="password" placeholder="Tu contraseña" required autocomplete="current-password" maxlength="128">
+            <input type="password" id="password" name="password" placeholder="Tu contraseña" required autocomplete="current-password" maxlength="128" class="select-on-focus">
         </div>
         <button type="submit" class="btn-submit" id="loginSubmitButton" style="width:100%;" data-loading-text="Entrando...">Entrar</button>
     </form>

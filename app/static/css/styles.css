@@ -879,6 +879,12 @@ header p {
     background: rgba(233, 69, 96, 0.1);
 }
 
+.form-group input[type="file"].is-dragover {
+    border-color: var(--electric-color) !important;
+    background: rgba(var(--primary-color-rgb), 0.12) !important;
+    box-shadow: var(--shadow-electric) !important;
+}
+
 .form-group textarea {
     resize: none;
     min-height: 100px;
@@ -2319,6 +2325,56 @@ kbd {
         flex-direction: column;
         align-items: stretch;
     }
+}
+
+/* ================================
+   SCROLL TO TOP
+   ================================ */
+.scroll-to-top {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: #fff;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+}
+
+.scroll-to-top.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.scroll-to-top:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-electric), var(--shadow-lg);
+    background: var(--primary-dark);
+}
+
+.scroll-to-top-icon {
+    width: 24px;
+    height: 24px;
+}
+
+[data-theme="light"] .scroll-to-top {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="gamer"] .scroll-to-top {
+    background: linear-gradient(135deg, #ff00b8, #16d9ff);
+    border: 1px solid rgba(0, 247, 255, 0.35);
+    box-shadow: 0 0 12px rgba(0, 247, 255, 0.3);
 }
 
 /* ================================

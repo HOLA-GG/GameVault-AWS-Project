@@ -25,7 +25,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="titulo">Título</label>
-                <input type="text" id="titulo" name="titulo" value="{{ juego.titulo }}" required maxlength="255" autofocus class="select-on-focus">
+                <input type="text" id="titulo" name="titulo" value="{{ juego.titulo }}" placeholder="Ej: Chrono Trigger" required maxlength="255" autofocus class="select-on-focus">
             </div>
             <div class="form-group">
                 <label for="plataforma">Plataforma</label>
@@ -91,7 +91,7 @@
         </div>
         <div class="form-group">
             <label for="descripcion">Descripción</label>
-            <textarea id="descripcion" name="descripcion" rows="4" required maxlength="5000">{{ juego.descripcion }}</textarea>
+            <textarea id="descripcion" name="descripcion" rows="4" placeholder="Qué edición tienes, estado del empaque, notas..." required maxlength="5000">{{ juego.descripcion }}</textarea>
         </div>
         <div class="form-group">
             <label>Portada actual</label>
@@ -104,7 +104,7 @@
             {% endif %}
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button type="submit" class="btn-submit" id="editSubmitButton">Guardar cambios</button>
+            <button type="submit" class="btn-submit" id="editSubmitButton" data-loading-text="Guardando cambios...">Guardar cambios</button>
             <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Cancelar</a>
         </div>
     </form>

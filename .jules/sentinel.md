@@ -212,3 +212,18 @@
 **Vulnerability:** Open Redirect bypass using single or double URL-encoded slashes/backslashes (e.g., `%2f%2f` or `%5c%5c`).
 **Learning:** Checking target redirection parameters for prefix matches or domain validity can be bypassed if the URL is encoded, as web servers or browsers might decode the parameter on redirect while the validation logic checks the encoded raw string.
 **Prevention:** Always decode (unquote) redirect target parameters completely (handling nested encoding via a bounded loop) before evaluating slashes, backslashes, or host matches.
+
+## 2026-08-18 - Prevent Path Traversal via Nested URL Encoding in Storage
+**Vulnerability:** Path traversal / directory escape bypass in R2/S3 key extraction and local upload URL checks using nested URL encoded paths (e.g., `%252e%252e%252f`).
+**Learning:** Directory prefix checks and `os.path.normpath` validations on parsed URL paths are ineffective if the path contains nested or double URL encoding (e.g., `%252e%252e` -> `%2e%2e` which bypasses standard string checks but decodes to `..` in later contexts or client-side fetches).
+**Prevention:** Always fully decode (unquote) the parsed URL path in a bounded loop (up to 5 times) before performing normalization, directory prefix matching, or file deletion checks.
+
+## 2026-08-20 - Secure Database Teardown and URL Input Boundaries
+**Vulnerability:** Risk of database connection pool leaks causing availability disruption / DoS, and CPU-exhaustion when parsing extremely large image URL strings.
+**Learning:** Custom SQLAlchemy scoped sessions without explicit teardown registrations in Flask apps can leak active database connections. Additionally, allowing unbounded input URL lengths can lead to high resource consumption during regex/unquote parsing.
+**Prevention:** Always register a `@app.teardown_appcontext` hook calling `.remove()` on SQLAlchemy scoped session factories to cleanly return connections back to the pool. Enforce strict character limits (e.g., 2048) on incoming URL values.
+
+## 2026-08-25 - Prevent DoS via Unbounded Input in Demo Route
+**Vulnerability:** Denial of Service (DoS) and potential memory exhaustion via an unbounded `titulo` form parameter in the public unauthenticated `/demo` endpoint.
+**Learning:** Standard size-limit configurations like `MAX_CONTENT_LENGTH` only restrict body payload size for uploads. However, a standard form parameter like `titulo` could still contain excessively long strings if not explicitly capped in the view, leading to memory bloat on rendering or logging.
+**Prevention:** Always enforce explicit input length validation bounds (such as `len(titulo) > 255`) on all user-supplied text parameters in route handlers, particularly on public unauthenticated views.
