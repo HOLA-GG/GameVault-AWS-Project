@@ -832,25 +832,43 @@ def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
 
 
 def sanitize_and_validate_ip(ip_str: str | None) -> str:
-    """Valida y normaliza una dirección IP para evitar inyección y malformaciones."""
+    """Valida y normaliza una dirección IP para evitar inyección y malformaciones.
+    Optimización Bolt: Utiliza cacheo en memoria limitado para IP ya validadas."""
     if not ip_str:
         return 'unknown'
+
+    # Fast cache lookup to bypass parsing overhead
+    with _VALID_IP_CACHE_LOCK:
+        cached = _VALID_IP_CACHE.get(ip_str)
+        if cached is not None:
+            return cached
+
     ip_clean = ip_str.strip()
     # Si contiene puerto (e.g. 127.0.0.1:8080), intentar extraer solo la IP
     if ':' in ip_clean and '.' in ip_clean:
         ip_clean = ip_clean.split(':')[0]
     try:
         ipaddress.ip_address(ip_clean)
-        return ip_clean
+        res = ip_clean
     except ValueError:
         if ip_clean.startswith('[') and ']' in ip_clean:
             ipv6_clean = ip_clean.split(']')[0].lstrip('[')
             try:
                 ipaddress.ip_address(ipv6_clean)
-                return ipv6_clean
+                res = ipv6_clean
             except ValueError:
-                pass
-        return 'unknown'
+                res = 'unknown'
+        else:
+            res = 'unknown'
+
+    with _VALID_IP_CACHE_LOCK:
+        # Bounded cache simple eviction (FIFO-like)
+        if len(_VALID_IP_CACHE) >= _VALID_IP_MAX_CAPACITY:
+            first_key = next(iter(_VALID_IP_CACHE))
+            _VALID_IP_CACHE.pop(first_key, None)
+        _VALID_IP_CACHE[ip_str] = res
+
+    return res
 
 
 def validar_email(email):
@@ -1088,6 +1106,11 @@ def obtener_key_desde_url(imagen_url):
 # Bounded In-Memory Cache for Presigned Image URLs (Bolt Performance Optimization)
 import threading
 _SIGNED_URLS_CACHE: Dict[str, tuple[float, float, str]] = {}
+
+# Bounded In-Memory Cache for Validated IP addresses (Bolt Performance Optimization)
+_VALID_IP_CACHE: Dict[str, str] = {}
+_VALID_IP_CACHE_LOCK = threading.Lock()
+_VALID_IP_MAX_CAPACITY: int = 1000
 _SIGNED_URLS_MAX_CAPACITY: int = 5000
 _SIGNED_URLS_CACHE_LOCK = threading.Lock()
 
