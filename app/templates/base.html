@@ -850,6 +850,36 @@
                     b.setAttribute('title', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
                     announceToScreenReader(isPassword ? 'Contraseña visible' : 'Contraseña oculta');
                 };
+
+                // Caps Lock detector
+                const capsWarning = document.createElement('small');
+                capsWarning.className = 'caps-warning';
+                capsWarning.style.color = 'var(--warning-color)';
+                capsWarning.style.fontSize = '0.8rem';
+                capsWarning.style.marginTop = '4px';
+                capsWarning.style.display = 'none';
+                capsWarning.style.fontWeight = '600';
+                capsWarning.innerHTML = '<span aria-hidden="true">⚠️</span> Bloqueo de mayúsculas activado';
+                capsWarning.setAttribute('role', 'status');
+                capsWarning.setAttribute('aria-live', 'polite');
+                wrapper.parentNode.insertBefore(capsWarning, wrapper.nextSibling);
+
+                const checkCapsLock = (e) => {
+                    if (e.getModifierState && e.getModifierState('CapsLock')) {
+                        if (capsWarning.style.display !== 'block') {
+                            capsWarning.style.display = 'block';
+                            announceToScreenReader('Aviso: Bloqueo de mayúsculas activado');
+                        }
+                    } else {
+                        capsWarning.style.display = 'none';
+                    }
+                };
+
+                i.addEventListener('keydown', checkCapsLock);
+                i.addEventListener('keyup', checkCapsLock);
+                i.addEventListener('blur', () => {
+                    capsWarning.style.display = 'none';
+                });
             });
 
         // Botón Volver arriba (Scroll to Top)

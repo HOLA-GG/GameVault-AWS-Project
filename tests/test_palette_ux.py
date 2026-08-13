@@ -314,3 +314,16 @@ def test_palette_prefijo_pais_datalist_rendered(client):
     assert 'id="prefijos_lista"' in html_prof
     assert '<option value="+34">España (+34)</option>' in html_prof
     assert '<option value="+57">Colombia (+57)</option>' in html_prof
+
+
+def test_caps_lock_warning_rendered(client):
+    """Verify that pages with password fields render the Caps Lock detector script and warning element."""
+    response = client.get('/login')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Verify that the warning element and detection logic are rendered in the DOM
+    assert 'caps-warning' in html
+    assert 'Bloqueo de mayúsculas activado' in html
+    assert "e.getModifierState('CapsLock')" in html
+    assert 'checkCapsLock' in html
