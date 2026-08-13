@@ -6,6 +6,7 @@ import base64
 import hashlib
 import math
 import os
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -318,12 +319,15 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
     return parsed.scheme == 'https' and parsed.netloc == expected_host and normalized_path.startswith('covers/')
 
 
+_VALID_ID_RE = re.compile(r'^[a-zA-Z0-9_-]{1,36}$')
+
+
 def is_valid_id(val: str | None) -> bool:
-    """Valida que un ID (game_id o user_id) tenga una estructura y longitud seguras."""
+    """Valida que un ID (game_id o user_id) tenga una estructura y longitud seguras.
+    Optimización Bolt: Reemplaza validación caracter por caracter por expresión regular pre-compilada."""
     if not val:
         return False
-    s = str(val)
-    return len(s) <= 36 and all(c.isalnum() or c in '-_' for c in s)
+    return _VALID_ID_RE.match(str(val)) is not None
 
 
 def is_safe_url(target: str) -> bool:
@@ -660,7 +664,7 @@ def build_reset_debug_context(email: str, token: str, expires_at) -> dict:
 
 
 def get_action_badge_class(action: str) -> str:
-    """Asigna color visual según el tipo de actividad auditada (Optimizado: O(1))."""
+    """Asigna color visual según el tipo de actividad auditada (Optimizado: O(1) con cacheo dinámico)."""
     if not action:
         return 'action-generic'
     # Bolt Optimization: Try direct fast dictionary lookup first via EAFP (try-except)
@@ -668,7 +672,10 @@ def get_action_badge_class(action: str) -> str:
     try:
         return _ACTION_BADGE_MAP[action]
     except KeyError:
-        return _ACTION_BADGE_MAP.get(action.lower(), 'action-generic')
+        # Fallback to case-folded match, and save it dynamically in the map for future O(1) hits.
+        badge_cls = _ACTION_BADGE_MAP.get(action.lower(), 'action-generic')
+        _ACTION_BADGE_MAP[action] = badge_cls
+        return badge_cls
 
 
 def build_admin_log_groups(logs: list[dict]) -> list[dict]:
