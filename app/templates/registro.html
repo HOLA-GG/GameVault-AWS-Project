@@ -21,32 +21,53 @@
     <form action="{{ url_for('main.registro') }}" method="POST" id="registerForm">
         <div class="form-group">
             <label for="nombre">Nombre</label>
-            <input type="text" id="nombre" name="nombre" placeholder="Ej: Juan" required autocomplete="name" maxlength="120" autofocus>
+            <input type="text" id="nombre" name="nombre" placeholder="Ej: Juan" required autocomplete="name" maxlength="120" autofocus class="select-on-focus">
         </div>
         <div class="form-group">
             <label for="email">Correo electrónico</label>
-            <input type="email" id="email" name="email" placeholder="Ej: juan@ejemplo.com" required autocomplete="email" maxlength="255">
+            <input type="email" id="email" name="email" placeholder="Ej: juan@ejemplo.com" required autocomplete="email" maxlength="255" class="select-on-focus">
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="prefijo_pais">Prefijo país</label>
-                <input type="text" id="prefijo_pais" name="prefijo_pais" placeholder="Ej: +1" autocomplete="tel-country-code" maxlength="10">
+                <input type="text" id="prefijo_pais" name="prefijo_pais" placeholder="Ej: +1" autocomplete="tel-country-code" maxlength="10" class="select-on-focus" list="prefijos_lista">
+                <datalist id="prefijos_lista">
+                    <option value="+34">España (+34)</option>
+                    <option value="+52">México (+52)</option>
+                    <option value="+54">Argentina (+54)</option>
+                    <option value="+55">Brasil (+55)</option>
+                    <option value="+56">Chile (+56)</option>
+                    <option value="+57">Colombia (+57)</option>
+                    <option value="+58">Venezuela (+58)</option>
+                    <option value="+51">Perú (+51)</option>
+                    <option value="+593">Ecuador (+593)</option>
+                    <option value="+591">Bolivia (+591)</option>
+                    <option value="+595">Paraguay (+595)</option>
+                    <option value="+598">Uruguay (+598)</option>
+                    <option value="+502">Guatemala (+502)</option>
+                    <option value="+503">El Salvador (+503)</option>
+                    <option value="+504">Honduras (+504)</option>
+                    <option value="+505">Nicaragua (+505)</option>
+                    <option value="+506">Costa Rica (+506)</option>
+                    <option value="+507">Panamá (+507)</option>
+                    <option value="+1">EE.UU. / Canadá (+1)</option>
+                </datalist>
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" placeholder="Ej: 5551234567" autocomplete="tel-national" maxlength="20">
+                <input type="tel" id="telefono" name="telefono" placeholder="Ej: 5551234567" autocomplete="tel-national" maxlength="20" class="select-on-focus">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres (letras y números)" required autocomplete="new-password" maxlength="128">
+                <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres (letras y números)" required autocomplete="new-password" maxlength="128" class="select-on-focus">
                 <div class="strength-meter"><div class="strength-meter-bar"></div></div>
                 <small class="strength-text" aria-live="polite"></small>
             </div>
             <div class="form-group">
                 <label for="confirm_password">Confirmar contraseña</label>
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite tu contraseña" required autocomplete="new-password" maxlength="128">
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite tu contraseña" required autocomplete="new-password" maxlength="128" class="select-on-focus">
             </div>
         </div>
         <button type="submit" class="btn-submit" id="registerSubmitButton" style="width:100%;" data-loading-text="Creando cuenta...">Crear cuenta</button>

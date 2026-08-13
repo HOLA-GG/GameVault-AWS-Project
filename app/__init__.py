@@ -181,6 +181,11 @@ def build_config() -> dict:
         'R2_ENDPOINT_URL': os.environ.get('R2_ENDPOINT_URL'),
         'RESET_TOKEN_EXPIRY_MINUTES': env_int('RESET_TOKEN_EXPIRY_MINUTES', 30),
         'AUDIT_LOG_RETENTION_DAYS': env_int('AUDIT_LOG_RETENTION_DAYS', 90),
+        'DB_USE_NULLPOOL': env_bool('DB_USE_NULLPOOL', False),
+        'DB_POOL_SIZE': env_int('DB_POOL_SIZE', 5),
+        'DB_MAX_OVERFLOW': env_int('DB_MAX_OVERFLOW', 10),
+        'DB_POOL_RECYCLE': env_int('DB_POOL_RECYCLE', 280),
+        'DB_POOL_TIMEOUT': env_int('DB_POOL_TIMEOUT', 30),
         'GAMES_PER_PAGE': env_int('GAMES_PER_PAGE', 12),
         'ADMIN_USERS_PER_PAGE': env_int('ADMIN_USERS_PER_PAGE', 25),
         'ADMIN_LOGS_PER_PAGE': env_int('ADMIN_LOGS_PER_PAGE', 50),
@@ -272,7 +277,7 @@ def create_app() -> Flask:
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), hid=(), serial=()'
 
         # Harden CSP by restricting S3/R2 access to the specific bucket host (Security enhancement)
-        img_sources = ["'self'", "data:"]
+        img_sources = ["'self'", "data:", "blob:"]
         connect_sources = ["'self'"]
         storage_backend = app.config.get('STORAGE_BACKEND')
         if storage_backend and storage_backend not in {'none', 'local'}:

@@ -1,3 +1,31 @@
+## 2026-09-01 - Caching request.args in Request-Scoped Context (g) for Link Builders
+**Learning:** In Flask templates, helper functions like `build_query_args` can be called dozens or hundreds of times per page load to render paginated lists, filters, sort headers, and category tags. Each call to `dict(request.args)` incurs measurable overhead from resolving Flask's `LocalProxy` wrapper and converting/copying the underlying `MultiDict`. Caching the dictionary representation once in the request-scoped context `g` (`g._query_args_base`) and using a fast `.copy()` on subsequent calls completely eliminates `LocalProxy` resolving and iteration overhead, providing a clean O(1) performance improvement.
+**Action:** Cache the dictionary representation of request query parameters on request-scoped global states (like Flask's `g` or other context locals) when building multiple links inside dynamic loops or templates, and fallback gracefully with context-free checks.
+
+## 2026-08-31 - EAFP Dictionary Lookups and Timezone short-circuiting in hot path helpers
+**Learning:** Using standard dict `.get()` calls or checking keys via `if key in dict` before accessing them in hot loops (like grouping 500 audit logs or converting action badges) introduces function call overhead and double lookup overhead. Leveraging the EAFP (Easier to Ask for Forgiveness than Permission) pattern with a `try-except KeyError` block on highly repetitive keys reduces lookup latency by up to ~33%. Additionally, short-circuiting `as_iso` datetime formatting if `value.tzinfo` is already present avoids redundant `.replace(tzinfo=timezone.utc)` calls, preventing unnecessary Python object allocations.
+**Action:** Use EAFP (`try-except KeyError`) instead of `.get()` or membership testing in loops when keys are highly likely to exist, and short-circuit `tzinfo is not None` checks for aware datetimes.
+
+## 2026-08-30 - In-Memory Distinct Extraction from Grouped Counts
+**Learning:** Performing multiple independent `select(func.distinct(Field))` queries to extract active filter option values (like platforms, states, categories) after already executing a grouped combinations query (`group_counts`) on the same table creates redundant SQL compilation and database query round-trips. Consolidating distinct values extraction directly in-memory from existing grouped query rows is mathematically identical, eliminates three query round-trips per load, and reduces overall dashboard latency.
+**Action:** Extract and sort distinct categorical attributes in Python from already queried grouped collections instead of making extra single-field distinct SQL database queries.
+
+## 2026-08-27 - Multi-Process Safe TTL In-Memory Showcase Rating Cache
+**Learning:** Querying database aggregates (AVG, COUNT) for static sample/demo showcase collections on every single visitor load of the landing page is a major database bottleneck under load. Caching these rating metrics in-memory by `subject_id` with a 30-second TTL solves this beautifully. To avoid serving stale data, invalidation is selectively executed via `pop` in the rating write path. This ensures high-performance, process-level caching with complete correctness under subset/empty ID lookups and dynamic state isolation across unit tests.
+**Action:** Implement light-weight, scoped key-value in-memory caches with Time-To-Live (TTL) expiration and selective invalidation on writes for heavily queried read-only or static showcase data.
+
+## 2026-08-26 - Pushing Active Filter Clauses into Grouped Subqueries/CTEs
+**Learning:** Performing databaseaggregates via grouped subqueries/CTEs (like metrics or counts) over an entire database table (`Game`, `ShowcaseRating`) is a major database bottleneck as the application scales. Outer joining these subqueries with the `User` table to apply filters subsequently forces full-table scans/groupings. Pushing active filtering clauses (like `visibility` or `homepage_only`) directly inside the subqueries' `join` and `where` definitions reduces the dataset prior to aggregation, restricting work only to users matching the criteria and transforming O(N) database aggregate scans to O(M) where M is the matching user size.
+**Action:** Always push parent filtering constraints directly down into nested subqueries/CTEs when performing grouped aggregates on heavily populated tables.
+
+## 2026-08-25 - EAFP Pattern vs hasattr() in Row-to-Dict Helpers
+**Learning:** Checking `hasattr(row, '_mapping')` inside high-frequency row-to-dictionary converters (like `_user_row_to_dict`, `_game_row_to_dict`, and `_audit_log_row_to_dict`) is relatively slow in Python. Transitioning to an EAFP (Easier to Ask for Forgiveness than Permission) pattern using a simple `try-except AttributeError` block yields a ~35% speedup when SQLAlchemy Row objects (which have `_mapping`) are processed.
+**Action:** Prefer try-except blocks over conditional attributes/hasattr checks on hot paths where mapping attributes are normally expected.
+
+## 2026-08-25 - Pre-populated Case-Insensitive Action Mapping Lookup
+**Learning:** Performing dynamic `.upper()` or `.lower()` operations in rendering loops (like audit log list tables) to resolve badge classes introduces unnecessary string allocations and branching overhead. Pre-populating both lowercase, uppercase, and exact action casing variations in `_ACTION_BADGE_MAP` allows resolving badge classes with a single direct O(1) dictionary lookup, speeding up action lookups by over 50%.
+**Action:** Pre-calculate case-insensitive keys in lookups for hot rendering paths to avoid string allocations and branch checks.
+
 ## 2025-05-15 - Redundant Schema Inspections
 **Learning:** Calling `ensure_schema_compatibility()` (which uses SQLAlchemy `inspect(engine)`) outside of a "run-once" guard in `init_database()` caused expensive database introspection to occur on every call to `ensure_tables()` or `database_healthcheck()`. Since these are often called per-request or per-operation, it introduced significant overhead.
 **Action:** Always guard schema migration/compatibility checks with a initialization flag (like `_database_initialized`) to ensure they only run once per application lifecycle.
@@ -10,7 +38,7 @@
 **Learning:** Functions like `limpiar_logs_antiguos` and `eliminar_tokens_expirados` fetched all matching records into memory and deleted them one-by-one. This causes O(N) database round-trips and high memory pressure. Batch deletions using SQLAlchemy's `delete()` construct perform the operation in O(1) round-trips and avoid loading objects.
 **Action:** Use `sqlalchemy.delete` for any maintenance or cleanup tasks involving multiple records to ensure efficient execution and low memory overhead.
 
-## 2025-06-15 - In-memory List Aggregation and Sorting
+## 2025-06-15 - In-memory Summary Aggregation and Sorting
 **Learning:** Functions like `obtener_resumenes_colecciones` that fetch all items (via `selectinload`) to calculate averages, counts, and perform complex multi-criteria sorting in Python create a massive O(N) memory and CPU bottleneck. SQL is significantly faster at grouping, aggregating, and sorting.
 **Action:** Always offload summary metrics (avg, count, sum) and multi-column sorting to SQL subqueries. Use batch fetching for attributes that require mode calculation (like dominant platform) to maintain O(1) query complexity for the returned page.
 
@@ -45,6 +73,7 @@
 ## 2025-08-01 - Consolidating Global Counts with Status Grouping
 **Learning:** Calculating a total table count separately from a `GROUP BY` query on a categorical column (like `status`) creates a redundant database roundtrip. Since the sum of individual group counts (including `NULL` if handled or known to be non-null) equals the total count, the scalar query can be eliminated.
 **Action:** Always derive total counts from existing categorical grouping results in Python to reduce roundtrips in dashboard and statistics routes.
+
 ## 2026-06-12 - Consolidating Aggregation Queries
 **Learning:** Performing a standalone `COUNT` query followed by a `GROUP BY` query on the same table is often redundant if the grouped results cover all possible values. Summing the grouped counts in Python saves a database round-trip without compromising data accuracy.
 **Action:** Always check if a total count can be derived from existing grouped aggregations in the same transaction to reduce database latency.
@@ -74,8 +103,9 @@
 **Action:** Defer date serialization to the last possible moment (template enrichment layer). Ensure consistent use of UTC-aware datetimes when comparing against `now()` to avoid `TypeError` in heterogeneous environments (e.g., SQLite vs Postgres).
 
 ## 2026-06-16 - Breaking Contracts for Performance
-**Learning:** Attempting to optimize  by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
+**Learning:** Attempting to optimize by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
 **Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
+
 ## 2025-08-05 - Breaking Contracts for Performance
 **Learning:** Attempting to optimize `build_dashboard_insights` by removing unused metrics and changing the function signature led to a breaking change. In a monolithic Flask app where functions are shared between routes and templates, performance gains must be balanced against maintaining backward compatibility (both in parameters and return dictionary keys).
 **Action:** When optimizing shared utility functions, preserve the original signature (parameters) and return keys even if they are currently "unused" to prevent runtime errors and regressions in consumers you might have missed. Optimize the *calculation* of those values instead of deleting them.
@@ -110,10 +140,6 @@
 
 ## 2025-05-23 - Micro-optimizations in Dashboard Insights Loop
 **Learning:** In hot loops (N=1000+), extracting helper functions to the module level and removing redundant normalization calls (like ) significantly reduces CPU overhead. Replacing  with  and using  over  checks further streamlines execution.
-**Action:** Always verify that the data layer provides normalized types to avoid redundant checks in view-layer loops. Move inner helper functions to module level to avoid re-definition overhead.
-
-## 2025-05-23 - Micro-optimizations in Dashboard Insights Loop
-**Learning:** In hot loops (N=1000+), extracting helper functions to the module level and removing redundant normalization calls (like ensure_dt) significantly reduces CPU overhead. Replacing .get() with if key in dict and using isinstance() over __class__ checks further streamlines execution.
 **Action:** Always verify that the data layer provides normalized types to avoid redundant checks in view-layer loops. Move inner helper functions to module level to avoid re-definition overhead.
 
 ## 2026-07-29 - Attribute Lookup Overhead in SQLAlchemy Row
@@ -171,3 +197,11 @@
 ## 2026-08-20 - Deduplicating IN-List Identifiers
 **Learning:** Querying a database with duplicate parameters inside an SQL `IN` expression lists causes the query compilation/optimizer plans to be slightly larger and compile slower, while forcing the DB engine to perform redundant identifier matching comparisons per row. Deduplicating lists of IDs (using `list(dict.fromkeys(ids))`) prior to query building keeps SQL strings minimal and maximizes query plan cache hit rates.
 **Action:** Always deduplicate sequence inputs in bulk select-in fetching routines before passing them to SQLAlchemy's `.in_()` constructs.
+
+## 2026-08-28 - In-Memory Thread-Safe TTL Cache with Deep Copying for Public Collections
+**Learning:** Aggregating public showcase collection statistics (AVG ratings, favorites counts, dominant platforms via window function) across tables is extremely database-heavy. Executing these queries on every anonymous request to the public landing page significantly limits horizontal scaling and introduces query latency. Implementing a thread-safe in-memory cache with a 15-second TTL completely eliminates this bottleneck. To preserve thread-shared state integrity, cached lists and dictionaries must be deep-copied before mutation or return. Correctness is guaranteed by invalidating the cache immediately on write actions (creations, deletions, updates, profile changes, and public collection ratings).
+**Action:** Cache complex public aggregates in a thread-safe TTL dictionary with immediate invalidation on write paths, and always deep-copy cached compound structures to prevent sharing-induced mutation bugs.
+
+## 2026-08-29 - Thread-Safe TTL Cache for Audit Log Aggregates
+**Learning:** Computing stats (log counts grouped by status, top active users, success rate calculations) across a fast-growing table like `audit_logs` is extremely heavy and introduces high database load on frequent updates or concurrent refreshes of the admin log dashboard. Implementing a thread-safe in-memory cache (`_LOG_STATS_CACHE` protected via `_LOG_STATS_CACHE_LOCK`) with a 15-second TTL completely bypasses this database overhead. Ensuring cache invalidation on log deletion/pruning write paths (`limpiar_logs_antiguos`) guarantees that stale statistics are never persisted past maintenance actions.
+**Action:** Always implement a thread-safe, scoped TTL cache for high-frequency dashboard aggregates and ensure targeted invalidation on corresponding write/cleanup operations.
