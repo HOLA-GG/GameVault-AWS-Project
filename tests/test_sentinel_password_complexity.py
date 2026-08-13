@@ -30,6 +30,19 @@ def test_validar_password_blocklist():
     assert not validar_password("password123")
     assert not validar_password("Admin123")
 
+    # New enhanced weak passwords with symbols and complexity
+    assert not validar_password("password123!")
+    assert not validar_password("Password123!")
+    assert not validar_password("admin123!")
+    assert not validar_password("Admin123!")
+    assert not validar_password("gamevault2025!")
+    assert not validar_password("GameVault2025!")
+    assert not validar_password("12345678aa")
+    assert not validar_password("12345678bb")
+    assert not validar_password("12345678ab")
+    assert not validar_password("qwerty123a")
+    assert not validar_password("welcome123!")
+
 def test_validar_password_email_similarity():
     # Email complete matching or containing
     assert not validar_password("juan@gmail.com123A", email="juan@gmail.com")

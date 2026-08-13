@@ -272,3 +272,8 @@
 **Vulnerability:** Active, outstanding password reset tokens remained valid in the database after a user successfully authenticated via the login flow.
 **Learning:** If a user requests a recovery link but later remembers their password and logs in normally, leaving the generated reset token active in the database leaves an unneeded, high-risk window for account compromise if the link or token is ever intercepted.
 **Prevention:** Always invalidate and delete all active, outstanding password reset tokens for a user immediately upon successful login.
+
+## 2026-09-15 - Expanded Password Blocklist for Common-but-Complex Passwords
+**Vulnerability:** Weak default or predictable passwords could pass basic complexity checks (like length, casing, and digits) and remain vulnerable to brute-forcing.
+**Learning:** Complexity validation (letters + numbers + casing) does not stop users from choosing highly predictable common passwords such as 'password123!' or 'admin123!'. Expanding blocklists with predictable patterns ensures they are rejected.
+**Prevention:** Maintain an extensive, case-insensitive blocklist containing predictable password patterns with symbols or suffix variations to harden credential requirements.

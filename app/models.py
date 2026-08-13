@@ -74,7 +74,11 @@ _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|', '`')
 _COMMON_WEAK_PASSWORDS = {
     'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
     'videogames123', 'qwerty123', '12345678a', 'password1234', 'welcome123',
-    'gamevault123', 'gamevault2024', 'gamevault2025'
+    'gamevault123', 'gamevault2024', 'gamevault2025',
+    '12345678aa', '12345678bb', '12345678ab', '12345678cc',
+    'qwerty123a', 'qwerty123ab', 'admin123!', 'password123!',
+    'gamevault123!', 'gamevault2025!', 'gamer123!', 'qwerty123!',
+    'welcome123!'
 }
 
 
