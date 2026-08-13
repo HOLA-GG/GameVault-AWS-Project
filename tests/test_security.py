@@ -393,3 +393,16 @@ def test_sqlite_file_permissions(app):
                 mode = os.stat(db_path).st_mode
                 # Check that group and other permissions are completely revoked (only owner read/write, usually 0o600)
                 assert (mode & 0o077) == 0
+
+
+def test_demo_title_length_validation(client):
+    """Verifies that submitting an excessively long title to /demo is safely rejected to mitigate DoS."""
+    # Try with an oversized title (> 255 characters)
+    oversized_title = "A" * 256
+    response = client.post('/demo', data={
+        'titulo': oversized_title
+    }, follow_redirects=True)
+
+    # It should redirect back and show the flashed error message
+    assert response.status_code == 200
+    assert b"demasiado largo" in response.data or b"255" in response.data
