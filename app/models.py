@@ -718,19 +718,24 @@ def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any
         })
 
         # 3. Last updated y Next focus
-        last_updated = session.scalar(
-            select(Game).where(Game.user_id == user_id).order_by(Game.updated_at.desc(), Game.created_at.desc()).limit(1)
-        )
-        next_focus = session.scalar(
-            select(Game)
+        # Bolt Optimization: Fetch raw row via Game.__table__ to bypass ORM hydration and use high-performance Row _mapping path.
+        last_updated_row = session.execute(
+            select(Game.__table__)
+            .where(Game.user_id == user_id)
+            .order_by(Game.updated_at.desc(), Game.created_at.desc())
+            .limit(1)
+        ).first()
+
+        next_focus_row = session.execute(
+            select(Game.__table__)
             .where(Game.user_id == user_id, Game.prioridad == 'Alta', Game.categoria != 'Completado')
             .order_by(Game.updated_at.asc())
             .limit(1)
-        )
+        ).first()
 
         results.update({
-            'last_updated_game': game_to_dict(last_updated),
-            'next_focus': game_to_dict(next_focus),
+            'last_updated_game': _game_row_to_dict(last_updated_row, format_dates=True) if last_updated_row else None,
+            'next_focus': _game_row_to_dict(next_focus_row, format_dates=True) if next_focus_row else None,
         })
 
         # 4. Filter Options (Excluyendo valores por defecto para coincidir con la lógica previa)
