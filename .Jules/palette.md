@@ -77,3 +77,7 @@
 ## 2026-08-12 - Tactile Range Slider Flanking Controls
 **Learning:** HTML5 range input sliders are standard but introduce accessibility bottlenecks for screen-readers, motor-impaired individuals, or users on small screens who lack high-precision pointer control. Flanking range sliders with tactile increment/decrement buttons (`-` and `+`) offers alternative precise click/touch targets, dramatically lowering friction while ensuring screen reader users can trigger direct, real-time live region updates.
 **Action:** For all system settings using range sliders, flank the input control with discrete, accessible tactile step buttons (`-` and `+`) and tie them to programmatic slider state changes and ARIA live region announcements.
+
+## 2026-08-14 - Logical Dependency Controls & Dynamic State Explanation
+**Learning:** Forms containing conditional logical rules (e.g., a setting that only makes sense if another option is set to public) create a cognitive and interaction burden if left unchecked. Letting users toggle invalid options leads to silent backend drops or invalid data. Dynamically disabling the dependent input, fading its container, replacing helper text with a precise reason, and broadcasting the change to screen readers via a live region provides an incredibly guided, self-documenting form experience.
+**Action:** When options have logical dependencies, proactively bind event listeners to disable inputs and update adjacent instructional feedback, utilizing proper ARIA live region announcements to communicate the change instantly.

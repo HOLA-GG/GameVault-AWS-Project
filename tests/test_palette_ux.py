@@ -327,3 +327,21 @@ def test_caps_lock_warning_rendered(client):
     assert 'Bloqueo de mayúsculas activado' in html
     assert "e.getModifierState('CapsLock')" in html
     assert 'checkCapsLock' in html
+
+
+def test_profile_visibility_dynamic_toggle_rendered(client):
+    """Verify that the profile page renders the dynamic visibility/opt-in toggle script."""
+    login_session(client)
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Verify elements are present
+    assert 'id="collection_visibility"' in html
+    assert 'id="homepage_showcase_opt_in"' in html
+
+    # Verify script existence and key function/logic parts
+    assert 'updateOptInState' in html
+    assert 'visibilitySelect.addEventListener' in html
+    assert 'optInCheckbox.disabled' in html
+    assert 'window.announceToScreenReader?.(' in html
