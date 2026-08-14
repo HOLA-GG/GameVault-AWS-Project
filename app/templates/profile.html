@@ -210,4 +210,48 @@
     </div>
 </section>
 {% endif %}
+
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        const visibilitySelect = document.getElementById('collection_visibility');
+        const optInCheckbox = document.getElementById('homepage_showcase_opt_in');
+
+        if (visibilitySelect && optInCheckbox) {
+            const checkboxCard = optInCheckbox.closest('.checkbox-card');
+            const helpText = checkboxCard ? checkboxCard.nextElementSibling : null;
+
+            function updateOptInState(isInitial = false) {
+                const isPrivate = visibilitySelect.value !== 'public';
+                optInCheckbox.disabled = isPrivate;
+
+                if (isPrivate) {
+                    if (checkboxCard) {
+                        checkboxCard.style.opacity = '0.5';
+                        checkboxCard.style.pointerEvents = 'none';
+                    }
+                    if (helpText && helpText.tagName === 'SMALL') {
+                        helpText.innerHTML = '<strong>Deshabilitado:</strong> Tu colección es privada. Cámbiala a Pública para poder destacarla en Inicio.';
+                    }
+                    if (!isInitial) {
+                        window.announceToScreenReader?.('Opción de destacar en inicio deshabilitada porque la colección es privada.');
+                    }
+                } else {
+                    if (checkboxCard) {
+                        checkboxCard.style.opacity = '1';
+                        checkboxCard.style.pointerEvents = 'auto';
+                    }
+                    if (helpText && helpText.tagName === 'SMALL') {
+                        helpText.textContent = 'Solo se mostrará en portada si la colección es pública y tiene contenido real.';
+                    }
+                    if (!isInitial) {
+                        window.announceToScreenReader?.('Opción de destacar en inicio habilitada.');
+                    }
+                }
+            }
+
+            updateOptInState(true);
+            visibilitySelect.addEventListener('change', () => updateOptInState(false));
+        }
+    });
+</script>
 {% endblock %}
