@@ -140,6 +140,46 @@ LANDING_SAMPLE_COLLECTIONS = [
     },
 ]
 
+import threading
+
+_SAMPLE_COLLECTIONS_CACHE: tuple[float, list[dict]] | None = None
+_SAMPLE_COLLECTIONS_CACHE_LOCK = threading.Lock()
+_SAMPLE_COLLECTIONS_TTL: float = 30.0
+
+
+def clear_sample_collections_cache() -> None:
+    """Vacía el caché de colecciones de ejemplo."""
+    global _SAMPLE_COLLECTIONS_CACHE
+    with _SAMPLE_COLLECTIONS_CACHE_LOCK:
+        _SAMPLE_COLLECTIONS_CACHE = None
+
+
+def obtener_sample_collections_cached() -> list[dict]:
+    """Obtiene colecciones de ejemplo procesadas y valoradas (Optimización Bolt: cache in-memory TTL)."""
+    global _SAMPLE_COLLECTIONS_CACHE
+    import time
+    now = time.time()
+
+    with _SAMPLE_COLLECTIONS_CACHE_LOCK:
+        if _SAMPLE_COLLECTIONS_CACHE is not None:
+            cached_time, data = _SAMPLE_COLLECTIONS_CACHE
+            if now - cached_time < _SAMPLE_COLLECTIONS_TTL:
+                return [dict(item) for item in data]
+
+    # Process and apply ratings
+    data = aplicar_ratings_showcase(
+        [dict(item) for item in LANDING_SAMPLE_COLLECTIONS],
+        subject_type='sample',
+        subject_id_key='id',
+        default_rating_key='average_rating',
+        default_votes_key='base_votes_count',
+    )
+
+    with _SAMPLE_COLLECTIONS_CACHE_LOCK:
+        _SAMPLE_COLLECTIONS_CACHE = (now, [dict(item) for item in data])
+
+    return data
+
 
 def require_login(view):
     """Protege rutas que requieren autenticación con validación en tiempo real."""
@@ -875,15 +915,10 @@ def landing():
     # eliminating the redundant N+1 logic in aplicar_ratings_showcase for public collections.
     public_collections = obtener_colecciones_publicas(limit=6)
 
-    # Creamos copias de las colecciones de ejemplo para que la mutación in-place de
-    # aplicar_ratings_showcase no afecte a la constante global entre peticiones.
-    sample_collections = aplicar_ratings_showcase(
-        [dict(item) for item in LANDING_SAMPLE_COLLECTIONS],
-        subject_type='sample',
-        subject_id_key='id',
-        default_rating_key='average_rating',
-        default_votes_key='base_votes_count',
-    )
+    # Bolt Performance Optimization: Fetch pre-processed and rated sample collections
+    # from a thread-safe in-memory cache to eliminate dynamic dictionary cloning and
+    # redundant rating processing on every home page visit.
+    sample_collections = obtener_sample_collections_cached()
     return render_template(
         'landing.html',
         public_collections=public_collections,
@@ -967,6 +1002,11 @@ def rate_showcase():
             return jsonify({'error': 'Colección pública no disponible para portada.'}), 404
 
     result = registrar_rating_showcase(subject_type, subject_id, rating, get_request_ip())
+
+    # Bolt Performance Optimization: Safely invalidate the in-memory processed sample
+    # collections cache upon a successful rating write to guarantee real-time visual correctness.
+    if result.get('success') and subject_type == 'sample':
+        clear_sample_collections_cache()
 
     crear_log_audit(
         user_id=None,
