@@ -294,3 +294,49 @@ def test_reset_password_get_rate_limiting(client, app):
         # Restaurar estado original del limiter
         app.config['RATELIMIT_ENABLED'] = False
         limiter.enabled = False
+
+
+def test_admin_pagination_boundary_overflow(client, app):
+    """Verifica que las rutas administrativas con paginación manejen de forma segura valores extremos de página."""
+    from app.models import get_session_factory, User, crear_usuario
+    from werkzeug.security import generate_password_hash
+    import hashlib
+
+    # 1. Crear Administrador
+    admin_pw = generate_password_hash("SecureAdmin1!")
+    admin_user = crear_usuario(
+        nombre="Admin Single",
+        apellido="",
+        email="admin_boundary@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=admin_pw
+    )
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        db_admin = session.get(User, admin_user['user_id'])
+        db_admin.role = 'admin'
+        session.commit()
+
+    # 2. Loguearse como Administrador
+    with client.session_transaction() as sess:
+        sess['user_id'] = admin_user['user_id']
+        sess['email'] = admin_user['email']
+        sess['nombre'] = admin_user['nombre']
+        sess['role'] = 'admin'
+        sess['_pw_hash'] = hashlib.sha256(admin_pw.encode('utf-8')).hexdigest()
+
+    # 3. Probar con páginas absurdamente gigantes (que causarían desbordamiento en SQLite/DB)
+    bypasses = [
+        "10000000000000000000000000000000000000000000000000000",
+        "9" * 100
+    ]
+
+    for giant_page in bypasses:
+        # Ruta de admin panel
+        res_admin = client.get(f'/admin?page={giant_page}')
+        assert res_admin.status_code == 200
+
+        # Ruta de admin colecciones
+        res_collections = client.get(f'/admin/collections?page={giant_page}')
+        assert res_collections.status_code == 200
