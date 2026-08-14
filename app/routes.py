@@ -2056,8 +2056,17 @@ def reset_password_with_email(token):
 @require_admin
 def admin_panel():
     """Panel simple de administración con paginación (Optimizado: paginación en DB)."""
-    page = max(1, request.args.get('page', 1, type=int))
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
+    total_usuarios = contar_usuarios()
+    total_pages = max(1, math.ceil(total_usuarios / per_page)) if per_page else 1
+
+    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+    try:
+        raw_page = request.args.get('page', 1, type=int)
+        page = max(1, min(raw_page, total_pages))
+    except (ValueError, TypeError, OverflowError):
+        page = 1
+
     offset = (page - 1) * per_page
 
     # Bolt Optimization: Fetch users with raw datetimes and selective projection as they are not rendered in admin.html.
@@ -2067,11 +2076,9 @@ def admin_panel():
         format_dates=False,
         fields=['user_id', 'email', 'nombre', 'prefijo_pais', 'telefono', 'role']
     )
-    total_usuarios = contar_usuarios()
 
     # Construcción manual de metadatos de paginación para mantener compatibilidad con la plantilla
-    total_pages = max(1, math.ceil(total_usuarios / per_page)) if per_page else 1
-    current_page = max(1, min(page, total_pages))
+    current_page = page
     pagination = {
         'page': current_page,
         'total_pages': total_pages,
@@ -2097,16 +2104,22 @@ def admin_collections():
     visibility = request.args.get('visibility', '').strip().lower()
     collection_filter = visibility if visibility in {'public', 'private'} else None
 
-    page = max(1, request.args.get('page', 1, type=int))
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
+    total_collections = contar_resumenes_colecciones(collection_filter)
+    total_pages = max(1, math.ceil(total_collections / per_page)) if per_page else 1
+
+    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+    try:
+        raw_page = request.args.get('page', 1, type=int)
+        page = max(1, min(raw_page, total_pages))
+    except (ValueError, TypeError, OverflowError):
+        page = 1
+
     offset = (page - 1) * per_page
 
     collections = obtener_resumenes_colecciones(collection_filter, limit=per_page, offset=offset)
-    total_collections = contar_resumenes_colecciones(collection_filter)
 
-    total_pages = max(1, math.ceil(total_collections / per_page)) if per_page else 1
-    current_page = max(1, min(page, total_pages))
-
+    current_page = page
     pagination = {
         'page': current_page,
         'total_pages': total_pages,
