@@ -1672,16 +1672,16 @@ def obtener_todos_logs(filters: Dict[str, Any] = None, limit: int = 100, **kwarg
         # Use select(AuditLog.__table__) to bypass ORM hydration
         query = select(AuditLog.__table__)
 
-    user_id_filter = str(filters.get('user_id') or '').strip()
-    if user_id_filter and len(user_id_filter) <= 36:
+    user_id_filter = str(filters.get('user_id') or '').strip()[:36]
+    if user_id_filter:
         query = query.where(AuditLog.user_id == user_id_filter)
 
-    action_filter = str(filters.get('action') or '').strip()
-    if action_filter and len(action_filter) <= 80:
+    action_filter = str(filters.get('action') or '').strip()[:80]
+    if action_filter:
         query = query.where(AuditLog.action == action_filter)
 
-    status_filter = str(filters.get('status') or '').strip()
-    if status_filter and len(status_filter) <= 20:
+    status_filter = str(filters.get('status') or '').strip()[:20]
+    if status_filter:
         query = query.where(AuditLog.status == status_filter)
 
     start_date = parse_date_filter(filters.get('start_date', ''))
