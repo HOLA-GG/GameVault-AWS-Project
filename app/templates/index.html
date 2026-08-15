@@ -139,8 +139,20 @@
                 <label for="calificacion">Calificación personal</label>
                 <select id="calificacion" name="calificacion">
                     <option value="">Sin nota</option>
-                    {% for value in GAME_RATING_OPTIONS %}
-                        <option value="{{ value }}">{{ value }}/10</option>
+                    {% set RATING_DESCRIPTIONS = {
+                        10: '10/10 ⭐ Obra maestra',
+                        9: '9/10 ⭐ Excelente',
+                        8: '8/10 ⭐ Muy bueno',
+                        7: '7/10 ⭐ Bueno',
+                        6: '6/10 ⭐ Aceptable',
+                        5: '5/10 ⭐ Mediocre',
+                        4: '4/10 ⭐ Malo',
+                        3: '3/10 ⭐ Muy malo',
+                        2: '2/10 ⭐ Pésimo',
+                        1: '1/10 ⭐ Injugable'
+                    } %}
+                    {% for value in GAME_RATING_OPTIONS|reverse %}
+                        <option value="{{ value }}">{{ RATING_DESCRIPTIONS.get(value, value ~ '/10') }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -329,7 +341,7 @@
                         <div class="game-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
                             <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="btn btn-secondary btn-small" aria-label="Editar {{ juego.titulo }}">Editar</a>
                             <form action="{{ url_for('main.eliminar_juego_ruta', game_id=juego.game_id) }}" method="POST" data-confirm="¿Eliminar {{ juego.titulo }}? Esta acción no se puede deshacer." style="display:inline;">
-                                <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar {{ juego.titulo }}">Eliminar</button>
+                                <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar {{ juego.titulo }}" data-loading-text="Eliminando...">Eliminar</button>
                             </form>
                         </div>
                     </div>

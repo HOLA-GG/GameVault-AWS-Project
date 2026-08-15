@@ -345,3 +345,31 @@ def test_profile_visibility_dynamic_toggle_rendered(client):
     assert 'visibilitySelect.addEventListener' in html
     assert 'optInCheckbox.disabled' in html
     assert 'window.announceToScreenReader?.(' in html
+
+
+def test_palette_rating_labels_and_delete_loading_text(client):
+    """Verify enhanced rating options and delete loading text attributes."""
+    login_session(client)
+
+    # 1. Check dashboard rating options
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html_dash = response.get_data(as_text=True)
+    assert '10/10 ⭐ Obra maestra' in html_dash
+    assert '9/10 ⭐ Excelente' in html_dash
+    assert '1/10 ⭐ Injugable' in html_dash
+
+    # Add a game to render the game card delete form with data-loading-text="Eliminando..."
+    client.post('/agregar', data={
+        'titulo': 'Test Game Delete',
+        'descripcion': 'Test description',
+        'plataforma': 'PC',
+        'estado': 'Nuevo',
+        'categoria': 'Biblioteca',
+        'prioridad': 'Media',
+    }, follow_redirects=True)
+
+    response_games = client.get('/dashboard')
+    assert response_games.status_code == 200
+    html_games = response_games.get_data(as_text=True)
+    assert 'data-loading-text="Eliminando..."' in html_games
