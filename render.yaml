@@ -63,7 +63,7 @@ services:
       - key: NEON_SSLMODE
         value: require
       - key: DB_USE_NULLPOOL
-        value: "false"
+        value: "true"
       - key: DB_POOL_SIZE
         value: "5"
       - key: DB_MAX_OVERFLOW

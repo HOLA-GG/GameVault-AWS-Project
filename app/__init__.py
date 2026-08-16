@@ -63,7 +63,10 @@ def configure_logging(app: Flask) -> None:
     class RequestFormatter(logging.Formatter):
         def format(self, record):
             if not hasattr(record, 'request_id'):
-                record.request_id = getattr(g, 'request_id', '-')
+                try:
+                    record.request_id = getattr(g, 'request_id', '-')
+                except RuntimeError:
+                    record.request_id = '-'
             return super().format(record)
 
     handler = logging.StreamHandler()
@@ -411,14 +414,17 @@ def create_app() -> Flask:
     from app.models import ensure_bootstrap_admin, init_database
     from app.routes import main_bp
 
-    init_database()
-    if app.config['BOOTSTRAP_ADMIN_ENABLED']:
-        ensure_bootstrap_admin(
-            email=app.config['BOOTSTRAP_ADMIN_EMAIL'],
-            password=app.config['BOOTSTRAP_ADMIN_PASSWORD'],
-            nombre=app.config['BOOTSTRAP_ADMIN_NAME'],
-            apellido=app.config['BOOTSTRAP_ADMIN_LAST_NAME'],
-        )
+    try:
+        init_database()
+        if app.config['BOOTSTRAP_ADMIN_ENABLED']:
+            ensure_bootstrap_admin(
+                email=app.config['BOOTSTRAP_ADMIN_EMAIL'],
+                password=app.config['BOOTSTRAP_ADMIN_PASSWORD'],
+                nombre=app.config['BOOTSTRAP_ADMIN_NAME'],
+                apellido=app.config['BOOTSTRAP_ADMIN_LAST_NAME'],
+            )
+    except Exception as exc:
+        app.logger.warning('database_init_failed_on_startup error=%s', exc)
 
     app.register_blueprint(main_bp, url_prefix='/')
     return app
