@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.routes import get_action_badge_class
+from app.routes import get_action_badge_class, filter_and_sort_games
 from app.models import _user_row_to_dict, _game_row_to_dict, _audit_log_row_to_dict, MIN_DATE, utcnow
 
 # Mock Row with _mapping
@@ -116,3 +116,44 @@ def test_row_to_dict_try_except_mapping_fallback():
     assert game_dict_orm['titulo'] == 'Another Game'
     assert game_dict_orm['titulo_lower'] == 'another game'
     assert game_dict_orm['es_favorito'] is False
+
+
+def test_filter_and_sort_games_eafp_text_search():
+    """Verify filter_and_sort_games text search works with both cached lower fields and fallback fields."""
+    juegos = [
+        {
+            'plataforma': 'Nintendo Switch',
+            'estado': 'Como Nuevo',
+            'categoria': 'Biblioteca',
+            'es_favorito': False,
+            'titulo': 'Zelda Breath of the Wild',
+            'descripcion': 'Open world adventure',
+            'plataforma_lower': 'nintendo switch',
+            'estado_lower': 'como nuevo',
+            'titulo_lower': 'zelda breath of the wild',
+            'descripcion_lower': 'open world adventure',
+        },
+        {
+            # Legacy/minimal dict without lower fields
+            'plataforma': 'PlayStation 5',
+            'estado': 'Nuevo',
+            'categoria': 'Jugando',
+            'es_favorito': True,
+            'titulo': 'Final Fantasy VII',
+            'descripcion': 'Classic RPG remake',
+        },
+    ]
+
+    # Search query matching first item using lowercased cache
+    res1 = filter_and_sort_games(juegos, {'q': 'zelda'})
+    assert len(res1) == 1
+    assert res1[0]['titulo'] == 'Zelda Breath of the Wild'
+
+    # Search query matching second item via KeyError fallback
+    res2 = filter_and_sort_games(juegos, {'q': 'fantasy'})
+    assert len(res2) == 1
+    assert res2[0]['titulo'] == 'Final Fantasy VII'
+
+    # Search query matching neither
+    res3 = filter_and_sort_games(juegos, {'q': 'halo'})
+    assert len(res3) == 0

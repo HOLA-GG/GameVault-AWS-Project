@@ -806,14 +806,14 @@ def filter_and_sort_games(juegos, filters):
             # Bolt Optimization: Reorder checks to prioritize shorter categorical fields,
             # maximizing short-circuit evaluation speed for mismatched records.
             if query:
-                # Bolt Optimization: If pre-lowercased cache fields are present, use fast bracket access.
-                # This avoids repeated .get() lookup overhead and redundant inline lowercasing in the loop.
-                if 'plataforma_lower' in juego:
+                # Bolt Optimization: Try direct access to pre-lowercased cache fields using EAFP (try-except)
+                # to avoid 'in' dictionary key membership checks on every loop iteration.
+                try:
                     p_low = juego['plataforma_lower']
                     e_low = juego['estado_lower']
                     t_low = juego['titulo_lower']
                     d_low = juego['descripcion_lower']
-                else:
+                except KeyError:
                     p_low = (juego.get('plataforma') or '').lower()
                     e_low = (juego.get('estado') or '').lower()
                     t_low = (juego.get('titulo') or '').lower()
