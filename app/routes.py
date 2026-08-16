@@ -1244,7 +1244,7 @@ def agregar_juego():
             action='CREATE_GAME',
             resource='games',
             details={'errors': errores, 'attempted_title': (titulo or '')[:100]},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -1286,7 +1286,7 @@ def agregar_juego():
             'prioridad': metadata['prioridad'],
             'es_favorito': metadata['es_favorito'],
         },
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -1311,7 +1311,7 @@ def eliminar_juego_ruta(game_id):
             action='UNAUTHORIZED_ACCESS',
             resource='games',
             details={'game_id': game_id, 'operation': 'delete_game'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -1328,7 +1328,7 @@ def eliminar_juego_ruta(game_id):
         action='DELETE_GAME',
         resource='games',
         details={'game_id': game_id, 'title': juego.get('titulo')},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -1353,7 +1353,7 @@ def editar_juego_ruta(game_id):
             action='UNAUTHORIZED_ACCESS',
             resource='games',
             details={'game_id': game_id, 'operation': 'edit_game'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -1412,7 +1412,7 @@ def editar_juego_ruta(game_id):
             action='UPDATE_GAME',
             resource='games',
             details={'game_id': game_id, 'errors': errores, 'attempted_title': (titulo or '')[:100]},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -1449,7 +1449,7 @@ def editar_juego_ruta(game_id):
             'prioridad': metadata['prioridad'],
             'es_favorito': metadata['es_favorito'],
         },
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -1508,7 +1508,7 @@ def registro():
             action='REGISTER',
             resource='users',
             details={'email': email, 'errors': errores},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -1536,7 +1536,7 @@ def registro():
         action='REGISTER',
         resource='users',
         details={'email': email},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -1584,7 +1584,7 @@ def login():
             action='FAILED_LOGIN',
             resource='auth',
             details={'email': email, 'reason': 'invalid_credentials_or_inactive'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -1616,7 +1616,7 @@ def login():
         action='LOGIN',
         resource='auth',
         details={'email': email},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -1631,7 +1631,7 @@ def login():
                 action='UNAUTHORIZED_ACCESS',
                 resource='auth',
                 details={'reason': 'unsafe_redirect_intercepted', 'next_url': next_url[:200]},
-                ip_address=request.remote_addr or 'unknown',
+                ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
             )
@@ -1653,7 +1653,7 @@ def logout():
         action='LOGOUT',
         resource='auth',
         details={'email': email},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -1715,7 +1715,7 @@ def profile():
                 action='CHANGE_PASSWORD',
                 resource='users',
                 details={'email': session.get('email'), 'reason': 'incorrect_current_password'},
-                ip_address=request.remote_addr or 'unknown',
+                ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
             )
@@ -1726,7 +1726,7 @@ def profile():
                 action='CHANGE_PASSWORD',
                 resource='users',
                 details={'email': session.get('email'), 'reason': 'reuse_current_password'},
-                ip_address=request.remote_addr or 'unknown',
+                ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
             )
@@ -1753,7 +1753,7 @@ def profile():
             action='CHANGE_PASSWORD',
             resource='users',
             details={'email': session.get('email')},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='SUCCESS',
         )
@@ -1806,7 +1806,7 @@ def profile():
         action='UPDATE_PROFILE',
         resource='users',
         details={'email': session.get('email')},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -1844,7 +1844,7 @@ def forgot_password():
             action='PASSWORD_RESET_REQUEST',
             resource='auth',
             details={'email': email, 'reason': 'user_not_found_or_inactive'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -1860,7 +1860,7 @@ def forgot_password():
                 action='PASSWORD_RESET_REQUEST',
                 resource='auth',
                 details={'email': email},
-                ip_address=request.remote_addr or 'unknown',
+                ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='SUCCESS',
             )
@@ -1910,7 +1910,7 @@ def forgot_password_manual():
             action='PASSWORD_RESET_REQUEST',
             resource='auth',
             details={'email': email, 'reason': 'manual_token_validation_failed'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -2053,7 +2053,7 @@ def reset_password_with_email(token):
             action='PASSWORD_RESET',
             resource='auth',
             details={'email': email, 'reason': 'reuse_current_password'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -2084,7 +2084,7 @@ def reset_password_with_email(token):
         action='PASSWORD_RESET',
         resource='auth',
         details={'email': email},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -2199,7 +2199,7 @@ def admin_eliminar_usuario(user_id):
             action='ADMIN_ACTION',
             resource='users',
             details={'target_user_id': user_id, 'operation': 'delete_user', 'error': 'cannot_delete_another_admin'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -2214,7 +2214,7 @@ def admin_eliminar_usuario(user_id):
             action='ADMIN_ACTION',
             resource='users',
             details={'target_user_id': user_id, 'operation': 'delete_user', 'error': resultado.get('error')},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -2225,7 +2225,7 @@ def admin_eliminar_usuario(user_id):
         action='ADMIN_ACTION',
         resource='users',
         details={'target_user_id': user_id, 'operation': 'delete_user'},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -2250,7 +2250,7 @@ def admin_editar_usuario(user_id):
             action='ADMIN_ACTION',
             resource='users',
             details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'cannot_edit_another_admin'},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -2274,7 +2274,7 @@ def admin_editar_usuario(user_id):
             action='ADMIN_ACTION',
             resource='users',
             details={'target_user_id': user_id, 'operation': 'rename_user', 'error': resultado.get('error')},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
@@ -2285,7 +2285,7 @@ def admin_editar_usuario(user_id):
         action='ADMIN_ACTION',
         resource='users',
         details={'target_user_id': user_id, 'operation': 'rename_user'},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -2388,7 +2388,7 @@ def admin_logs_export():
         action='ADMIN_ACTION',
         resource='audit_logs',
         details={'operation': 'export_logs', 'filters': filters},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
@@ -2410,7 +2410,7 @@ def admin_logs_clear():
         action='ADMIN_ACTION',
         resource='audit_logs',
         details={'operation': 'clear_logs', 'deleted': resultado.get('deleted', 0), 'days': dias},
-        ip_address=request.remote_addr or 'unknown',
+        ip_address=get_request_ip(),
         user_agent=request.headers.get('User-Agent', 'unknown'),
         status='SUCCESS',
     )
