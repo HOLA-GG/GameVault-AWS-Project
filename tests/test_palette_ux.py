@@ -373,3 +373,26 @@ def test_palette_rating_labels_and_delete_loading_text(client):
     assert response_games.status_code == 200
     html_games = response_games.get_data(as_text=True)
     assert 'data-loading-text="Eliminando..."' in html_games
+
+
+def test_palette_game_card_copy_button(client):
+    """Verify that game cards render the copy button with data-copy and aria-label attributes."""
+    login_session(client)
+
+    client.post('/agregar', data={
+        'titulo': 'The Legend of Zelda',
+        'descripcion': 'NES classic game',
+        'plataforma': 'Nintendo',
+        'estado': 'Usado',
+        'categoria': 'Biblioteca',
+        'prioridad': 'Alta',
+    }, follow_redirects=True)
+
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'btn-copy' in html
+    assert 'data-copy="The Legend of Zelda (Nintendo)"' in html
+    assert 'aria-label="Copiar nombre de The Legend of Zelda"' in html
+    assert 'title="Copiar nombre de The Legend of Zelda"' in html
