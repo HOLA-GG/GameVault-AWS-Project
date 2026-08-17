@@ -340,3 +340,7 @@ def test_admin_pagination_boundary_overflow(client, app):
         # Ruta de admin colecciones
         res_collections = client.get(f'/admin/collections?page={giant_page}')
         assert res_collections.status_code == 200
+
+        # Ruta de admin logs
+        res_logs = client.get(f'/admin/logs?page={giant_page}')
+        assert res_logs.status_code == 200

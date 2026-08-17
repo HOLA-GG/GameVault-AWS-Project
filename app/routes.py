@@ -2311,7 +2311,11 @@ def admin_logs():
         format_dates=False,
         fields=['audit_id', 'user_id', 'action', 'action_name', 'resource', 'timestamp', 'ip_address', 'details', 'status']
     )
-    page = request.args.get('page', 1, type=int)
+    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+    try:
+        page = request.args.get('page', 1, type=int)
+    except (ValueError, TypeError, OverflowError):
+        page = 1
     stats = obtener_estadisticas_logs()
     grouped_logs = build_admin_log_groups(logs)
     pagination = paginate_items(grouped_logs, page, current_app.config['ADMIN_USERS_PER_PAGE'])
