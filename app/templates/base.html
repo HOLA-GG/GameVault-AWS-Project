@@ -531,6 +531,8 @@
 
             insertionTarget.parentNode.insertBefore(matchText, insertionTarget.nextSibling);
 
+            let lastMatchState = null;
+
             function checkMatch() {
                 const val = passwordInput.value;
                 const confVal = confirmInput.value;
@@ -539,6 +541,7 @@
                     matchText.textContent = '';
                     matchText.classList.remove('is-weak', 'is-strong');
                     confirmInput.setCustomValidity('');
+                    lastMatchState = null;
                     return;
                 }
 
@@ -547,11 +550,19 @@
                     matchText.classList.remove('is-weak');
                     matchText.classList.add('is-strong');
                     confirmInput.setCustomValidity('');
+                    if (lastMatchState !== true) {
+                        lastMatchState = true;
+                        announceToScreenReader('Las contraseñas coinciden');
+                    }
                 } else {
                     matchText.textContent = '✗ Las contraseñas no coinciden';
                     matchText.classList.remove('is-strong');
                     matchText.classList.add('is-weak');
                     confirmInput.setCustomValidity('Las contraseñas no coinciden');
+                    if (lastMatchState !== false) {
+                        lastMatchState = false;
+                        announceToScreenReader('Las contraseñas no coinciden');
+                    }
                 }
             }
 
@@ -817,15 +828,6 @@
             injectCsrfTokens();
             setupCharacterCounters();
             setupRequiredFields();
-            setupPasswordStrength();
-            setupPasswordMatchValidation();
-            setupAutoExpandingTextareas();
-            setupRelativeTimes();
-            setupFlashMessages();
-            setupSelectOnFocus();
-            setupDirtyFormTracker();
-            setupDragAndDropFeedback();
-            setupScrollToTop();
             document.querySelectorAll('input[type="password"]').forEach(i => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'pw-field-wrapper';
@@ -881,6 +883,15 @@
                     capsWarning.style.display = 'none';
                 });
             });
+            setupPasswordStrength();
+            setupPasswordMatchValidation();
+            setupAutoExpandingTextareas();
+            setupRelativeTimes();
+            setupFlashMessages();
+            setupSelectOnFocus();
+            setupDirtyFormTracker();
+            setupDragAndDropFeedback();
+            setupScrollToTop();
 
         // Botón Volver arriba (Scroll to Top)
         function setupScrollToTop() {
