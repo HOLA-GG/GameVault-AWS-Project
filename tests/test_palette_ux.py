@@ -396,3 +396,21 @@ def test_palette_game_card_copy_button(client):
     assert 'data-copy="The Legend of Zelda (Nintendo)"' in html
     assert 'aria-label="Copiar nombre de The Legend of Zelda"' in html
     assert 'title="Copiar nombre de The Legend of Zelda"' in html
+
+
+def test_password_match_validation_rendering(client):
+    """Verify that password match validation, wrapper order, and screen reader announcements are rendered in base.html."""
+    response = client.get('/registro')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check setupPasswordMatchValidation is defined and includes screen reader announcements
+    assert 'function setupPasswordMatchValidation()' in html
+    assert "announceToScreenReader('Las contraseñas coinciden');" in html
+    assert "announceToScreenReader('Las contraseñas no coinciden');" in html
+
+    # Check that input[type="password"] wrapping happens before setupPasswordMatchValidation() in DOMContentLoaded
+    wrap_index = html.find("document.querySelectorAll('input[type=\"password\"]').forEach")
+    match_index = html.find('setupPasswordMatchValidation();')
+    assert wrap_index != -1 and match_index != -1
+    assert wrap_index < match_index
