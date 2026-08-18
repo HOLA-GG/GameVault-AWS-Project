@@ -236,7 +236,7 @@ def test_palette_new_select_on_focus_and_placeholders(client):
 
 
 def test_palette_star_rating_accessibility(client):
-    """Verify that the landing page's star rating buttons have descriptive aria-labels and sync aria-pressed attributes."""
+    """Verify that the landing page's star rating buttons have descriptive aria-labels, sync aria-pressed attributes, and support keyboard arrow navigation."""
     response = client.get('/')
     assert response.status_code == 200
     html = response.get_data(as_text=True)
@@ -250,6 +250,12 @@ def test_palette_star_rating_accessibility(client):
 
     # Verify script dynamically syncs aria-pressed
     assert "star.setAttribute('aria-pressed', isFilled ? 'true' : 'false')" in html
+
+    # Verify keyboard arrow navigation logic and screen reader announcements
+    assert "star.addEventListener('keydown', function (e) {" in html
+    assert "e.key === 'ArrowRight' || e.key === 'ArrowUp'" in html
+    assert "e.key === 'ArrowLeft' || e.key === 'ArrowDown'" in html
+    assert "window.announceToScreenReader?.(`Navegando: ${ratingVal} de 5 estrellas`);" in html
 
 
 def test_palette_accessibility_panel_status_labels(client):
