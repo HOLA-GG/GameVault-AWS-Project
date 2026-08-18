@@ -82,9 +82,10 @@ _COMMON_WEAK_PASSWORDS = {
 }
 
 
-def hash_token(token: str) -> str:
+def hash_token(token: str | None) -> str:
     """Genera un hash seguro para tokens de un solo uso (SHA-256)."""
-    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+    safe_token = str(token or '')
+    return hashlib.sha256(safe_token.encode('utf-8')).hexdigest()
 
 
 def utcnow() -> datetime:
@@ -1440,6 +1441,8 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
 
 def obtener_token_por_valor(reset_token: str, only_active: bool = True) -> List[Dict[str, Any]]:
     """Busca tokens por valor."""
+    if not reset_token or not isinstance(reset_token, str):
+        return []
     ensure_tables()
     session_factory = get_session_factory()
     hashed = hash_token(reset_token)
@@ -1456,6 +1459,8 @@ def obtener_token_por_valor(reset_token: str, only_active: bool = True) -> List[
 
 def validar_reset_token(reset_token: str) -> Dict[str, Any]:
     """Valida un token de recuperación."""
+    if not reset_token or not isinstance(reset_token, str):
+        return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
     items = obtener_token_por_valor(reset_token, only_active=True)
     if not items:
         return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
@@ -1470,6 +1475,8 @@ def validar_reset_token(reset_token: str) -> Dict[str, Any]:
 
 def usar_token(reset_token: str) -> Dict[str, Any]:
     """Marca un token como usado."""
+    if not reset_token or not isinstance(reset_token, str):
+        return {'success': False, 'error': 'Token no encontrado'}
     ensure_tables()
     session_factory = get_session_factory()
     hashed = hash_token(reset_token)

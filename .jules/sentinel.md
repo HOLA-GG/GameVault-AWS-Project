@@ -227,3 +227,8 @@
 **Vulnerability:** Denial of Service (DoS) and potential memory exhaustion via an unbounded `titulo` form parameter in the public unauthenticated `/demo` endpoint.
 **Learning:** Standard size-limit configurations like `MAX_CONTENT_LENGTH` only restrict body payload size for uploads. However, a standard form parameter like `titulo` could still contain excessively long strings if not explicitly capped in the view, leading to memory bloat on rendering or logging.
 **Prevention:** Always enforce explicit input length validation bounds (such as `len(titulo) > 255`) on all user-supplied text parameters in route handlers, particularly on public unauthenticated views.
+
+## 2026-08-28 - Defensive Input Handling for Password Reset Tokens
+**Vulnerability:** Unhandled `AttributeError` and potential 500 server error when passing `None` or non-string parameters to token hashing and validation helpers (`hash_token`, `obtener_token_por_valor`, `validar_reset_token`, `usar_token`).
+**Learning:** Assuming token parameters received from URL routing, API payloads, or internal callers are always strings can result in unhandled exceptions when malformed or `None` inputs are supplied.
+**Prevention:** Always perform defensive input coercion or type validation at the data access/helper layer before performing string operations like `.encode()` or `.strip()`.
