@@ -264,7 +264,7 @@
                 parseInt(votesLabel ? votesLabel.textContent : '0', 10),
             );
 
-            stars.forEach((star) => {
+            stars.forEach((star, index) => {
                 star.addEventListener('mouseenter', function () {
                     if (isLocked) {
                         return;
@@ -282,6 +282,28 @@
                         return;
                     }
                     paintStars(Number(card.dataset.currentRating || '0'));
+                });
+                star.addEventListener('keydown', function (e) {
+                    if (isLocked) return;
+                    let targetIndex = -1;
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                        targetIndex = (index + 1) % stars.length;
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                        targetIndex = (index - 1 + stars.length) % stars.length;
+                    } else if (e.key === 'Home') {
+                        targetIndex = 0;
+                    } else if (e.key === 'End') {
+                        targetIndex = stars.length - 1;
+                    }
+
+                    if (targetIndex !== -1) {
+                        e.preventDefault();
+                        const targetStar = stars[targetIndex];
+                        targetStar.focus();
+                        const ratingVal = Number(targetStar.dataset.rating);
+                        paintStars(ratingVal);
+                        window.announceToScreenReader?.(`Navegando: ${ratingVal} de 5 estrellas`);
+                    }
                 });
                 star.addEventListener('click', function () {
                     const chosenRating = Number(this.dataset.rating);
