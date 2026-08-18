@@ -1,3 +1,7 @@
+## 2026-09-05 - EAFP Direct Dictionary Indexing for SQLAlchemy Row Mapping
+**Learning:** In high-frequency row-to-dictionary mappers processing full SQLAlchemy `Row` objects (via `row._mapping`), using `.get()` method calls on every field adds method lookup and dictionary hash/lookup overhead. Attempting direct dictionary bracket indexing (`m['key']`) first within a nested `try...except KeyError` block bypasses `.get()` method call overhead, speeding up full row serialization by ~1.4x to 1.5x while cleanly falling back to `.get()` for partial SQL projections.
+**Action:** Prefer direct bracket indexing `m['key']` inside `try...except KeyError` blocks when serializing full database rows from SQLAlchemy `Row._mapping` dict views.
+
 ## 2026-09-04 - Inlining Dictionary Lookups inside Short-Circuiting Boolean OR Chains
 **Learning:** In high-frequency filtering loops where substring search is evaluated across multiple dictionary fields in a short-circuiting `or` expression, pre-extracting variables for all keys prior to evaluation forces up to 4 dictionary lookups per item regardless of match outcome. Inlining dictionary bracket access directly into the short-circuiting `or` chain inside a `try...except` block skips up to 3 lookups per item whenever an early key (like `titulo_lower`) matches, yielding a ~1.6x execution speedup.
 **Action:** Inline dictionary bracket lookups directly inside short-circuiting boolean chains (`or`/`and`) within `try...except` blocks in hot-loop filtering routines.
