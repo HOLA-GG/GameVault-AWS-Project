@@ -232,3 +232,8 @@
 **Vulnerability:** Unhandled `AttributeError` and potential 500 server error when passing `None` or non-string parameters to token hashing and validation helpers (`hash_token`, `obtener_token_por_valor`, `validar_reset_token`, `usar_token`).
 **Learning:** Assuming token parameters received from URL routing, API payloads, or internal callers are always strings can result in unhandled exceptions when malformed or `None` inputs are supplied.
 **Prevention:** Always perform defensive input coercion or type validation at the data access/helper layer before performing string operations like `.encode()` or `.strip()`.
+
+## 2026-09-02 - Defensive Type Validation for Password, Email, and Phone Inputs
+**Vulnerability:** Unhandled `TypeError` or `AttributeError` exceptions when non-string objects (e.g., `None`, numbers, lists, or dicts) are passed to input validation helpers (`validar_password`, `validar_email`, `validar_telefono`).
+**Learning:** Relying on user/caller inputs or API parameters being string objects can lead to application crashes (500 errors) when unexpected non-string payloads are received.
+**Prevention:** Enforce strict `isinstance(val, str)` type checks at the beginning of all string validation helper functions before performing operations like `len()`, `.lower()`, `.strip()`, or `.isdigit()`.
