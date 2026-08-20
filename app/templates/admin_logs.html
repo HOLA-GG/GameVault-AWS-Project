@@ -224,15 +224,15 @@
 
 {% if pagination.total_pages > 1 %}
 <section class="section" style="text-align:center;">
-    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+    <nav aria-label="Paginación de logs" style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;">
         {% if pagination.has_prev %}
-            <a href="{{ url_for('main.admin_logs', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary">Anterior</a>
+            <a href="{{ url_for('main.admin_logs', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary" aria-label="Ir a la página anterior (Página {{ pagination.prev_page }})">Anterior</a>
         {% endif %}
-        <span style="padding:10px 16px;color:var(--text-secondary);">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+        <span style="padding:10px 16px;color:var(--text-secondary);" aria-current="page">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
         {% if pagination.has_next %}
-            <a href="{{ url_for('main.admin_logs', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary">Siguiente</a>
+            <a href="{{ url_for('main.admin_logs', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary" aria-label="Ir a la página siguiente (Página {{ pagination.next_page }})">Siguiente</a>
         {% endif %}
-    </div>
+    </nav>
 </section>
 {% endif %}
 
