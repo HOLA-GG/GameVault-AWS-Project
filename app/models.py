@@ -966,7 +966,7 @@ def sanitize_and_validate_ip(ip_str: str | None) -> str:
 
 def validar_email(email):
     """Valida el formato y longitud del email (max 255)."""
-    if not email or len(email) > 255:
+    if not email or not isinstance(email, str) or len(email) > 255:
         return False
     # Bolt Optimization: Use pre-compiled regex.
     return _EMAIL_RE.match(email) is not None
@@ -974,6 +974,8 @@ def validar_email(email):
 
 def validar_telefono(telefono):
     """Valida que el teléfono contenga solo dígitos y tenga longitud válida (7-20)."""
+    if not telefono or not isinstance(telefono, str):
+        return False
     return telefono.isdigit() and 7 <= len(telefono) <= 20
 
 
@@ -1060,6 +1062,8 @@ def subir_imagen_a_s3(archivo):
 
 def validar_password(password, email=None, nombre=None, apellido=None, telefono=None):
     """Valida que la contraseña tenga una longitud segura (8-128) y complejidad requerida (A-Z, a-z, 0-9)."""
+    if not password or not isinstance(password, str):
+        return False
     # El límite superior de 128 protege contra ataques DoS al algoritmo de hashing.
     if not (8 <= len(password) <= 128):
         return False
@@ -1071,7 +1075,7 @@ def validar_password(password, email=None, nombre=None, apellido=None, telefono=
     if password_lower in _COMMON_WEAK_PASSWORDS:
         return False
 
-    if email:
+    if email and isinstance(email, str):
         email_lower = email.lower().strip()
         # Evitar contraseñas que contengan el correo completo
         if email_lower in password_lower:
@@ -1081,19 +1085,19 @@ def validar_password(password, email=None, nombre=None, apellido=None, telefono=
         if len(local_part) >= 4 and local_part in password_lower:
             return False
 
-    if nombre:
+    if nombre and isinstance(nombre, str):
         nombre_lower = nombre.lower().strip()
         # Evitar contraseñas que contengan el nombre del usuario
         if len(nombre_lower) >= 4 and nombre_lower in password_lower:
             return False
 
-    if apellido:
+    if apellido and isinstance(apellido, str):
         apellido_lower = apellido.lower().strip()
         # Evitar contraseñas que contengan el apellido del usuario
         if len(apellido_lower) >= 4 and apellido_lower in password_lower:
             return False
 
-    if telefono:
+    if telefono and isinstance(telefono, str):
         # Evitar contraseñas que contengan el teléfono
         telefono_digits = "".join(c for c in telefono if c.isdigit())
         password_digits = "".join(c for c in password if c.isdigit())
