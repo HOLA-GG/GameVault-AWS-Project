@@ -420,3 +420,36 @@ def test_password_match_validation_rendering(client):
     match_index = html.find('setupPasswordMatchValidation();')
     assert wrap_index != -1 and match_index != -1
     assert wrap_index < match_index
+
+
+def test_palette_pagination_accessibility(client):
+    """Verify that pagination controls are wrapped in nav landmarks with descriptive ARIA attributes."""
+    from app.models import crear_juego
+
+    login_session(client)
+    user_id = 'user-1'
+
+    # Create games directly via model helper to bypass rate limits and trigger pagination (20 games per page)
+    for i in range(25):
+        crear_juego(
+            user_id=user_id,
+            titulo=f'Pagination Game {i}',
+            descripcion='Test description',
+            plataforma='PC',
+            estado='Nuevo',
+            categoria='Biblioteca',
+            prioridad='Media',
+            game_id=f'game-pag-{i}',
+            imagen_url='',
+        )
+
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Verify nav landmark with aria-label
+    assert '<nav aria-label="Paginación de juegos"' in html
+    # Verify current page status indicator with aria-current="page"
+    assert 'aria-current="page"' in html
+    # Verify next button with descriptive aria-label
+    assert 'aria-label="Ir a la página siguiente (Página 2)"' in html
