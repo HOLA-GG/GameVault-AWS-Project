@@ -39,22 +39,44 @@ def test_get_action_badge_class_cases():
 
 
 def test_row_to_dict_try_except_mapping_fallback():
-    """Verify row to dict helpers map both _mapping Row objects and standard ORM objects correctly."""
+    """Verify row to dict helpers map both full/partial _mapping Row objects and standard ORM objects correctly."""
     now_dt = utcnow()
 
-    # User Row Mapping
-    user_mapping = {
+    # Partial User Row Mapping (len < 13)
+    user_partial_mapping = {
         'user_id': 'u1',
         'email': 'u1@test.com',
         'nombre': 'User 1',
         'created_at': now_dt,
         'updated_at': now_dt,
     }
-    user_row = MockRow(user_mapping)
-    user_dict = _user_row_to_dict(user_row, format_dates=False)
-    assert user_dict['user_id'] == 'u1'
-    assert user_dict['email'] == 'u1@test.com'
-    assert user_dict['created_at'] == now_dt
+    user_partial_row = MockRow(user_partial_mapping)
+    user_partial_dict = _user_row_to_dict(user_partial_row, format_dates=False)
+    assert user_partial_dict['user_id'] == 'u1'
+    assert user_partial_dict['email'] == 'u1@test.com'
+    assert user_partial_dict['created_at'] == now_dt
+
+    # Full User Row Mapping (len == 13)
+    user_full_mapping = {
+        'user_id': 'u1_full',
+        'email': 'full@test.com',
+        'nombre': 'User Full',
+        'apellido': 'Smith',
+        'prefijo_pais': '+1',
+        'telefono': '5551234',
+        'password_hash': 'hash123',
+        'role': 'user',
+        'status': 'active',
+        'collection_visibility': 'public',
+        'homepage_showcase_opt_in': True,
+        'created_at': now_dt,
+        'updated_at': now_dt,
+    }
+    user_full_row = MockRow(user_full_mapping)
+    user_full_dict = _user_row_to_dict(user_full_row, format_dates=False)
+    assert user_full_dict['user_id'] == 'u1_full'
+    assert user_full_dict['collection_visibility'] == 'public'
+    assert user_full_dict['homepage_showcase_opt_in'] is True
 
     # User ORM object
     user_orm_data = {
@@ -70,8 +92,8 @@ def test_row_to_dict_try_except_mapping_fallback():
     assert user_dict_orm['email'] == 'u2@test.com'
     assert user_dict_orm['created_at'] == now_dt
 
-    # Game Row Mapping
-    game_mapping = {
+    # Full Game Row Mapping (len == 13)
+    game_full_mapping = {
         'game_id': 'g1',
         'user_id': 'u1',
         'titulo': 'Test Game',
@@ -86,13 +108,27 @@ def test_row_to_dict_try_except_mapping_fallback():
         'created_at': now_dt,
         'updated_at': now_dt,
     }
-    game_row = MockRow(game_mapping)
-    game_dict = _game_row_to_dict(game_row, format_dates=False)
+    game_full_row = MockRow(game_full_mapping)
+    game_dict = _game_row_to_dict(game_full_row, format_dates=False)
     assert game_dict['game_id'] == 'g1'
     assert game_dict['titulo'] == 'Test Game'
     assert game_dict['titulo_lower'] == 'test game'
     assert game_dict['plataforma_lower'] == 'xbox'
     assert game_dict['es_favorito'] is True
+
+    # Partial Game Row Mapping (len < 13)
+    game_partial_mapping = {
+        'game_id': 'g_part',
+        'user_id': 'u1',
+        'titulo': 'Partial Game',
+        'created_at': now_dt,
+        'updated_at': now_dt,
+    }
+    game_partial_row = MockRow(game_partial_mapping)
+    game_part_dict = _game_row_to_dict(game_partial_row, format_dates=False)
+    assert game_part_dict['game_id'] == 'g_part'
+    assert game_part_dict['titulo'] == 'Partial Game'
+    assert game_part_dict['plataforma'] == 'PC'
 
     # Game ORM object
     game_orm_data = {
@@ -116,6 +152,43 @@ def test_row_to_dict_try_except_mapping_fallback():
     assert game_dict_orm['titulo'] == 'Another Game'
     assert game_dict_orm['titulo_lower'] == 'another game'
     assert game_dict_orm['es_favorito'] is False
+
+    # Full AuditLog Row Mapping (len == 10)
+    log_full_mapping = {
+        'audit_id': 'log_full_1',
+        'user_id': 'u1',
+        'action': 'LOGIN',
+        'action_name': 'Inicio de sesión',
+        'resource': 'auth',
+        'timestamp': now_dt,
+        'ip_address': '127.0.0.1',
+        'user_agent': 'Mozilla/5.0',
+        'details': {'ip': '127.0.0.1'},
+        'status': 'SUCCESS',
+    }
+    log_full_row = MockRow(log_full_mapping)
+    log_full_dict = _audit_log_row_to_dict(log_full_row, format_dates=False)
+    assert log_full_dict['audit_id'] == 'log_full_1'
+    assert log_full_dict['action'] == 'LOGIN'
+    assert log_full_dict['user_agent'] == 'Mozilla/5.0'
+
+    # Partial AuditLog Row Mapping (len == 9, user_agent omitted)
+    log_partial_mapping = {
+        'audit_id': 'log_part_1',
+        'user_id': 'u1',
+        'action': 'LOGIN',
+        'action_name': 'Inicio de sesión',
+        'resource': 'auth',
+        'timestamp': now_dt,
+        'ip_address': '127.0.0.1',
+        'details': {},
+        'status': 'SUCCESS',
+    }
+    log_part_row = MockRow(log_partial_mapping)
+    log_part_dict = _audit_log_row_to_dict(log_part_row, format_dates=False)
+    assert log_part_dict['audit_id'] == 'log_part_1'
+    assert log_part_dict['action'] == 'LOGIN'
+    assert log_part_dict['user_agent'] == 'unknown'
 
 
 def test_filter_and_sort_games_eafp_text_search():

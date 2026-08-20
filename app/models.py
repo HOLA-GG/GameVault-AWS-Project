@@ -464,59 +464,62 @@ def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de User a un diccionario (Optimización Bolt)."""
     # Bolt Optimization: Use EAFP pattern (try-except) to access _mapping dictionary view of Row
     # when available to avoid expensive hasattr() and getattr/AttributeError overhead.
-    # Furthermore, try direct dictionary indexing m['key'] first to bypass .get() lookup overhead,
-    # falling back to .get() on KeyError for partial column projections (~1.4x speedup).
+    # Check len(m) == 13 first to attempt direct bracket indexing m['key'] for full rows without
+    # throwing/catching KeyError exceptions on partial projections (~1.4x speedup).
     try:
         m = row._mapping
         _MIN_DATE = MIN_DATE
-        try:
-            cre = m['created_at'] or _MIN_DATE
-            upd = m['updated_at'] or _MIN_DATE
-            if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
-            if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+        if len(m) == 13:
+            try:
+                cre = m['created_at'] or _MIN_DATE
+                upd = m['updated_at'] or _MIN_DATE
+                if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+                if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
 
-            if format_dates:
-                cre, upd = cre.isoformat(), upd.isoformat()
+                if format_dates:
+                    cre, upd = cre.isoformat(), upd.isoformat()
 
-            return {
-                'user_id': m['user_id'],
-                'email': m['email'] or '',
-                'nombre': m['nombre'] or '',
-                'apellido': m['apellido'] or '',
-                'prefijo_pais': m['prefijo_pais'] or '',
-                'telefono': m['telefono'] or '',
-                'password_hash': m['password_hash'] or '',
-                'role': m['role'] or 'user',
-                'status': m['status'] or 'active',
-                'collection_visibility': m['collection_visibility'] or 'private',
-                'homepage_showcase_opt_in': bool(m['homepage_showcase_opt_in']),
-                'created_at': cre,
-                'updated_at': upd,
-            }
-        except KeyError:
-            cre = m.get('created_at', _MIN_DATE) or _MIN_DATE
-            if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
-            upd = m.get('updated_at', _MIN_DATE) or _MIN_DATE
-            if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+                return {
+                    'user_id': m['user_id'],
+                    'email': m['email'] or '',
+                    'nombre': m['nombre'] or '',
+                    'apellido': m['apellido'] or '',
+                    'prefijo_pais': m['prefijo_pais'] or '',
+                    'telefono': m['telefono'] or '',
+                    'password_hash': m['password_hash'] or '',
+                    'role': m['role'] or 'user',
+                    'status': m['status'] or 'active',
+                    'collection_visibility': m['collection_visibility'] or 'private',
+                    'homepage_showcase_opt_in': bool(m['homepage_showcase_opt_in']),
+                    'created_at': cre,
+                    'updated_at': upd,
+                }
+            except KeyError:
+                pass
 
-            if format_dates:
-                cre, upd = cre.isoformat(), upd.isoformat()
+        cre = m.get('created_at', _MIN_DATE) or _MIN_DATE
+        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+        upd = m.get('updated_at', _MIN_DATE) or _MIN_DATE
+        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
 
-            return {
-                'user_id': m.get('user_id', None),
-                'email': m.get('email', ''),
-                'nombre': m.get('nombre', ''),
-                'apellido': m.get('apellido', ''),
-                'prefijo_pais': m.get('prefijo_pais', ''),
-                'telefono': m.get('telefono', ''),
-                'password_hash': m.get('password_hash', ''),
-                'role': m.get('role', 'user'),
-                'status': m.get('status', 'active'),
-                'collection_visibility': m.get('collection_visibility', 'private'),
-                'homepage_showcase_opt_in': bool(m.get('homepage_showcase_opt_in', False)),
-                'created_at': cre,
-                'updated_at': upd,
-            }
+        if format_dates:
+            cre, upd = cre.isoformat(), upd.isoformat()
+
+        return {
+            'user_id': m.get('user_id', None),
+            'email': m.get('email', ''),
+            'nombre': m.get('nombre', ''),
+            'apellido': m.get('apellido', ''),
+            'prefijo_pais': m.get('prefijo_pais', ''),
+            'telefono': m.get('telefono', ''),
+            'password_hash': m.get('password_hash', ''),
+            'role': m.get('role', 'user'),
+            'status': m.get('status', 'active'),
+            'collection_visibility': m.get('collection_visibility', 'private'),
+            'homepage_showcase_opt_in': bool(m.get('homepage_showcase_opt_in', False)),
+            'created_at': cre,
+            'updated_at': upd,
+        }
     except AttributeError:
         pass
 
@@ -557,77 +560,80 @@ def _game_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
     """Mapea una fila de DB o instancia de Game a un diccionario (Optimización Bolt)."""
     # Bolt Optimization: Use EAFP pattern (try-except) to access _mapping dictionary view of Row
     # when available to avoid expensive hasattr() and getattr/AttributeError overhead.
-    # Furthermore, try direct dictionary indexing m['key'] first to bypass .get() lookup overhead,
-    # falling back to .get() on KeyError for partial column projections (~1.4x speedup).
+    # Check len(m) == 13 first to attempt direct bracket indexing m['key'] for full rows without
+    # throwing/catching KeyError exceptions on partial projections (~1.4x speedup).
     try:
         m = row._mapping
         _MIN_DATE = MIN_DATE
-        try:
-            cre = m['created_at'] or _MIN_DATE
-            upd = m['updated_at'] or _MIN_DATE
-            if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
-            if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+        if len(m) == 13:
+            try:
+                cre = m['created_at'] or _MIN_DATE
+                upd = m['updated_at'] or _MIN_DATE
+                if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+                if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
 
-            if format_dates:
-                cre, upd = cre.isoformat(), upd.isoformat()
+                if format_dates:
+                    cre, upd = cre.isoformat(), upd.isoformat()
 
-            titulo = m['titulo'] or ''
-            descripcion = m['descripcion'] or ''
-            plataforma = m['plataforma'] or 'PC'
-            estado = m['estado'] or 'N/A'
+                titulo = m['titulo'] or ''
+                descripcion = m['descripcion'] or ''
+                plataforma = m['plataforma'] or 'PC'
+                estado = m['estado'] or 'N/A'
 
-            return {
-                'game_id': m['game_id'],
-                'user_id': m['user_id'],
-                'titulo': titulo,
-                'descripcion': descripcion,
-                'imagen_url': m['imagen_url'],
-                'plataforma': plataforma,
-                'estado': estado,
-                'titulo_lower': titulo.lower(),
-                'descripcion_lower': descripcion.lower(),
-                'plataforma_lower': plataforma.lower(),
-                'estado_lower': estado.lower(),
-                'categoria': m['categoria'] or 'Biblioteca',
-                'prioridad': m['prioridad'] or 'Media',
-                'calificacion': m['calificacion'],
-                'es_favorito': m['es_favorito'],
-                'created_at': cre,
-                'updated_at': upd,
-            }
-        except KeyError:
-            cre = m.get('created_at') or _MIN_DATE
-            if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
-            upd = m.get('updated_at') or _MIN_DATE
-            if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
+                return {
+                    'game_id': m['game_id'],
+                    'user_id': m['user_id'],
+                    'titulo': titulo,
+                    'descripcion': descripcion,
+                    'imagen_url': m['imagen_url'],
+                    'plataforma': plataforma,
+                    'estado': estado,
+                    'titulo_lower': titulo.lower(),
+                    'descripcion_lower': descripcion.lower(),
+                    'plataforma_lower': plataforma.lower(),
+                    'estado_lower': estado.lower(),
+                    'categoria': m['categoria'] or 'Biblioteca',
+                    'prioridad': m['prioridad'] or 'Media',
+                    'calificacion': m['calificacion'],
+                    'es_favorito': m['es_favorito'],
+                    'created_at': cre,
+                    'updated_at': upd,
+                }
+            except KeyError:
+                pass
 
-            if format_dates:
-                cre, upd = cre.isoformat(), upd.isoformat()
+        cre = m.get('created_at') or _MIN_DATE
+        if cre.tzinfo is None: cre = cre.replace(tzinfo=timezone.utc)
+        upd = m.get('updated_at') or _MIN_DATE
+        if upd.tzinfo is None: upd = upd.replace(tzinfo=timezone.utc)
 
-            titulo = m.get('titulo') or ''
-            descripcion = m.get('descripcion') or ''
-            plataforma = m.get('plataforma') or 'PC'
-            estado = m.get('estado') or 'N/A'
+        if format_dates:
+            cre, upd = cre.isoformat(), upd.isoformat()
 
-            return {
-                'game_id': m.get('game_id'),
-                'user_id': m.get('user_id'),
-                'titulo': titulo,
-                'descripcion': descripcion,
-                'imagen_url': m.get('imagen_url'),
-                'plataforma': plataforma,
-                'estado': estado,
-                'titulo_lower': titulo.lower(),
-                'descripcion_lower': descripcion.lower(),
-                'plataforma_lower': plataforma.lower(),
-                'estado_lower': estado.lower(),
-                'categoria': m.get('categoria') or 'Biblioteca',
-                'prioridad': m.get('prioridad') or 'Media',
-                'calificacion': m.get('calificacion'),
-                'es_favorito': m.get('es_favorito'),
-                'created_at': cre,
-                'updated_at': upd,
-            }
+        titulo = m.get('titulo') or ''
+        descripcion = m.get('descripcion') or ''
+        plataforma = m.get('plataforma') or 'PC'
+        estado = m.get('estado') or 'N/A'
+
+        return {
+            'game_id': m.get('game_id'),
+            'user_id': m.get('user_id'),
+            'titulo': titulo,
+            'descripcion': descripcion,
+            'imagen_url': m.get('imagen_url'),
+            'plataforma': plataforma,
+            'estado': estado,
+            'titulo_lower': titulo.lower(),
+            'descripcion_lower': descripcion.lower(),
+            'plataforma_lower': plataforma.lower(),
+            'estado_lower': estado.lower(),
+            'categoria': m.get('categoria') or 'Biblioteca',
+            'prioridad': m.get('prioridad') or 'Media',
+            'calificacion': m.get('calificacion'),
+            'es_favorito': m.get('es_favorito'),
+            'created_at': cre,
+            'updated_at': upd,
+        }
     except AttributeError:
         pass
 
@@ -840,51 +846,54 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
     """Mapea una fila de DB o instancia de AuditLog a un diccionario (Optimización Bolt)."""
     # Bolt Optimization: Use EAFP pattern (try-except) to access _mapping dictionary view of Row
     # when available to avoid expensive hasattr() and getattr/AttributeError overhead.
-    # Furthermore, try direct dictionary indexing m['key'] first to bypass .get() lookup overhead,
-    # falling back to .get() on KeyError for partial column projections (~1.5x speedup).
+    # Check len(m) == 10 first to attempt direct bracket indexing m['key'] for full rows without
+    # throwing/catching KeyError exceptions on partial projections (~1.5x speedup).
     try:
         m = row._mapping
         _MIN_DATE = MIN_DATE
-        try:
-            ts = m['timestamp'] or _MIN_DATE
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+        if len(m) == 10:
+            try:
+                ts = m['timestamp'] or _MIN_DATE
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
 
-            if format_dates:
-                ts = ts.isoformat()
+                if format_dates:
+                    ts = ts.isoformat()
 
-            return {
-                'audit_id': m['audit_id'],
-                'user_id': m['user_id'],
-                'action': m['action'] or 'UNKNOWN',
-                'action_name': m['action_name'] or 'Actividad',
-                'resource': m['resource'] or 'unknown',
-                'timestamp': ts,
-                'ip_address': m['ip_address'] or 'unknown',
-                'user_agent': m['user_agent'] or 'unknown',
-                'details': m['details'] or {},
-                'status': m['status'] or 'SUCCESS',
-            }
-        except KeyError:
-            ts = m.get('timestamp', _MIN_DATE) or _MIN_DATE
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                return {
+                    'audit_id': m['audit_id'],
+                    'user_id': m['user_id'],
+                    'action': m['action'] or 'UNKNOWN',
+                    'action_name': m['action_name'] or 'Actividad',
+                    'resource': m['resource'] or 'unknown',
+                    'timestamp': ts,
+                    'ip_address': m['ip_address'] or 'unknown',
+                    'user_agent': m['user_agent'] or 'unknown',
+                    'details': m['details'] or {},
+                    'status': m['status'] or 'SUCCESS',
+                }
+            except KeyError:
+                pass
 
-            if format_dates:
-                ts = ts.isoformat()
+        ts = m.get('timestamp', _MIN_DATE) or _MIN_DATE
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
 
-            return {
-                'audit_id': m.get('audit_id', None),
-                'user_id': m.get('user_id', None),
-                'action': m.get('action', 'UNKNOWN'),
-                'action_name': m.get('action_name', 'Actividad'),
-                'resource': m.get('resource', 'unknown'),
-                'timestamp': ts,
-                'ip_address': m.get('ip_address', 'unknown'),
-                'user_agent': m.get('user_agent', 'unknown'),
-                'details': m.get('details', {}) or {},
-                'status': m.get('status', 'SUCCESS'),
-            }
+        if format_dates:
+            ts = ts.isoformat()
+
+        return {
+            'audit_id': m.get('audit_id', None),
+            'user_id': m.get('user_id', None),
+            'action': m.get('action', 'UNKNOWN'),
+            'action_name': m.get('action_name', 'Actividad'),
+            'resource': m.get('resource', 'unknown'),
+            'timestamp': ts,
+            'ip_address': m.get('ip_address', 'unknown'),
+            'user_agent': m.get('user_agent', 'unknown'),
+            'details': m.get('details', {}) or {},
+            'status': m.get('status', 'SUCCESS'),
+        }
     except AttributeError:
         pass
 
