@@ -228,12 +228,13 @@ def create_app() -> Flask:
         if log_path.startswith('/reset-password/'):
             log_path = '/reset-password/[REDACTED]'
 
+        from app.models import sanitize_and_validate_ip
         app.logger.info(
             '%s %s status=%s remote_addr=%s',
             request.method,
             log_path,
             response.status_code,
-            request.remote_addr,
+            sanitize_and_validate_ip(request.remote_addr),
         )
         response.headers['X-Request-Id'] = request_id
         response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -346,7 +347,7 @@ def create_app() -> Flask:
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
-        from app.models import crear_log_audit
+        from app.models import crear_log_audit, sanitize_and_validate_ip
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
 
         log_path = request.path
@@ -358,7 +359,7 @@ def create_app() -> Flask:
             action='CSRF_FAILURE',
             resource='web',
             details={'reason': error.description, 'path': log_path},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=sanitize_and_validate_ip(request.remote_addr),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
