@@ -422,6 +422,21 @@ def test_password_match_validation_rendering(client):
     assert wrap_index < match_index
 
 
+def test_search_input_clear_button_rendered(client):
+    """Verify that the search input clear button and its event handlers are rendered in index.html."""
+    login_session(client)
+    response = client.get('/dashboard?q=zelda')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="qClearBtn"' in html
+    assert 'aria-label="Borrar búsqueda"' in html
+    assert 'title="Borrar búsqueda"' in html
+    assert "const searchClearBtn = document.getElementById('qClearBtn');" in html
+    assert "searchClearBtn.addEventListener('click', function()" in html
+    assert "window.announceToScreenReader?.('Búsqueda borrada');" in html
+
+
 def test_palette_pagination_accessibility(client):
     """Verify that pagination controls are wrapped in nav landmarks with descriptive ARIA attributes."""
     from app.models import crear_juego
