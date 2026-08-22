@@ -292,7 +292,7 @@ def require_admin(view):
 
 def is_valid_presigned_image_url(image_url: str) -> bool:
     """Acepta solo URLs del backend de storage configurado para evitar referencias arbitrarias."""
-    if not image_url or len(image_url) > 2048:
+    if not image_url or not isinstance(image_url, str) or len(image_url) > 2048:
         return False
     storage_backend = current_app.config.get('STORAGE_BACKEND')
     if storage_backend == 'none':
@@ -372,7 +372,7 @@ def is_valid_id(val: str | None) -> bool:
 
 def is_safe_url(target: str) -> bool:
     """Valida que una URL sea segura para redirección (misma host o relativa)."""
-    if not target:
+    if not target or not isinstance(target, str):
         return False
 
     # Decode URL-encoded characters completely to prevent double-encoding bypasses (Security hardening)
@@ -493,7 +493,7 @@ def paginate_items(items, page: int, per_page: int) -> dict:
 
 def parse_iso_datetime(value: str | None) -> datetime | None:
     """Convierte strings ISO del dominio a datetimes comparables."""
-    if not value:
+    if not value or not isinstance(value, str):
         return None
     try:
         parsed = datetime.fromisoformat(value)
