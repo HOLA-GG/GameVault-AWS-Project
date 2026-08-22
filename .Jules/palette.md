@@ -85,3 +85,7 @@
 ## 2026-08-20 - Semantic Pagination Landmarks and State Attributes
 **Learning:** Bare pagination containers (such as `<div>` wrappers) fail to establish a navigation landmark for screen-reader users, making it difficult to locate or skip directly to page controls. Wrapping pagination blocks in a `<nav>` element with an explicit `aria-label` (e.g. `aria-label="Paginación de juegos"`), pairing "Anterior" and "Siguiente" links with target page numbers in `aria-label`s, and annotating the current page indicator with `aria-current="page"` provides complete structural clarity and state context across assistive technologies.
 **Action:** Always wrap pagination controls in a `<nav>` tag with a descriptive `aria-label`, specify target page numbers in directional button labels, and mark the active page text with `aria-current="page"`.
+
+## 2026-08-22 - Contextual Empty States with Actionable Filter Resets
+**Learning:** Bare paragraph text in empty table states leaves users feeling stranded when filters yield zero records. Structuring empty states with decorative icons (`aria-hidden="true"`), clear headings, and dynamic, conditional reset links ("Limpiar filtros") provides visual feedback and immediate navigation recoverability across modalities.
+**Action:** Always pair empty state components with explicit headings and actionable recovery shortcuts (such as conditional reset buttons when filters are active) across administrative and list views.
