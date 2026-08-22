@@ -80,7 +80,16 @@
             </table>
         </div>
     {% else %}
-        <div class="empty-state"><p>No hay colecciones para esos filtros.</p></div>
+        <div class="empty-state">
+            <span class="feature-icon" aria-hidden="true">🔍</span>
+            <h3>Sin colecciones para estos filtros</h3>
+            <p>No se encontraron colecciones que coincidan con los criterios seleccionados.</p>
+            {% if visibility %}
+                <div class="mt-20">
+                    <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary">Limpiar filtros</a>
+                </div>
+            {% endif %}
+        </div>
     {% endif %}
 </section>
 

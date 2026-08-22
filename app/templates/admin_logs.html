@@ -218,7 +218,16 @@
             </section>
         </div>
     {% else %}
-        <div class="empty-state"><p>No hay logs para esos filtros.</p></div>
+        <div class="empty-state">
+            <span class="feature-icon" aria-hidden="true">🔍</span>
+            <h3>Sin logs de actividad</h3>
+            <p>No se encontraron registros de auditoría para los filtros seleccionados.</p>
+            {% if filters.user_id or filters.action or filters.status or filters.start_date or filters.end_date %}
+                <div class="mt-20">
+                    <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary">Limpiar filtros</a>
+                </div>
+            {% endif %}
+        </div>
     {% endif %}
 </section>
 

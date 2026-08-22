@@ -69,7 +69,11 @@
             </table>
         </div>
     {% else %}
-        <div class="empty-state"><p>No hay usuarios registrados.</p></div>
+        <div class="empty-state">
+            <span class="feature-icon" aria-hidden="true">👥</span>
+            <h3>Sin usuarios registrados</h3>
+            <p>No hay cuentas registradas en el sistema actualmente.</p>
+        </div>
     {% endif %}
 </section>
 

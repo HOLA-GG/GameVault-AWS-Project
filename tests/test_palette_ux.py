@@ -468,3 +468,24 @@ def test_palette_pagination_accessibility(client):
     assert 'aria-current="page"' in html
     # Verify next button with descriptive aria-label
     assert 'aria-label="Ir a la página siguiente (Página 2)"' in html
+
+
+def test_palette_admin_empty_states(client):
+    """Verify that admin collections and logs empty states render feature icons, clear headings, and reset links when filters return no results."""
+    login_session(client, role='admin')
+
+    # 1. Admin collections empty state with visibility filter
+    response_col = client.get('/admin/collections?visibility=public')
+    assert response_col.status_code == 200
+    html_col = response_col.get_data(as_text=True)
+    assert 'class="empty-state"' in html_col
+    assert 'Sin colecciones para estos filtros' in html_col
+    assert 'Limpiar filtros' in html_col
+
+    # 2. Admin logs empty state with action filter
+    response_logs = client.get('/admin/logs?action=UNAUTHORIZED_ACCESS')
+    assert response_logs.status_code == 200
+    html_logs = response_logs.get_data(as_text=True)
+    assert 'class="empty-state"' in html_logs
+    assert 'Sin logs de actividad' in html_logs
+    assert 'Limpiar filtros' in html_logs
