@@ -920,7 +920,7 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
 
 def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
     """Convierte filtros de fecha simple a datetime UTC."""
-    if not value or len(value) > 50:
+    if not value or not isinstance(value, str) or len(value) > 50:
         return None
     try:
         parsed = datetime.fromisoformat(value)
@@ -1131,7 +1131,7 @@ def validar_password(password, email=None, nombre=None, apellido=None, telefono=
 
 def eliminar_imagen_s3(imagen_url):
     """Elimina una imagen del backend de almacenamiento (Local o R2/S3)."""
-    if not imagen_url:
+    if not imagen_url or not isinstance(imagen_url, str):
         return True
 
     try:
@@ -1224,8 +1224,8 @@ _SIGNED_URLS_CACHE_LOCK = threading.Lock()
 def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
     """Genera una URL firmada para lectura si el backend es R2/S3, o devuelve la URL original.
     Optimización Bolt: Cachea en memoria las URLs firmadas para evitar la latencia de hashing criptográfico."""
-    if not imagen_url or not imagen_url.startswith('http'):
-        return imagen_url or ''
+    if not imagen_url or not isinstance(imagen_url, str) or not imagen_url.startswith('http'):
+        return imagen_url if isinstance(imagen_url, str) else ''
 
     try:
         storage_backend = current_app.config.get('STORAGE_BACKEND', STORAGE_BACKEND)
