@@ -18,6 +18,11 @@ def test_is_safe_url_non_string_types():
     assert is_safe_url({'redirect': '/dashboard'}) is False
 
 
+def test_is_safe_url_oversized_length():
+    oversized_url = '/dashboard?' + 'a' * 2050
+    assert is_safe_url(oversized_url) is False
+
+
 def test_parse_iso_datetime_non_string_types():
     assert parse_iso_datetime(None) is None
     assert parse_iso_datetime(20250101) is None

@@ -372,7 +372,8 @@ def is_valid_id(val: str | None) -> bool:
 
 def is_safe_url(target: str) -> bool:
     """Valida que una URL sea segura para redirección (misma host o relativa)."""
-    if not target or not isinstance(target, str):
+    # Enforce strict length limit to prevent resource-exhaustion DoS attacks (Security hardening)
+    if not target or not isinstance(target, str) or len(target) > 2048:
         return False
 
     # Decode URL-encoded characters completely to prevent double-encoding bypasses (Security hardening)
