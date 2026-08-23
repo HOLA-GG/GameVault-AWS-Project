@@ -489,3 +489,17 @@ def test_palette_admin_empty_states(client):
     assert 'class="empty-state"' in html_logs
     assert 'Sin logs de actividad' in html_logs
     assert 'Limpiar filtros' in html_logs
+
+
+def test_palette_copy_and_submit_announcements(client):
+    """Verify that base.html includes contextual screen reader announcements for clipboard copy and form submission."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check clipboard copy snippet announcement
+    assert 'const snippet = textToCopy.length > 30 ? textToCopy.substring(0, 27) + \'...\' : textToCopy;' in html
+    assert 'announceToScreenReader(`${snippet}` copiado al portapapeles`);' in html or '`"${snippet}" copiado al portapapeles`' in html
+
+    # Check form submit loading text announcement
+    assert 'announceToScreenReader(loadingText);' in html
