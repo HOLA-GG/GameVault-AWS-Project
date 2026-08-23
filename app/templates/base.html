@@ -799,7 +799,8 @@
 
                 navigator.clipboard.writeText(textToCopy).then(() => {
                     copyBtn.classList.add('is-copied');
-                    announceToScreenReader('Copiado al portapapeles');
+                    const snippet = textToCopy.length > 30 ? textToCopy.substring(0, 27) + '...' : textToCopy;
+                    announceToScreenReader(`"${snippet}" copiado al portapapeles`);
                     setTimeout(() => {
                         copyBtn.classList.remove('is-copied');
                     }, 2000);
@@ -1006,6 +1007,7 @@
                 if (button.children.length === 0) {
                     button.textContent = loadingText;
                 }
+                announceToScreenReader(loadingText);
 
                 setTimeout(() => {
                     button.disabled = true;
