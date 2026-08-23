@@ -945,6 +945,29 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
                 }
             except KeyError:
                 pass
+        elif l == 6:
+            try:
+                ts = m['timestamp'] or _MIN_DATE
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+
+                if format_dates:
+                    ts = ts.isoformat()
+
+                return {
+                    'audit_id': None,
+                    'user_id': None,
+                    'action': m['action'] or 'UNKNOWN',
+                    'action_name': m['action_name'] or 'Actividad',
+                    'resource': m['resource'] or 'unknown',
+                    'timestamp': ts,
+                    'ip_address': 'unknown',
+                    'user_agent': 'unknown',
+                    'details': m['details'] or {},
+                    'status': m['status'] or 'SUCCESS',
+                }
+            except KeyError:
+                pass
 
         ts = m.get('timestamp', _MIN_DATE) or _MIN_DATE
         if ts.tzinfo is None:
