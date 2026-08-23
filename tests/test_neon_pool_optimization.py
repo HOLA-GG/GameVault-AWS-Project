@@ -44,3 +44,14 @@ class TestNeonPoolOptimization(unittest.TestCase):
         with mock.patch.dict(os.environ, {"DB_USE_NULLPOOL": "false"}):
             engine = app.models.get_engine()
             self.assertEqual(engine.pool.__class__, NullPool)
+
+    def test_postgres_with_app_config_nullpool(self):
+        # Postgres URL using Flask app context config DB_USE_NULLPOOL=True uses NullPool
+        from app import create_app
+        flask_app = create_app()
+        flask_app.config['DB_USE_NULLPOOL'] = True
+        app.models.DATABASE_URL = "postgresql+psycopg://user:pass@ep-some-db.us-east-1.aws.neon.tech/dbname?sslmode=require"
+        with flask_app.app_context():
+            with mock.patch.dict(os.environ, {"DB_USE_NULLPOOL": "false"}):
+                engine = app.models.get_engine()
+                self.assertEqual(engine.pool.__class__, NullPool)

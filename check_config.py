@@ -26,6 +26,8 @@ with app.app_context():
     print("[1] Environment Settings:")
     print(f"  - APP_ENV: {app.config.get('APP_ENV')}")
     print(f"  - LOG_LEVEL: {os.environ.get('LOG_LEVEL', 'INFO')}")
+    print(f"  - WEB_CONCURRENCY: {os.environ.get('WEB_CONCURRENCY', '1')}")
+    print(f"  - PREFERRED_URL_SCHEME: {app.config.get('PREFERRED_URL_SCHEME')}")
     print(f"  - SHOW_RESET_DEBUG_TOKEN: {app.config.get('SHOW_RESET_DEBUG_TOKEN')}")
     print(f"  - SECRET_KEY: {'[SET]' if app.config.get('SECRET_KEY') else '[MISSING]'}")
     print()
@@ -47,6 +49,8 @@ with app.app_context():
 
     print(f"  - DATABASE_URL: {safe_url}")
     print(f"  - DATABASE_BACKEND: {app.config.get('DATABASE_BACKEND')}")
+    print(f"  - NEON_PROJECT_ID: {os.environ.get('NEON_PROJECT_ID') or '[NOT SET]'}")
+    print(f"  - NEON_SSLMODE: {os.environ.get('NEON_SSLMODE', 'require')}")
 
     # Check database connectivity
     print("  - Verifying database connection healthcheck...")
