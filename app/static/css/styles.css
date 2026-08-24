@@ -2520,6 +2520,14 @@ kbd {
     transform: translateX(-50%) translateY(-12px);
 }
 
+.btn-copy.is-copy-failed::after {
+    content: "¡Error al copiar!";
+    background: var(--danger-color);
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-12px);
+}
+
 /* ================================
    PRIORITY COLORS
    ================================ */
