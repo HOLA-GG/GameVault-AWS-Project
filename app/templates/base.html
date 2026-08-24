@@ -806,6 +806,11 @@
                     }, 2000);
                 }).catch(err => {
                     console.error('Error al copiar al portapapeles', err);
+                    copyBtn.classList.add('is-copy-failed');
+                    announceToScreenReader('No se pudo copiar al portapapeles');
+                    setTimeout(() => {
+                        copyBtn.classList.remove('is-copy-failed');
+                    }, 2000);
                 });
             }, true);
 

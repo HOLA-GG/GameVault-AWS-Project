@@ -501,5 +501,20 @@ def test_palette_copy_and_submit_announcements(client):
     assert 'const snippet = textToCopy.length > 30 ? textToCopy.substring(0, 27) + \'...\' : textToCopy;' in html
     assert 'announceToScreenReader(`${snippet}` copiado al portapapeles`);' in html or '`"${snippet}" copiado al portapapeles`' in html
 
+    # Check clipboard copy failure announcement and class assignment
+    assert "copyBtn.classList.add('is-copy-failed');" in html
+    assert "announceToScreenReader('No se pudo copiar al portapapeles');" in html
+
     # Check form submit loading text announcement
     assert 'announceToScreenReader(loadingText);' in html
+
+
+def test_palette_copy_failed_css_rendered(client):
+    """Verify that styles.css renders the .btn-copy.is-copy-failed::after tooltip styling."""
+    response = client.get('/static/css/styles.css')
+    assert response.status_code == 200
+    css = response.get_data(as_text=True)
+
+    assert '.btn-copy.is-copy-failed::after' in css
+    assert 'content: "¡Error al copiar!";' in css
+    assert 'background: var(--danger-color);' in css
