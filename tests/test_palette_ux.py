@@ -518,3 +518,15 @@ def test_palette_copy_failed_css_rendered(client):
     assert '.btn-copy.is-copy-failed::after' in css
     assert 'content: "¡Error al copiar!";' in css
     assert 'background: var(--danger-color);' in css
+
+
+def test_demo_form_placeholders_and_loading_text(client):
+    """Verify that the demo form renders select-on-focus, contextual placeholder, and submit loading text attributes."""
+    response = client.get('/demo')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'placeholder="Ej: Super Mario World"' in html
+    assert 'class="select-on-focus"' in html
+    assert 'id="demoSubmitButton"' in html
+    assert 'data-loading-text="Procesando demo..."' in html
