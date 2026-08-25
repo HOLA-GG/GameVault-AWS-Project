@@ -1030,7 +1030,7 @@ def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
 def sanitize_and_validate_ip(ip_str: str | None) -> str:
     """Valida y normaliza una dirección IP para evitar inyección y malformaciones.
     Optimización Bolt: Utiliza cacheo en memoria limitado para IP ya validadas."""
-    if not ip_str:
+    if not ip_str or not isinstance(ip_str, str) or len(ip_str) > 100:
         return 'unknown'
 
     # Fast cache lookup to bypass parsing overhead

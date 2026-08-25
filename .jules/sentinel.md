@@ -237,3 +237,8 @@
 **Vulnerability:** Unhandled `TypeError` or `AttributeError` exceptions when non-string objects (e.g., `None`, numbers, lists, or dicts) are passed to input validation helpers (`validar_password`, `validar_email`, `validar_telefono`).
 **Learning:** Relying on user/caller inputs or API parameters being string objects can lead to application crashes (500 errors) when unexpected non-string payloads are received.
 **Prevention:** Enforce strict `isinstance(val, str)` type checks at the beginning of all string validation helper functions before performing operations like `len()`, `.lower()`, `.strip()`, or `.isdigit()`.
+
+## 2026-09-05 - Defensive Type and Length Validation for IP Sanitization
+**Vulnerability:** Unhandled `AttributeError` exception in `sanitize_and_validate_ip` when passed non-string inputs, and cache bloat DoS via oversized IP strings.
+**Learning:** Utilities that sanitize client headers or remote addresses (like IP addresses) can receive non-string values or malformed oversized payloads. Without explicit type and length checks, operations like `.strip()` cause 500 server errors, and parsing long strings degrades performance and pollutes bounded caches.
+**Prevention:** Always check `isinstance(ip_str, str)` and enforce length bounds (`len(ip_str) <= 100`) at the entry point of IP validation utilities before invoking string methods or cache storage.
