@@ -2419,6 +2419,10 @@ def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[
         return mapped
 
 
+# Bolt Optimization: Constant for default fallback rating object to avoid allocations in batch loops.
+_EMPTY_RATING: Dict[str, Any] = {'average': None, 'votes_count': 0}
+
+
 def combinar_rating_showcase(
     summary: Dict[str, Any],
     *,
@@ -2428,9 +2432,9 @@ def combinar_rating_showcase(
     """Combina una valoración persistida con un baseline visual cuando aplica."""
     actual_average = summary.get('average')
     actual_votes_count = int(summary.get('votes_count') or 0)
-    base_votes_count = int(base_votes_count or 0)
+    base_votes = int(base_votes_count or 0)
 
-    if base_average is None or base_votes_count <= 0:
+    if base_average is None or base_votes <= 0:
         return {
             'average': actual_average,
             'votes_count': actual_votes_count,
@@ -2439,12 +2443,12 @@ def combinar_rating_showcase(
     if actual_average is None or actual_votes_count <= 0:
         return {
             'average': round(float(base_average), 1),
-            'votes_count': base_votes_count,
+            'votes_count': base_votes,
         }
 
-    merged_votes = base_votes_count + actual_votes_count
+    merged_votes = base_votes + actual_votes_count
     merged_average = round(
-        ((float(base_average) * base_votes_count) + (float(actual_average) * actual_votes_count)) / merged_votes,
+        ((float(base_average) * base_votes) + (float(actual_average) * actual_votes_count)) / merged_votes,
         1,
     )
     return {
@@ -2461,21 +2465,24 @@ def aplicar_ratings_showcase(
     default_rating_key: str | None = None,
     default_votes_key: str | None = None,
 ) -> List[Dict[str, Any]]:
-    """Enriquece colecciones con valoración pública en batch para evitar N+1 queries (Optimizado: in-place)."""
+    """Enriquece colecciones con valoración pública en batch para evitar N+1 queries (Optimización Bolt: zip & static fallback)."""
     if not items:
         return []
 
     subject_ids = [str(item[subject_id_key]) for item in items]
     ratings_map = obtener_ratings_multiple(subject_type, subject_ids)
 
-    for item in items:
-        subject_id = str(item[subject_id_key])
-        actual_rating = ratings_map.get(subject_id, {'average': None, 'votes_count': 0})
+    for item, subject_id in zip(items, subject_ids):
+        # Bolt Optimization: Use static _EMPTY_RATING to eliminate default dict allocation on lookup misses.
+        actual_rating = ratings_map.get(subject_id, _EMPTY_RATING)
+
+        base_avg = item.get(default_rating_key) if default_rating_key else None
+        base_votes = item.get(default_votes_key, 0) if default_votes_key else 0
 
         rating_summary = combinar_rating_showcase(
             actual_rating,
-            base_average=item.get(default_rating_key) if default_rating_key else None,
-            base_votes_count=item.get(default_votes_key, 0) if default_votes_key else 0,
+            base_average=base_avg,
+            base_votes_count=base_votes,
         )
         item['showcase_rating_average'] = rating_summary['average']
         item['showcase_votes_count'] = rating_summary['votes_count']
