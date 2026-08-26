@@ -89,3 +89,7 @@
 ## 2026-08-22 - Contextual Empty States with Actionable Filter Resets
 **Learning:** Bare paragraph text in empty table states leaves users feeling stranded when filters yield zero records. Structuring empty states with decorative icons (`aria-hidden="true"`), clear headings, and dynamic, conditional reset links ("Limpiar filtros") provides visual feedback and immediate navigation recoverability across modalities.
 **Action:** Always pair empty state components with explicit headings and actionable recovery shortcuts (such as conditional reset buttons when filters are active) across administrative and list views.
+
+## 2026-08-25 - Progressive Client-Side Live Filtering with Debounced ARIA Announcements
+**Learning:** Adding real-time client-side filtering to search inputs provides instant visual feedback by hiding/showing list items before form submission. To maintain complete accessibility parity, filtering events must trigger debounced screen reader announcements (`announceToScreenReader`) indicating the number of matching items, ensuring non-visual users are updated without being overwhelmed by announcements on every keystroke.
+**Action:** Implement client-side live list filtering on search inputs, pairing DOM visibility updates with debounced ARIA live region announcements to communicate match counts to screen reader users.

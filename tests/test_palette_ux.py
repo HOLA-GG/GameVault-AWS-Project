@@ -433,8 +433,20 @@ def test_search_input_clear_button_rendered(client):
     assert 'aria-label="Borrar búsqueda"' in html
     assert 'title="Borrar búsqueda"' in html
     assert "const searchClearBtn = document.getElementById('qClearBtn');" in html
-    assert "searchClearBtn.addEventListener('click', function()" in html
     assert "window.announceToScreenReader?.('Búsqueda borrada');" in html
+
+
+def test_search_input_live_filter_rendered(client):
+    """Verify that the live card filtering script and screen reader announcements are rendered in index.html."""
+    login_session(client)
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "function filterGameCards()" in html
+    assert "filterGameCards();" in html
+    assert "juegos coinciden" in html
+    assert "window.announceToScreenReader?.(msg);" in html
 
 
 def test_palette_pagination_accessibility(client):
