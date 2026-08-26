@@ -1077,11 +1077,16 @@ def demo():
             flash('No se pudo procesar la imagen de la demo.', 'error')
             return redirect(url_for('main.demo'))
 
+        raw_filename = imagen.filename if imagen else ''
+        safe_filename = secure_filename(raw_filename) if raw_filename else 'imagen_demo.jpg'
+        if not safe_filename:
+            safe_filename = 'imagen_demo.jpg'
+
         return render_template(
             'demo_result.html',
             titulo=titulo,
             imagen_base64=imagen_base64,
-            filename=imagen.filename,
+            filename=safe_filename[:255],
         )
 
     return render_template('demo_form.html')

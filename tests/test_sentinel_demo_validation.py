@@ -82,3 +82,17 @@ def test_demo_title_valid_length(client):
         # Debería haber flasheado el error de imagen, no el de título largo
         assert not any("El título es demasiado largo" in msg[1] for msg in flashes)
         assert any("Debes seleccionar una imagen" in msg[1] for msg in flashes)
+
+def test_demo_filename_sanitization(client):
+    """Verifica que el nombre del archivo en la demo sea sanitizado contra path traversal o caracteres raros."""
+    import io
+    data = {
+        'titulo': 'Test Game',
+        'imagen': (io.BytesIO(b'fake_image_data'), '../../etc/passwd.png')
+    }
+    response = client.post('/demo', data=data, content_type='multipart/form-data')
+    assert response.status_code == 200
+    # The rendered response should not contain the path traversal prefix
+    html = response.get_data(as_text=True)
+    assert '../../etc/passwd.png' not in html
+    assert 'etc_passwd.png' in html
