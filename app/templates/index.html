@@ -408,22 +408,49 @@
         const searchInput = document.getElementById('q');
         const searchClearBtn = document.getElementById('qClearBtn');
 
-        if (searchInput && searchClearBtn) {
+        if (searchInput) {
+            let filterTimeout;
+            function filterGameCards() {
+                const term = searchInput.value.trim().toLowerCase();
+                const cards = document.querySelectorAll('.game-card');
+                if (!cards.length) return;
+
+                let visibleCount = 0;
+                cards.forEach(card => {
+                    const matches = !term || card.textContent.toLowerCase().includes(term);
+                    card.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                });
+
+                clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(() => {
+                    const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'juego coincide' : 'juegos coinciden'} con "${searchInput.value.trim()}"` : 'Mostrando todos los juegos';
+                    window.announceToScreenReader?.(msg);
+                }, 400);
+            }
+
             function updateClearBtnVisibility() {
-                searchClearBtn.style.display = searchInput.value.trim().length > 0 ? 'block' : 'none';
+                if (searchClearBtn) {
+                    searchClearBtn.style.display = searchInput.value.trim().length > 0 ? 'block' : 'none';
+                }
             }
 
             updateClearBtnVisibility();
 
-            searchInput.addEventListener('input', updateClearBtnVisibility);
-
-            searchClearBtn.addEventListener('click', function() {
-                searchInput.value = '';
+            searchInput.addEventListener('input', function () {
                 updateClearBtnVisibility();
-                searchInput.dispatchEvent(new Event('input'));
-                searchInput.focus();
-                window.announceToScreenReader?.('Búsqueda borrada');
+                filterGameCards();
             });
+
+            if (searchClearBtn) {
+                searchClearBtn.addEventListener('click', function() {
+                    searchInput.value = '';
+                    updateClearBtnVisibility();
+                    filterGameCards();
+                    searchInput.focus();
+                    window.announceToScreenReader?.('Búsqueda borrada');
+                });
+            }
         }
 
         const form = document.getElementById('gameForm');
