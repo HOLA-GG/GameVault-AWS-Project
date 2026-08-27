@@ -1989,8 +1989,12 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
         return {'deleted': deleted, 'error': None}
 
 
+# Bolt Optimization: Constant tuple for standard non-detail audit log field names in CSV export.
+_CSV_LOG_FIELDS = ('audit_id', 'user_id', 'action', 'resource', 'timestamp', 'ip_address', 'status')
+
+
 def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
-    """Exporta logs a CSV con protección contra CSV Injection."""
+    """Exporta logs a CSV con protección contra CSV Injection (Optimización Bolt: module-level tuple)."""
     output = io.StringIO()
     fieldnames = ['audit_id', 'user_id', 'action', 'resource', 'timestamp', 'ip_address', 'status', 'details']
     writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -1998,7 +2002,8 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
 
     for log in logs:
         row = {}
-        for key in fieldnames[:-1]:
+        # Bolt Optimization: Iterate over pre-allocated module-level tuple _CSV_LOG_FIELDS instead of slicing fieldnames[:-1] on every row.
+        for key in _CSV_LOG_FIELDS:
             val = str(log.get(key, '') or '')
             # Strip leading whitespace before checking for risky characters to prevent formula bypasses (CSV Injection)
             # Bolt Optimization: Use module-level constant.
