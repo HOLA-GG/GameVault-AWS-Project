@@ -367,9 +367,9 @@ _VALID_ID_RE = re.compile(r'^[a-zA-Z0-9_-]{1,36}$')
 def is_valid_id(val: str | None) -> bool:
     """Valida que un ID (game_id o user_id) tenga una estructura y longitud seguras.
     Optimización Bolt: Reemplaza validación caracter por caracter por expresión regular pre-compilada."""
-    if not val:
+    if not val or not isinstance(val, str) or not (1 <= len(val) <= 36):
         return False
-    return _VALID_ID_RE.match(str(val)) is not None
+    return _VALID_ID_RE.match(val) is not None
 
 
 def is_safe_url(target: str) -> bool:
