@@ -585,6 +585,38 @@
             });
         }
 
+        function setupDateRangeBounds() {
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            if (!startDateInput || !endDateInput) return;
+
+            const syncBounds = () => {
+                if (startDateInput.value) {
+                    endDateInput.min = startDateInput.value;
+                    if (endDateInput.value && endDateInput.value < startDateInput.value) {
+                        endDateInput.value = startDateInput.value;
+                        announceToScreenReader('Fecha hasta ajustada al inicio del rango');
+                    }
+                } else {
+                    endDateInput.removeAttribute('min');
+                }
+
+                if (endDateInput.value) {
+                    startDateInput.max = endDateInput.value;
+                    if (startDateInput.value && startDateInput.value > endDateInput.value) {
+                        startDateInput.value = endDateInput.value;
+                        announceToScreenReader('Fecha desde ajustada al fin del rango');
+                    }
+                } else {
+                    startDateInput.removeAttribute('max');
+                }
+            };
+
+            startDateInput.addEventListener('change', syncBounds);
+            endDateInput.addEventListener('change', syncBounds);
+            syncBounds();
+        }
+
         function setupSelectOnFocus() {
             document.querySelectorAll('.select-on-focus').forEach(el => {
                 el.addEventListener('focus', function() {
@@ -898,6 +930,7 @@
             setupDirtyFormTracker();
             setupDragAndDropFeedback();
             setupScrollToTop();
+            setupDateRangeBounds();
 
         // Botón Volver arriba (Scroll to Top)
         function setupScrollToTop() {

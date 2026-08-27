@@ -93,3 +93,7 @@
 ## 2026-08-25 - Progressive Client-Side Live Filtering with Debounced ARIA Announcements
 **Learning:** Adding real-time client-side filtering to search inputs provides instant visual feedback by hiding/showing list items before form submission. To maintain complete accessibility parity, filtering events must trigger debounced screen reader announcements (`announceToScreenReader`) indicating the number of matching items, ensuring non-visual users are updated without being overwhelmed by announcements on every keystroke.
 **Action:** Implement client-side live list filtering on search inputs, pairing DOM visibility updates with debounced ARIA live region announcements to communicate match counts to screen reader users.
+
+## 2026-08-28 - Dynamic Date Range Boundaries & ARIA Live Constraint Announcements
+**Learning:** Date range filter inputs (like "start_date" and "end_date") can allow logically invalid selections (e.g. start date after end date) if left unconstrained, resulting in empty or confusing server queries. Dynamically synchronizing `min` and `max` DOM attributes on change and automatically adjusting invalid dates while broadcasting clear live region announcements (`announceToScreenReader`) prevents invalid query states and keeps non-visual users informed.
+**Action:** Always link start/end date input pairs by dynamically setting `min`/`max` constraints on `change` events, auto-correcting conflicting selections with immediate screen-reader feedback.

@@ -542,3 +542,21 @@ def test_demo_form_placeholders_and_loading_text(client):
     assert 'class="select-on-focus"' in html
     assert 'id="demoSubmitButton"' in html
     assert 'data-loading-text="Procesando demo..."' in html
+
+
+def test_date_range_bounds_rendered(client):
+    """Verify that date range bounds handler and admin logs user_id select-on-focus are rendered."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'function setupDateRangeBounds()' in html
+    assert 'setupDateRangeBounds();' in html
+    assert "announceToScreenReader('Fecha hasta ajustada al inicio del rango');" in html
+
+    login_session(client, role='admin')
+    response_admin = client.get('/admin/logs')
+    assert response_admin.status_code == 200
+    html_admin = response_admin.get_data(as_text=True)
+    assert 'id="user_id"' in html_admin
+    assert 'class="select-on-focus"' in html_admin
