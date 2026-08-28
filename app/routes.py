@@ -88,6 +88,13 @@ GAME_CATEGORY_OPTIONS = ['Biblioteca', 'Jugando', 'Backlog', 'Completado', 'Wish
 GAME_PRIORITY_OPTIONS = ['Baja', 'Media', 'Alta']
 GAME_RATING_OPTIONS = list(range(1, 11))
 
+# Bolt Optimization: Pre-constructed module-level sets for O(1) membership validation checks in hot paths.
+_GAME_PLATFORM_SET = set(GAME_PLATFORM_OPTIONS)
+_GAME_CONDITION_SET = set(GAME_CONDITION_OPTIONS)
+_GAME_CATEGORY_SET = set(GAME_CATEGORY_OPTIONS)
+_GAME_PRIORITY_SET = set(GAME_PRIORITY_OPTIONS)
+_GAME_RATING_SET = set(GAME_RATING_OPTIONS)
+
 ACTION_BADGE_GROUPS = {
     'action-auth': {'LOGIN', 'LOGOUT', 'FAILED_LOGIN', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET', 'CHANGE_PASSWORD'},
     'action-games': {'CREATE_GAME', 'UPDATE_GAME', 'DELETE_GAME'},
@@ -541,14 +548,14 @@ def normalize_game_metadata(form) -> dict:
 
     es_favorito = form.get('es_favorito') == 'on'
 
-    # Strict validation against allowed options (Security hardening)
-    if plataforma not in GAME_PLATFORM_OPTIONS:
+    # Bolt Optimization: Use module-level pre-constructed set lookups for O(1) membership validation checks.
+    if plataforma not in _GAME_PLATFORM_SET:
         plataforma = 'PC'
-    if estado not in GAME_CONDITION_OPTIONS:
+    if estado not in _GAME_CONDITION_SET:
         estado = 'N/A'
-    if categoria not in GAME_CATEGORY_OPTIONS:
+    if categoria not in _GAME_CATEGORY_SET:
         categoria = 'Biblioteca'
-    if prioridad not in GAME_PRIORITY_OPTIONS:
+    if prioridad not in _GAME_PRIORITY_SET:
         prioridad = 'Media'
 
     return {
@@ -556,7 +563,7 @@ def normalize_game_metadata(form) -> dict:
         'estado': estado,
         'categoria': categoria,
         'prioridad': prioridad,
-        'calificacion': calificacion if calificacion in GAME_RATING_OPTIONS else None,
+        'calificacion': calificacion if calificacion in _GAME_RATING_SET else None,
         'es_favorito': es_favorito,
     }
 
