@@ -1566,6 +1566,46 @@ kbd {
 }
 
 /* ================================
+   FAQ ACCORDION
+   ================================ */
+.faq-card {
+    cursor: pointer;
+    min-height: auto;
+}
+
+.faq-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.faq-summary::-webkit-details-marker {
+    display: none;
+}
+
+.faq-summary h4 {
+    margin: 0;
+}
+
+.faq-icon {
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    transition: transform var(--transition-fast);
+}
+
+.faq-card[open] .faq-icon {
+    transform: rotate(180deg);
+}
+
+.faq-card p {
+    margin-top: 10px;
+}
+
+/* ================================
    STEPS
    ================================ */
 .steps-grid {

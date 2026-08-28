@@ -560,3 +560,19 @@ def test_date_range_bounds_rendered(client):
     html_admin = response_admin.get_data(as_text=True)
     assert 'id="user_id"' in html_admin
     assert 'class="select-on-focus"' in html_admin
+
+
+def test_faq_accordion_rendered(client):
+    """Verify that the landing page renders FAQ questions as details/summary disclosure controls with screen reader announcements."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Verify details and summary elements exist for FAQ items
+    assert 'details class="feature-card faq-card"' in html
+    assert 'summary class="faq-summary"' in html
+    assert 'class="faq-icon"' in html
+
+    # Verify script handles toggle events and screen reader announcements
+    assert "document.querySelectorAll('details.faq-card').forEach" in html
+    assert "window.announceToScreenReader?.(`Pregunta desplegada: ${questionText}`);" in html

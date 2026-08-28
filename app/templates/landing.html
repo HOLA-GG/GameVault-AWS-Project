@@ -188,18 +188,27 @@
 <section class="section">
     <h2 style="text-align:center;margin-bottom:30px;">Preguntas frecuentes</h2>
     <div class="features-grid">
-        <div class="feature-card">
-            <h4>¿Puedo probarlo sin registrarme?</h4>
+        <details class="feature-card faq-card">
+            <summary class="faq-summary">
+                <h4>¿Puedo probarlo sin registrarme?</h4>
+                <span class="faq-icon" aria-hidden="true">▾</span>
+            </summary>
             <p>Sí. La demo procesa todo en memoria y no guarda nada en la base real.</p>
-        </div>
-        <div class="feature-card">
-            <h4>¿Mis imágenes quedan públicas?</h4>
+        </details>
+        <details class="feature-card faq-card">
+            <summary class="faq-summary">
+                <h4>¿Mis imágenes quedan públicas?</h4>
+                <span class="faq-icon" aria-hidden="true">▾</span>
+            </summary>
             <p>La app valida y controla la subida. La siguiente fase es endurecer la entrega con una capa de distribución segura.</p>
-        </div>
-        <div class="feature-card">
-            <h4>¿Esto es para tiendas?</h4>
+        </details>
+        <details class="feature-card faq-card">
+            <summary class="faq-summary">
+                <h4>¿Esto es para tiendas?</h4>
+                <span class="faq-icon" aria-hidden="true">▾</span>
+            </summary>
             <p>No en esta etapa. El producto está enfocado en coleccionistas individuales.</p>
-        </div>
+        </details>
     </div>
 </section>
 
@@ -368,6 +377,15 @@
                 paintStars(Number(card.dataset.currentRating || '0'));
             });
 
+        });
+
+        document.querySelectorAll('details.faq-card').forEach(function (detail) {
+            detail.addEventListener('toggle', function () {
+                if (this.open) {
+                    const questionText = this.querySelector('h4')?.textContent.trim() || '';
+                    window.announceToScreenReader?.(`Pregunta desplegada: ${questionText}`);
+                }
+            });
         });
     });
 </script>
