@@ -2057,15 +2057,6 @@ def reset_password_with_email(token):
     elif len(confirm_password) > 128:
         errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
     elif user and check_password_hash(user['password_hash'], password):
-        crear_log_audit(
-            user_id=token_validation['user_id'],
-            action='PASSWORD_RESET',
-            resource='auth',
-            details={'email': email, 'reason': 'reuse_current_password'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
         errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
     if not validar_password(password, email=email, nombre=user.get('nombre'), apellido=user.get('apellido'), telefono=user.get('telefono')):
         errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
@@ -2079,11 +2070,32 @@ def reset_password_with_email(token):
     if errores:
         for error in errores:
             flash(error, 'error')
+        audit_details = {'email': email, 'errors': errores}
+        if 'La nueva contraseña no puede ser igual a la contraseña actual.' in errores:
+            audit_details['reason'] = 'reuse_current_password'
+        crear_log_audit(
+            user_id=token_validation['user_id'],
+            action='PASSWORD_RESET',
+            resource='auth',
+            details=audit_details,
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return render_template('reset_password.html', token=token, email=email)
 
     resultado = actualizar_password_usuario(token_validation['user_id'], generate_password_hash(password))
     if not resultado['success']:
         flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
+        crear_log_audit(
+            user_id=token_validation['user_id'],
+            action='PASSWORD_RESET',
+            resource='auth',
+            details={'email': email, 'error': resultado.get('error')},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return render_template('reset_password.html', token=token, email=email)
 
     # Note: actualizar_password_usuario already handles token invalidation
