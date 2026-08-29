@@ -65,6 +65,7 @@
                     URL.revokeObjectURL(previewImage.src);
                 }
                 fileInput.value = '';
+                fileInput.focus();
                 previewContainer.style.display = 'none';
                 previewImage.src = '';
                 window.announceToScreenReader?.('Imagen seleccionada quitada');

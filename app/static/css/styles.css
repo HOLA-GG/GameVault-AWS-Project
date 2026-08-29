@@ -2010,8 +2010,9 @@ kbd {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.admin-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.03);
+.admin-table tbody tr:hover,
+.admin-table tbody tr:focus-within {
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .log-explorer {
