@@ -576,3 +576,27 @@ def test_faq_accordion_rendered(client):
     # Verify script handles toggle events and screen reader announcements
     assert "document.querySelectorAll('details.faq-card').forEach" in html
     assert "window.announceToScreenReader?.(`Pregunta desplegada: ${questionText}`);" in html
+
+
+def test_image_preview_remove_focus_restoration(client):
+    """Verify that image remove handlers across forms call fileInput.focus() for seamless keyboard focus restoration."""
+    # 1. Dashboard form
+    login_session(client)
+    response_dash = client.get('/dashboard')
+    assert response_dash.status_code == 200
+    html_dash = response_dash.get_data(as_text=True)
+    assert 'fileInput.focus();' in html_dash
+
+    # 2. Demo form
+    response_demo = client.get('/demo')
+    assert response_demo.status_code == 200
+    html_demo = response_demo.get_data(as_text=True)
+    assert 'fileInput.focus();' in html_demo
+
+
+def test_admin_table_focus_within_css(client):
+    """Verify that styles.css defines focus-within styling for .admin-table tbody tr."""
+    response = client.get('/static/css/styles.css')
+    assert response.status_code == 200
+    css = response.get_data(as_text=True)
+    assert '.admin-table tbody tr:focus-within' in css
