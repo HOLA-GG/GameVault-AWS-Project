@@ -2010,8 +2010,17 @@ def verify_token():
 
     # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
     user = obtener_usuario_por_id(token_validation['user_id'], format_dates=False)
-    if user is None:
-        flash('No se encontró el usuario asociado.', 'error')
+    if user is None or user.get('status') != 'active':
+        crear_log_audit(
+            user_id=token_validation.get('user_id'),
+            action='TOKEN_VALIDATION_FAILED',
+            resource='auth',
+            details={'reason': 'user_not_found_or_inactive', 'context': 'verify_token'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
         return redirect(url_for('main.validate_token_page'))
 
     return redirect(url_for('main.reset_password_with_email', token=token, _external=True))
