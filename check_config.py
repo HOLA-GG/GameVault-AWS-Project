@@ -49,8 +49,8 @@ with app.app_context():
 
     print(f"  - DATABASE_URL: {safe_url}")
     print(f"  - DATABASE_BACKEND: {app.config.get('DATABASE_BACKEND')}")
-    print(f"  - NEON_PROJECT_ID: {os.environ.get('NEON_PROJECT_ID') or '[NOT SET]'}")
-    print(f"  - NEON_SSLMODE: {os.environ.get('NEON_SSLMODE', 'require')}")
+    print(f"  - NEON_PROJECT_ID: {app.config.get('NEON_PROJECT_ID') or '[NOT SET]'}")
+    print(f"  - NEON_SSLMODE: {app.config.get('NEON_SSLMODE')}")
 
     # Check database connectivity
     print("  - Verifying database connection healthcheck...")
@@ -67,7 +67,7 @@ with app.app_context():
         print(f"  - SQLAlchemy Engine Pool Class: {pool_class_name}")
 
         # Check pool parameters
-        is_neon = 'neon' in db_url or 'neon.tech' in db_url
+        is_neon = 'neon' in db_url or 'neon.tech' in db_url or app.config.get('DATABASE_BACKEND') == 'neon' or bool(app.config.get('NEON_PROJECT_ID'))
         is_pooler = '-pooler' in db_url
         use_nullpool = app.config.get('DB_USE_NULLPOOL') or is_pooler
 

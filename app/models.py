@@ -116,10 +116,11 @@ def normalize_database_url(raw_url: str | None) -> str:
         elif raw_url.startswith('postgresql://') and '+psycopg' not in raw_url:
             raw_url = raw_url.replace('postgresql://', 'postgresql+psycopg://', 1)
 
-        # Forzar sslmode=require para conexiones Neon/PostgreSQL si no se especifica
+        # Forzar sslmode (default: require) para conexiones Neon/PostgreSQL si no se especifica
         if 'postgresql' in raw_url and 'sslmode=' not in raw_url:
+            sslmode = os.environ.get('NEON_SSLMODE', 'require').strip() or 'require'
             separator = '&' if '?' in raw_url else '?'
-            raw_url += f"{separator}sslmode=require"
+            raw_url += f"{separator}sslmode={sslmode}"
 
         return raw_url
 
