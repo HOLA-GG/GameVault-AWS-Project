@@ -8,7 +8,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.routes import get_action_badge_class, filter_and_sort_games
+from datetime import datetime, timezone
+from app.routes import get_action_badge_class, filter_and_sort_games, enrich_game_metadata, enrich_log_metadata
 from app.models import _user_row_to_dict, _game_row_to_dict, _audit_log_row_to_dict, MIN_DATE, utcnow
 
 # Mock Row with _mapping
@@ -230,3 +231,48 @@ def test_filter_and_sort_games_eafp_text_search():
     # Search query matching neither
     res3 = filter_and_sort_games(juegos, {'q': 'halo'})
     assert len(res3) == 0
+
+
+def test_enrich_game_and_log_metadata():
+    """Verify that enrich_game_metadata and enrich_log_metadata handle None, unenriched, and enriched dictionaries."""
+    now_dt = datetime.now(timezone.utc)
+
+    # None input
+    assert enrich_game_metadata(None) is None
+    assert enrich_log_metadata(None) is None
+
+    # Unenriched game
+    game = {
+        'imagen_url': 'http://example.com/cover.jpg',
+        'updated_at': now_dt,
+        'created_at': now_dt,
+    }
+    enriched_game = enrich_game_metadata(game)
+    assert enriched_game is not None
+    assert enriched_game['_enriched'] is True
+    assert isinstance(enriched_game['updated_at'], str)
+    assert isinstance(enriched_game['created_at'], str)
+
+    # Already enriched game (should short-circuit and return immediately)
+    already_enriched_game = {'_enriched': True, 'imagen_url': 'already'}
+    res_game = enrich_game_metadata(already_enriched_game)
+    assert res_game is already_enriched_game
+    assert res_game['imagen_url'] == 'already'
+
+    # Unenriched log
+    log = {
+        'action': 'LOGIN',
+        'status': 'SUCCESS',
+        'timestamp': now_dt,
+    }
+    enriched_log = enrich_log_metadata(log)
+    assert enriched_log is not None
+    assert enriched_log['_enriched'] is True
+    assert enriched_log['action_badge_class'] == 'action-auth'
+    assert enriched_log['status_badge_class'] == 'badge-log-success'
+    assert isinstance(enriched_log['timestamp'], str)
+
+    # Already enriched log (should short-circuit and return immediately)
+    already_enriched_log = {'_enriched': True, 'action': 'LOGIN'}
+    res_log = enrich_log_metadata(already_enriched_log)
+    assert res_log is already_enriched_log
