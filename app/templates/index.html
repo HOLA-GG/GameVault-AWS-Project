@@ -396,11 +396,16 @@
                 const targetForm = document.getElementById(targetId);
                 const firstInput = targetForm ? targetForm.querySelector('input:not([type="hidden"])') : null;
 
-                if (firstInput) {
-                    // Small delay to allow scroll to complete before focusing
-                    setTimeout(() => {
-                        firstInput.focus();
-                    }, 100);
+                if (targetForm) {
+                    e.preventDefault();
+                    targetForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (firstInput) {
+                        setTimeout(() => {
+                            firstInput.focus();
+                            firstInput.select();
+                        }, 300);
+                    }
+                    window.announceToScreenReader?.('Formulario de agregar nuevo juego enfocado');
                 }
             });
         }

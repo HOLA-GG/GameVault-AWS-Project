@@ -600,3 +600,16 @@ def test_admin_table_focus_within_css(client):
     assert response.status_code == 200
     css = response.get_data(as_text=True)
     assert '.admin-table tbody tr:focus-within' in css
+
+
+def test_add_first_game_smooth_scroll_and_announcement(client):
+    """Verify that index.html empty state CTA handler performs smooth scroll, input focus selection, and ARIA announcement."""
+    login_session(client)
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "targetForm.scrollIntoView({ behavior: 'smooth', block: 'center' });" in html
+    assert 'firstInput.focus();' in html
+    assert 'firstInput.select();' in html
+    assert "window.announceToScreenReader?.('Formulario de agregar nuevo juego enfocado');" in html
