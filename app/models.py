@@ -1439,6 +1439,10 @@ def obtener_juegos_por_usuario(user_id):
 
 def obtener_juego_por_id(user_id, game_id, format_dates: bool = True):
     """Obtiene un juego por ID y usuario (Optimización Bolt: bypass ORM hydration)."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return None
+    if not game_id or not isinstance(game_id, str) or len(game_id) > 36:
+        return None
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -1540,6 +1544,8 @@ def crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash
 
 def obtener_usuario_por_email(email, format_dates: bool = True):
     """Obtiene un usuario por email (Optimización Bolt: bypass ORM hydration)."""
+    if not email or not isinstance(email, str) or len(email) > 255:
+        return None
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -1590,6 +1596,8 @@ def contar_usuarios() -> int:
 
 def eliminar_usuario(user_id):
     """Elimina un usuario y sus relaciones."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return {'success': False, 'error': 'Usuario no encontrado'}
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -2025,6 +2033,8 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
 
 def obtener_usuario_por_id(user_id: str, format_dates: bool = True) -> Optional[Dict[str, Any]]:
     """Obtiene un usuario por ID (Optimización Bolt: bypass ORM hydration)."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return None
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -2063,6 +2073,10 @@ def obtener_usuarios_por_ids(user_ids: List[str], **kwargs) -> List[Dict[str, An
 
 def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str, Any]:
     """Actualiza datos básicos del perfil."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return {'success': False, 'error': 'Usuario no encontrado'}
+    if not isinstance(cambios, dict):
+        return {'success': False, 'error': 'Datos de perfil inválidos'}
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -2086,6 +2100,10 @@ def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str
 
 def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, Any]:
     """Actualiza la contraseña del usuario e invalida tokens de recuperación previos."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return {'success': False, 'error': 'Usuario no encontrado'}
+    if not password_hash or not isinstance(password_hash, str) or len(password_hash) > 255:
+        return {'success': False, 'error': 'Hash de contraseña inválido'}
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
