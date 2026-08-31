@@ -71,6 +71,8 @@ _SENSITIVE_RE = re.compile('|'.join(map(re.escape, _SENSITIVE_PATTERNS)), re.I)
 _RESET_TOKEN_URL_RE = re.compile(r'/reset-password/[a-zA-Z0-9_-]+')
 _TOKEN_QUERY_RE = re.compile(r'([\?&]token=)[a-zA-Z0-9_-]+', re.I)
 _RISKY_CSV_CHARS = ('=', '+', '-', '@', '|', '`')
+# Bolt Optimization: Pre-constructed set for O(1) character membership check prior to lstrip().
+_RISKY_CSV_CHARS_SET = {'=', '+', '-', '@', '|', '`'}
 _COMMON_WEAK_PASSWORDS = {
     'password123', 'admin123', 'admin1234', 'admin12345', 'gamer123',
     'videogames123', 'qwerty123', '12345678a', 'password1234', 'welcome123',
@@ -2004,8 +2006,18 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
 _CSV_LOG_FIELDS = ('audit_id', 'user_id', 'action', 'resource', 'timestamp', 'ip_address', 'status')
 
 
+def _sanitize_csv_val(val: str) -> str:
+    """Sanitiza un valor para CSV Injection.
+    Optimización Bolt: Verifica rápido el primer carácter antes de llamar a lstrip()
+    para evitar asignación y procesamiento innecesario de strings en >99% de los casos."""
+    if val and (val[0] in _RISKY_CSV_CHARS_SET or val[0].isspace()):
+        if val.lstrip().startswith(_RISKY_CSV_CHARS):
+            return "'" + val
+    return val
+
+
 def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
-    """Exporta logs a CSV con protección contra CSV Injection (Optimización Bolt: module-level tuple)."""
+    """Exporta logs a CSV con protección contra CSV Injection (Optimización Bolt: fast-path sanitization & module-level tuple)."""
     output = io.StringIO()
     fieldnames = ['audit_id', 'user_id', 'action', 'resource', 'timestamp', 'ip_address', 'status', 'details']
     writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -2016,16 +2028,10 @@ def exportar_logs_csv(logs: List[Dict[str, Any]]) -> str:
         # Bolt Optimization: Iterate over pre-allocated module-level tuple _CSV_LOG_FIELDS instead of slicing fieldnames[:-1] on every row.
         for key in _CSV_LOG_FIELDS:
             val = str(log.get(key, '') or '')
-            # Strip leading whitespace before checking for risky characters to prevent formula bypasses (CSV Injection)
-            # Bolt Optimization: Use module-level constant.
-            if val.lstrip().startswith(_RISKY_CSV_CHARS):
-                val = "'" + val
-            row[key] = val
+            row[key] = _sanitize_csv_val(val)
 
         details_val = str(log.get('details', {}) or '{}')
-        if details_val.lstrip().startswith(_RISKY_CSV_CHARS):
-            details_val = "'" + details_val
-        row['details'] = details_val
+        row['details'] = _sanitize_csv_val(details_val)
 
         writer.writerow(row)
     return output.getvalue()
