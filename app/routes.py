@@ -2446,7 +2446,11 @@ def admin_logs_export():
 @limiter.limit('1 per minute')
 def admin_logs_clear():
     """Limpia logs antiguos de manera manual."""
-    dias = max(request.form.get('dias', 7, type=int), 1)
+    try:
+        raw_dias = request.form.get('dias', 7, type=int)
+        dias = max(1, min(raw_dias, 36500))
+    except (ValueError, TypeError, OverflowError):
+        dias = 7
     resultado = limpiar_logs_antiguos(dias)
     crear_log_audit(
         user_id=session['user_id'],
