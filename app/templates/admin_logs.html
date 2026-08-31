@@ -61,7 +61,10 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="user_id">Usuario</label>
-                <input type="text" id="user_id" name="user_id" value="{{ filters.user_id or '' }}" placeholder="Email, nombre o ID de usuario" class="select-on-focus">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="text" id="user_id" name="user_id" value="{{ filters.user_id or '' }}" placeholder="Email, nombre o ID de usuario" class="select-on-focus" style="padding-right: 36px;">
+                    <button type="button" id="userIdClearBtn" class="search-clear-btn" aria-label="Borrar búsqueda de usuario" title="Borrar búsqueda de usuario" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: {{ 'block' if filters.user_id else 'none' }};">&times;</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="action">Acción</label>
@@ -247,6 +250,21 @@
 
 <script nonce="{{ g.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
+        const userIdInput = document.getElementById('user_id');
+        const userIdClearBtn = document.getElementById('userIdClearBtn');
+        if (userIdInput && userIdClearBtn) {
+            function updateUserIdClearVisibility() {
+                userIdClearBtn.style.display = userIdInput.value.trim().length > 0 ? 'block' : 'none';
+            }
+            userIdInput.addEventListener('input', updateUserIdClearVisibility);
+            userIdClearBtn.addEventListener('click', function() {
+                userIdInput.value = '';
+                updateUserIdClearVisibility();
+                userIdInput.focus();
+                window.announceToScreenReader?.('Búsqueda de usuario borrada');
+            });
+        }
+
         const form = document.getElementById('clearLogsForm');
         const button = document.getElementById('clearLogsSubmitButton');
         if (form && button) {

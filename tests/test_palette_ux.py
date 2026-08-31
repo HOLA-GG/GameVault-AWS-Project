@@ -613,3 +613,18 @@ def test_add_first_game_smooth_scroll_and_announcement(client):
     assert 'firstInput.focus();' in html
     assert 'firstInput.select();' in html
     assert "window.announceToScreenReader?.('Formulario de agregar nuevo juego enfocado');" in html
+
+
+def test_admin_logs_user_id_clear_button_rendered(client):
+    """Verify that admin_logs.html renders the user_id clear button and associated event handlers."""
+    login_session(client, role='admin')
+    response = client.get('/admin/logs?user_id=test@example.com')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="userIdClearBtn"' in html
+    assert 'aria-label="Borrar búsqueda de usuario"' in html
+    assert 'title="Borrar búsqueda de usuario"' in html
+    assert "const userIdInput = document.getElementById('user_id');" in html
+    assert "const userIdClearBtn = document.getElementById('userIdClearBtn');" in html
+    assert "window.announceToScreenReader?.('Búsqueda de usuario borrada');" in html
