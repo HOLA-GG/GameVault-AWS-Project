@@ -628,3 +628,16 @@ def test_admin_logs_user_id_clear_button_rendered(client):
     assert "const userIdInput = document.getElementById('user_id');" in html
     assert "const userIdClearBtn = document.getElementById('userIdClearBtn');" in html
     assert "window.announceToScreenReader?.('Búsqueda de usuario borrada');" in html
+
+
+def test_live_search_empty_state_rendered(client):
+    """Verify that index.html includes the client-side live search empty state creation and reset handler logic."""
+    login_session(client)
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "liveEmpty.id = 'liveSearchEmptyState';" in html
+    assert 'Sin coincidencias en esta página' in html
+    assert 'id="liveSearchClearBtn"' in html
+    assert "No encontramos juegos en esta página que coincidan con" in html

@@ -416,7 +416,8 @@
         if (searchInput) {
             let filterTimeout;
             function filterGameCards() {
-                const term = searchInput.value.trim().toLowerCase();
+                const rawTerm = searchInput.value.trim();
+                const term = rawTerm.toLowerCase();
                 const cards = document.querySelectorAll('.game-card');
                 if (!cards.length) return;
 
@@ -427,9 +428,45 @@
                     if (matches) visibleCount++;
                 });
 
+                let liveEmpty = document.getElementById('liveSearchEmptyState');
+                if (term && visibleCount === 0) {
+                    if (!liveEmpty) {
+                        liveEmpty = document.createElement('div');
+                        liveEmpty.id = 'liveSearchEmptyState';
+                        liveEmpty.className = 'empty-state';
+                        liveEmpty.style.marginTop = '20px';
+                        liveEmpty.innerHTML = `
+                            <span class="feature-icon" aria-hidden="true">🔍</span>
+                            <h3>Sin coincidencias en esta página</h3>
+                            <p id="liveSearchTermText"></p>
+                            <div class="mt-20">
+                                <button type="button" class="btn btn-secondary btn-small" id="liveSearchClearBtn">Limpiar búsqueda</button>
+                            </div>
+                        `;
+                        const gamesGrid = document.querySelector('.games-grid');
+                        if (gamesGrid && gamesGrid.parentNode) {
+                            gamesGrid.parentNode.insertBefore(liveEmpty, gamesGrid.nextSibling);
+                        }
+                        liveEmpty.querySelector('#liveSearchClearBtn')?.addEventListener('click', function() {
+                            searchInput.value = '';
+                            updateClearBtnVisibility();
+                            filterGameCards();
+                            searchInput.focus();
+                            window.announceToScreenReader?.('Búsqueda borrada');
+                        });
+                    }
+                    const termText = liveEmpty.querySelector('#liveSearchTermText');
+                    if (termText) {
+                        termText.textContent = `No encontramos juegos en esta página que coincidan con "${rawTerm}".`;
+                    }
+                    liveEmpty.style.display = 'block';
+                } else if (liveEmpty) {
+                    liveEmpty.style.display = 'none';
+                }
+
                 clearTimeout(filterTimeout);
                 filterTimeout = setTimeout(() => {
-                    const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'juego coincide' : 'juegos coinciden'} con "${searchInput.value.trim()}"` : 'Mostrando todos los juegos';
+                    const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'juego coincide' : 'juegos coinciden'} con "${rawTerm}"` : 'Mostrando todos los juegos';
                     window.announceToScreenReader?.(msg);
                 }, 400);
             }

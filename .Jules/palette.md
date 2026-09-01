@@ -109,3 +109,7 @@
 ## 2026-09-05 - Smooth CTA Auto-Scroll & Guided Input Focus Announcements
 **Learning:** Empty state call-to-action (CTA) links targeting forms on the same page can cause abrupt visual jumps and leave screen-reader/keyboard users without clear context if they only trigger default hash navigation. Intercepting the click event to perform smooth scrolling (`scrollIntoView({ behavior: 'smooth', block: 'center' })`), auto-selecting the primary input (`firstInput.focus(); firstInput.select();`), and dispatching an ARIA live region announcement (`announceToScreenReader`) creates a seamless, context-rich transition for all users.
 **Action:** For empty-state or page-internal CTA triggers that link to input forms, prevent default jump navigation and use smooth scrolling paired with delayed focus selection and an explicit ARIA live region announcement.
+
+## 2026-09-08 - Dynamic Client-Side Live Filter Empty State
+**Learning:** Client-side live filtering enhances search speed by hiding DOM cards in real-time, but when 0 items match, hiding all cards leaves an empty visual gap without feedback. Dynamically injecting an accessible empty state block with a direct "Limpiar búsqueda" trigger prevents a dead-end UI state and gives keyboard and screen-reader users an immediate path to reset their search filter.
+**Action:** When implementing client-side live DOM filtering, always check for zero matching visible elements and toggle a dynamic empty state container with contextual text and a clear filter action.
