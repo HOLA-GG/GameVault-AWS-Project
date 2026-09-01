@@ -308,8 +308,11 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
         return False
     if storage_backend == 'local':
         # Decode URL-encoded characters completely to prevent double/nested-encoding bypasses (Security hardening)
+        # Bolt Optimization: Check '%' not in decoded to short-circuit unquote calls for unencoded URLs.
         decoded = image_url
         for _ in range(5):
+            if '%' not in decoded:
+                break
             new_decoded = unquote(decoded)
             if new_decoded == decoded:
                 break
@@ -332,8 +335,11 @@ def is_valid_presigned_image_url(image_url: str) -> bool:
 
     parsed = urlparse(image_url)
     # Decode URL-encoded characters completely to prevent double/nested-encoding bypasses (Security hardening)
+    # Bolt Optimization: Check '%' not in decoded to short-circuit unquote calls for unencoded URLs.
     decoded = parsed.path
     for _ in range(5):
+        if '%' not in decoded:
+            break
         new_decoded = unquote(decoded)
         if new_decoded == decoded:
             break
@@ -386,8 +392,11 @@ def is_safe_url(target: str) -> bool:
         return False
 
     # Decode URL-encoded characters completely to prevent double-encoding bypasses (Security hardening)
+    # Bolt Optimization: Check '%' not in decoded to short-circuit unquote calls for unencoded URLs.
     decoded = target
     for _ in range(5):
+        if '%' not in decoded:
+            break
         new_decoded = unquote(decoded)
         if new_decoded == decoded:
             break
