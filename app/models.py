@@ -1284,8 +1284,11 @@ def obtener_key_desde_url(imagen_url):
     try:
         parsed = urlparse(imagen_url)
         # Decode URL-encoded characters completely to prevent double/nested-encoding bypasses (Security hardening)
+        # Bolt Optimization: Check '%' not in decoded to short-circuit unquote calls for unencoded URLs.
         decoded = parsed.path
         for _ in range(5):
+            if '%' not in decoded:
+                break
             new_decoded = unquote(decoded)
             if new_decoded == decoded:
                 break
