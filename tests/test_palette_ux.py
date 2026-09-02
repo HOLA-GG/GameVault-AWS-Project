@@ -641,3 +641,14 @@ def test_live_search_empty_state_rendered(client):
     assert 'Sin coincidencias en esta página' in html
     assert 'id="liveSearchClearBtn"' in html
     assert "No encontramos juegos en esta página que coincidan con" in html
+
+
+def test_character_counter_threshold_announcements(client):
+    """Verify that setupCharacterCounters in base.html tracks state and dispatches screen reader announcements at thresholds."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "let lastState = 'normal';" in html
+    assert "announceToScreenReader(`Has alcanzado el límite máximo de ${maxLength} caracteres`);" in html
+    assert "announceToScreenReader(`Te acercas al límite de caracteres: ${currentLength} de ${maxLength}`);" in html

@@ -347,6 +347,8 @@
                 counter.style.transition = 'color 0.2s ease, font-weight 0.2s ease';
                 counter.setAttribute('aria-live', 'polite');
 
+                let lastState = 'normal';
+
                 const updateCounter = () => {
                     const currentLength = el.value.length;
                     counter.textContent = `${currentLength} / ${maxLength} caracteres`;
@@ -355,12 +357,21 @@
                     if (ratio >= 1) {
                         counter.style.color = 'var(--danger-color)';
                         counter.style.fontWeight = '700';
+                        if (lastState !== 'max') {
+                            lastState = 'max';
+                            announceToScreenReader(`Has alcanzado el límite máximo de ${maxLength} caracteres`);
+                        }
                     } else if (ratio >= 0.85) {
                         counter.style.color = 'var(--warning-color)';
                         counter.style.fontWeight = '600';
+                        if (lastState !== 'warning') {
+                            lastState = 'warning';
+                            announceToScreenReader(`Te acercas al límite de caracteres: ${currentLength} de ${maxLength}`);
+                        }
                     } else {
                         counter.style.color = 'var(--text-secondary)';
                         counter.style.fontWeight = '400';
+                        lastState = 'normal';
                     }
                 };
 
