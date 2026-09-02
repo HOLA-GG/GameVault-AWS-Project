@@ -113,3 +113,7 @@
 ## 2026-09-08 - Dynamic Client-Side Live Filter Empty State
 **Learning:** Client-side live filtering enhances search speed by hiding DOM cards in real-time, but when 0 items match, hiding all cards leaves an empty visual gap without feedback. Dynamically injecting an accessible empty state block with a direct "Limpiar búsqueda" trigger prevents a dead-end UI state and gives keyboard and screen-reader users an immediate path to reset their search filter.
 **Action:** When implementing client-side live DOM filtering, always check for zero matching visible elements and toggle a dynamic empty state container with contextual text and a clear filter action.
+
+## 2026-09-12 - Real-Time Screen Reader Character Counter Threshold Announcements
+**Learning:** Visual color shifts on character counter elements (such as changing text color to warning-orange at 85% or danger-red at 100% capacity) are completely inaccessible to screen reader users unless accompanied by dynamic auditory feedback. Maintaining internal state tracking (`lastState`) on character counter inputs and dispatching polite live announcements (`announceToScreenReader`) only when state boundaries transition prevents repetitive notification clutter while ensuring non-visual users receive immediate parity regarding input limits.
+**Action:** Track threshold state transitions on character counter elements and broadcast polite ARIA live region announcements (`announceToScreenReader`) when users reach capacity warning (85%) or maximum limit (100%) thresholds.
