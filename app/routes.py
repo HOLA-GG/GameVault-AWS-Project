@@ -1145,7 +1145,12 @@ def dashboard():
         'favoritos': request.args.get('favoritos', '').strip()[:50],
         'sort': request.args.get('sort', 'updated_desc').strip()[:50],
     }
-    page = request.args.get('page', 1, type=int)
+    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+    try:
+        raw_page = request.args.get('page', 1, type=int)
+        page = max(1, raw_page if raw_page is not None else 1)
+    except (ValueError, TypeError, OverflowError):
+        page = 1
 
     # Bolt optimization: Calculate metrics in-memory from the already fetched list
     # for the dashboard to avoid 9+ redundant SQL queries.
