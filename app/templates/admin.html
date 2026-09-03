@@ -23,6 +23,13 @@
     <p style="color:var(--text-secondary);margin-bottom:20px;">Total actual: {{ total_usuarios }} usuarios.</p>
 
     {% if usuarios %}
+        <div class="form-group" style="margin-bottom:20px;">
+            <label for="adminUserSearch" class="sr-only">Filtrar usuarios en esta página</label>
+            <div style="position: relative; display: flex; align-items: center; max-width: 400px;">
+                <input type="search" id="adminUserSearch" placeholder="Filtrar por nombre o email..." class="select-on-focus" style="padding-right: 36px;">
+                <button type="button" id="adminUserSearchClearBtn" class="search-clear-btn" aria-label="Borrar filtro de usuarios" title="Borrar filtro de usuarios" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+            </div>
+        </div>
         <div class="table-container">
             <table class="admin-table">
                 <thead>
@@ -76,6 +83,48 @@
         </div>
     {% endif %}
 </section>
+
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('adminUserSearch');
+        const clearBtn = document.getElementById('adminUserSearchClearBtn');
+        if (!searchInput) return;
+
+        let debounceTimeout;
+        function filterUsers() {
+            const rawTerm = searchInput.value.trim();
+            const term = rawTerm.toLowerCase();
+            const rows = document.querySelectorAll('.admin-table tbody tr');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const matches = !term || row.textContent.toLowerCase().includes(term);
+                row.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            if (clearBtn) {
+                clearBtn.style.display = term ? 'block' : 'none';
+            }
+
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'usuario coincide' : 'usuarios coinciden'} con "${rawTerm}"` : 'Mostrando todos los usuarios';
+                window.announceToScreenReader?.(msg);
+            }, 400);
+        }
+
+        searchInput.addEventListener('input', filterUsers);
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                searchInput.value = '';
+                filterUsers();
+                searchInput.focus();
+                window.announceToScreenReader?.('Filtro de usuarios borrado');
+            });
+        }
+    });
+</script>
 
 {% if pagination.total_pages > 1 %}
 <section class="section" style="text-align:center;">

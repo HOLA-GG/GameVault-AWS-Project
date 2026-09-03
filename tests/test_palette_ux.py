@@ -652,3 +652,19 @@ def test_character_counter_threshold_announcements(client):
     assert "let lastState = 'normal';" in html
     assert "announceToScreenReader(`Has alcanzado el límite máximo de ${maxLength} caracteres`);" in html
     assert "announceToScreenReader(`Te acercas al límite de caracteres: ${currentLength} de ${maxLength}`);" in html
+
+
+def test_palette_admin_user_live_filter_rendered(client):
+    """Verify that admin.html renders the client-side live user search input, clear button, and screen reader announcements."""
+    login_session(client, role='admin')
+    response = client.get('/admin')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="adminUserSearch"' in html
+    assert 'placeholder="Filtrar por nombre o email..."' in html
+    assert 'id="adminUserSearchClearBtn"' in html
+    assert 'aria-label="Borrar filtro de usuarios"' in html
+    assert 'title="Borrar filtro de usuarios"' in html
+    assert 'function filterUsers()' in html
+    assert "window.announceToScreenReader?.('Filtro de usuarios borrado');" in html
