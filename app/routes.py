@@ -1742,8 +1742,6 @@ def profile():
             errores.append('La contraseña actual es demasiado larga (máximo 128 caracteres).')
         elif len(password) > 128:
             errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
-        elif len(confirm_password) > 128:
-            errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
         elif not check_password_hash(user['password_hash'], current_password):
             crear_log_audit(
                 user_id=session['user_id'],
@@ -2098,8 +2096,6 @@ def reset_password_with_email(token):
     errores = []
     if len(password) > 128:
         errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
-    elif len(confirm_password) > 128:
-        errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
     elif user and check_password_hash(user['password_hash'], password):
         errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
     if not validar_password(password, email=email, nombre=user.get('nombre'), apellido=user.get('apellido'), telefono=user.get('telefono')):

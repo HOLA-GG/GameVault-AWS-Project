@@ -242,3 +242,8 @@
 **Vulnerability:** Unhandled `AttributeError` exception in `sanitize_and_validate_ip` when passed non-string inputs, and cache bloat DoS via oversized IP strings.
 **Learning:** Utilities that sanitize client headers or remote addresses (like IP addresses) can receive non-string values or malformed oversized payloads. Without explicit type and length checks, operations like `.strip()` cause 500 server errors, and parsing long strings degrades performance and pollutes bounded caches.
 **Prevention:** Always check `isinstance(ip_str, str)` and enforce length bounds (`len(ip_str) <= 100`) at the entry point of IP validation utilities before invoking string methods or cache storage.
+
+## 2026-09-08 - Prevent Audit Log Bypass via Secondary Form Field Length Checks
+**Vulnerability:** Secondary input field length checks (e.g. `confirm_password`) placed as `elif` branches before `check_password_hash` allowed attackers to bypass security audit logging on failed authentication attempts.
+**Learning:** In multi-field form processing, chaining independent validation checks using `elif` before security checks (like password hash verification) causes the security check and its audit logging (`crear_log_audit`) to be skipped if an attacker intentionally triggers the prior `elif`.
+**Prevention:** Keep primary password checks and security audit logging independent from secondary confirmation field validation, or validate confirmation field lengths strictly after password authentication checks.
