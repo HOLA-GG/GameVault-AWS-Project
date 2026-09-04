@@ -247,3 +247,8 @@
 **Vulnerability:** Secondary input field length checks (e.g. `confirm_password`) placed as `elif` branches before `check_password_hash` allowed attackers to bypass security audit logging on failed authentication attempts.
 **Learning:** In multi-field form processing, chaining independent validation checks using `elif` before security checks (like password hash verification) causes the security check and its audit logging (`crear_log_audit`) to be skipped if an attacker intentionally triggers the prior `elif`.
 **Prevention:** Keep primary password checks and security audit logging independent from secondary confirmation field validation, or validate confirmation field lengths strictly after password authentication checks.
+
+## 2026-09-12 - Defensive Type Coercion and Length Bounding in Profile Updates
+**Vulnerability:** Unhandled `AttributeError` exception in user profile database functions (`actualizar_usuario_perfil` and `actualizar_usuario_nombre`) when passed `None` or non-string inputs in field values.
+**Learning:** Internal database functions or API helper layers that process user update parameters often assume inputs have already been converted to string types. When non-string values (such as `None`, numbers, or dictionaries) are supplied directly, calling `.strip()` or `.lower()` throws an unhandled `AttributeError`, resulting in a 500 server error and potential application unavailability.
+**Prevention:** Always perform defensive type coercion (`str(val if val is not None else '')`) and enforce schema length bounds (e.g. max 120 chars for names, max 20 for phones and status) at the data layer before invoking string methods or writing to the database.
