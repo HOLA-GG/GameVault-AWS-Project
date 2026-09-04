@@ -43,6 +43,13 @@
     </form>
 
     {% if collections %}
+        <div class="form-group" style="margin-bottom:20px;">
+            <label for="adminCollectionSearch" class="sr-only">Filtrar colecciones en esta página</label>
+            <div style="position: relative; display: flex; align-items: center; max-width: 400px;">
+                <input type="search" id="adminCollectionSearch" placeholder="Filtrar por propietario o plataforma..." class="select-on-focus" style="padding-right: 36px;">
+                <button type="button" id="adminCollectionSearchClearBtn" class="search-clear-btn" aria-label="Borrar filtro de colecciones" title="Borrar filtro de colecciones" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+            </div>
+        </div>
         <div class="table-container">
             <table class="admin-table">
                 <thead>
@@ -79,6 +86,48 @@
                 </tbody>
             </table>
         </div>
+
+        <script nonce="{{ g.csp_nonce }}">
+            document.addEventListener('DOMContentLoaded', function () {
+                const searchInput = document.getElementById('adminCollectionSearch');
+                const clearBtn = document.getElementById('adminCollectionSearchClearBtn');
+                if (!searchInput) return;
+
+                let debounceTimeout;
+                function filterCollections() {
+                    const rawTerm = searchInput.value.trim();
+                    const term = rawTerm.toLowerCase();
+                    const rows = document.querySelectorAll('.admin-table tbody tr');
+                    let visibleCount = 0;
+
+                    rows.forEach(row => {
+                        const matches = !term || row.textContent.toLowerCase().includes(term);
+                        row.style.display = matches ? '' : 'none';
+                        if (matches) visibleCount++;
+                    });
+
+                    if (clearBtn) {
+                        clearBtn.style.display = term ? 'block' : 'none';
+                    }
+
+                    clearTimeout(debounceTimeout);
+                    debounceTimeout = setTimeout(() => {
+                        const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'colección coincide' : 'colecciones coinciden'} con "${rawTerm}"` : 'Mostrando todas las colecciones';
+                        window.announceToScreenReader?.(msg);
+                    }, 400);
+                }
+
+                searchInput.addEventListener('input', filterCollections);
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function () {
+                        searchInput.value = '';
+                        filterCollections();
+                        searchInput.focus();
+                        window.announceToScreenReader?.('Filtro de colecciones borrado');
+                    });
+                }
+            });
+        </script>
     {% else %}
         <div class="empty-state">
             <span class="feature-icon" aria-hidden="true">🔍</span>
