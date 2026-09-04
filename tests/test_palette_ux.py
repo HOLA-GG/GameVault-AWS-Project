@@ -668,3 +668,19 @@ def test_palette_admin_user_live_filter_rendered(client):
     assert 'title="Borrar filtro de usuarios"' in html
     assert 'function filterUsers()' in html
     assert "window.announceToScreenReader?.('Filtro de usuarios borrado');" in html
+
+
+def test_palette_admin_collection_live_filter_rendered(client):
+    """Verify that admin_collections.html renders the client-side live collection search input, clear button, and screen reader announcements."""
+    login_session(client, role='admin')
+    response = client.get('/admin/collections')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="adminCollectionSearch"' in html
+    assert 'placeholder="Filtrar por propietario o plataforma..."' in html
+    assert 'id="adminCollectionSearchClearBtn"' in html
+    assert 'aria-label="Borrar filtro de colecciones"' in html
+    assert 'title="Borrar filtro de colecciones"' in html
+    assert 'function filterCollections()' in html
+    assert "window.announceToScreenReader?.('Filtro de colecciones borrado');" in html
