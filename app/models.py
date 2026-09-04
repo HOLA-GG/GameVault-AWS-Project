@@ -1618,7 +1618,8 @@ def eliminar_usuario(user_id):
 
 def actualizar_usuario_nombre(user_id, nombre):
     """Actualiza el nombre principal de un usuario."""
-    return actualizar_usuario_perfil(user_id, {'nombre': nombre.strip()})
+    safe_nombre = str(nombre if nombre is not None else '').strip()
+    return actualizar_usuario_perfil(user_id, {'nombre': safe_nombre})
 
 
 def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
@@ -2094,11 +2095,20 @@ def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str
         if user is None:
             return {'success': False, 'error': 'Usuario no encontrado'}
 
-        for field in ('nombre', 'apellido', 'prefijo_pais', 'telefono'):
+        field_limits = {
+            'nombre': 120,
+            'apellido': 120,
+            'prefijo_pais': 10,
+            'telefono': 20,
+        }
+        for field, max_len in field_limits.items():
             if field in cambios:
-                setattr(user, field, (cambios.get(field) or '').strip())
+                raw_val = cambios.get(field)
+                val_str = str(raw_val if raw_val is not None else '').strip()[:max_len]
+                setattr(user, field, val_str)
         if 'collection_visibility' in cambios:
-            visibility = (cambios.get('collection_visibility') or 'private').strip().lower()
+            raw_vis = cambios.get('collection_visibility')
+            visibility = str(raw_vis if raw_vis is not None else 'private').strip().lower()[:20]
             user.collection_visibility = visibility if visibility in {'private', 'public'} else 'private'
         if 'homepage_showcase_opt_in' in cambios:
             user.homepage_showcase_opt_in = bool(cambios.get('homepage_showcase_opt_in'))
