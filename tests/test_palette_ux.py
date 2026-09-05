@@ -684,3 +684,12 @@ def test_palette_admin_collection_live_filter_rendered(client):
     assert 'title="Borrar filtro de colecciones"' in html
     assert 'function filterCollections()' in html
     assert "window.announceToScreenReader?.('Filtro de colecciones borrado');" in html
+
+
+def test_form_submit_aria_disabled_rendered(client):
+    """Verify that the submit event listener sets aria-disabled='true' on the submit button."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "button.setAttribute('aria-disabled', 'true');" in html
