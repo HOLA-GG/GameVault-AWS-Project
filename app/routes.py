@@ -102,6 +102,9 @@ ACTION_BADGE_GROUPS = {
     'action-admin': {'ADMIN_ACTION'},
 }
 
+# Bolt Optimization: Constant set to avoid set allocations in enrich_log_metadata.
+_FAILED_STATUS_SET = {'FAILED', 'ERROR'}
+
 # Pre-calculated reverse mapping for O(1) badge class lookup with case-insensitive variants pre-populated.
 _ACTION_BADGE_MAP = {}
 for class_name, actions in ACTION_BADGE_GROUPS.items():
@@ -788,7 +791,9 @@ def build_query_args(**updates) -> dict:
 
     args = base_args.copy()
     for key, value in updates.items():
-        if value in (None, '', []):
+        # Bolt Optimization: Replace value in (None, '', []) tuple membership with direct identity and equality checks
+        # to avoid dynamic tuple allocations on every iteration in template rendering loops.
+        if value is None or value == '' or value == []:
             args.pop(key, None)
         else:
             args[key] = value
@@ -920,7 +925,7 @@ def enrich_log_metadata(log: dict | None) -> dict | None:
         'badge-log-success'
         if status == 'SUCCESS'
         else 'badge-log-error'
-        if status in {'FAILED', 'ERROR'}
+        if status in _FAILED_STATUS_SET
         else 'badge-log-neutral'
     )
 
