@@ -2202,7 +2202,7 @@ def admin_panel():
 @require_admin
 def admin_collections():
     """Vista administrativa de colecciones públicas y privadas (Optimizado: paginación en DB)."""
-    visibility = request.args.get('visibility', '').strip().lower()
+    visibility = request.args.get('visibility', '').strip().lower()[:20]
     collection_filter = visibility if visibility in {'public', 'private'} else None
 
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
@@ -2359,11 +2359,11 @@ def admin_editar_usuario(user_id):
 def admin_logs():
     """Panel de logs de actividad en modo explorador por cuentas."""
     filters = {
-        'user_id': request.args.get('user_id', '').strip(),
-        'action': request.args.get('action', '').strip(),
-        'status': request.args.get('status', '').strip(),
-        'start_date': request.args.get('start_date', '').strip(),
-        'end_date': request.args.get('end_date', '').strip(),
+        'user_id': request.args.get('user_id', '').strip()[:36],
+        'action': request.args.get('action', '').strip()[:80],
+        'status': request.args.get('status', '').strip()[:20],
+        'start_date': request.args.get('start_date', '').strip()[:50],
+        'end_date': request.args.get('end_date', '').strip()[:50],
     }
     # Bolt Optimization: Fetch raw logs with selective projection to avoid expensive ISO conversions in the hot path.
     logs = obtener_todos_logs(
@@ -2406,7 +2406,7 @@ def admin_logs():
             # Update the ISO string for the template
             group['latest_timestamp'] = group['items'][0]['timestamp']
 
-    selected_user_id = request.args.get('selected_user_id', '').strip()
+    selected_user_id = request.args.get('selected_user_id', '').strip()[:36]
     if selected_user_id and selected_user_id != 'system' and not is_valid_id(selected_user_id):
         selected_user_id = ''
 
@@ -2440,11 +2440,11 @@ def admin_logs():
 def admin_logs_export():
     """Exporta logs a CSV."""
     filters = {
-        'user_id': request.args.get('user_id', '').strip(),
-        'action': request.args.get('action', '').strip(),
-        'status': request.args.get('status', '').strip(),
-        'start_date': request.args.get('start_date', '').strip(),
-        'end_date': request.args.get('end_date', '').strip(),
+        'user_id': request.args.get('user_id', '').strip()[:36],
+        'action': request.args.get('action', '').strip()[:80],
+        'status': request.args.get('status', '').strip()[:20],
+        'start_date': request.args.get('start_date', '').strip()[:50],
+        'end_date': request.args.get('end_date', '').strip()[:50],
     }
     csv_content = exportar_logs_csv(obtener_todos_logs(filters, limit=1000))
 
