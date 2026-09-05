@@ -139,6 +139,7 @@ _database_initialized = False
 
 # Bolt Optimization: Module-level constants and singletons for hot-path efficiency.
 _S3_CLIENT = None
+_REMOTE_STORAGE_BACKENDS = {'r2', 's3'}
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 ALLOWED_IMAGE_MIME_TYPES = {
     'image/jpeg',
@@ -1334,7 +1335,7 @@ def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
         storage_backend = current_app.config.get('STORAGE_BACKEND', STORAGE_BACKEND)
     except RuntimeError:
         storage_backend = STORAGE_BACKEND
-    if storage_backend not in {'r2', 's3'}:
+    if storage_backend not in _REMOTE_STORAGE_BACKENDS:
         return imagen_url
 
     # Intentar obtener de la cache en memoria antes de contactar a boto3/cryptography
