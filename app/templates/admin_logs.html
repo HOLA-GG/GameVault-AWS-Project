@@ -122,6 +122,11 @@
                 <div class="log-account-browser__header">
                     <h3>Cuentas auditadas</h3>
                     <p>Abre una cuenta para ver solo su historial.</p>
+                    <div style="margin-top: 10px; position: relative; display: flex; align-items: center;">
+                        <label for="adminAccountSearch" class="sr-only">Filtrar cuentas auditadas en esta página</label>
+                        <input type="search" id="adminAccountSearch" placeholder="Filtrar cuentas por nombre o email..." class="select-on-focus" style="padding-right: 36px; width: 100%;">
+                        <button type="button" id="adminAccountSearchClearBtn" class="search-clear-btn" aria-label="Borrar filtro de cuentas" title="Borrar filtro de cuentas" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+                    </div>
                 </div>
                 <div class="log-account-list">
                     {% for group in grouped_logs %}
@@ -263,6 +268,44 @@
                 userIdInput.focus();
                 window.announceToScreenReader?.('Búsqueda de usuario borrada');
             });
+        }
+
+        const accountSearchInput = document.getElementById('adminAccountSearch');
+        const accountSearchClearBtn = document.getElementById('adminAccountSearchClearBtn');
+        if (accountSearchInput) {
+            let accountFilterTimeout;
+            function filterAccountCards() {
+                const rawTerm = accountSearchInput.value.trim();
+                const term = rawTerm.toLowerCase();
+                const cards = document.querySelectorAll('.log-account-card');
+                let visibleCount = 0;
+
+                cards.forEach(card => {
+                    const matches = !term || card.textContent.toLowerCase().includes(term);
+                    card.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                });
+
+                if (accountSearchClearBtn) {
+                    accountSearchClearBtn.style.display = term ? 'block' : 'none';
+                }
+
+                clearTimeout(accountFilterTimeout);
+                accountFilterTimeout = setTimeout(() => {
+                    const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'cuenta coincide' : 'cuentas coinciden'} con "${rawTerm}"` : 'Mostrando todas las cuentas auditadas';
+                    window.announceToScreenReader?.(msg);
+                }, 400);
+            }
+
+            accountSearchInput.addEventListener('input', filterAccountCards);
+            if (accountSearchClearBtn) {
+                accountSearchClearBtn.addEventListener('click', function () {
+                    accountSearchInput.value = '';
+                    filterAccountCards();
+                    accountSearchInput.focus();
+                    window.announceToScreenReader?.('Filtro de cuentas borrado');
+                });
+            }
         }
 
         const form = document.getElementById('clearLogsForm');
