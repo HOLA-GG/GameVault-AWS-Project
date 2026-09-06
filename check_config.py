@@ -86,6 +86,8 @@ with app.app_context():
                 print("    -> [TIP] Since you are using a Neon database on Render, consider setting DB_USE_NULLPOOL=true")
                 print("            or using a pooled connection string (with '-pooler') to delegate connection pooling")
                 print("            to Neon's PgBouncer, preventing connection leaks and limit exhaustion.")
+        else:
+            print("    -> [OK] NullPool active: Connection pooling delegated directly to Neon PgBouncer.")
     except Exception as e:
         print(f"  - [ERROR] Could not inspect SQLAlchemy Engine details: {e}")
     print()
