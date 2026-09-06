@@ -73,3 +73,24 @@ def test_actualizar_password_usuario_defensive():
 
     res_long_hash = actualizar_password_usuario("user123", "h" * 256)
     assert res_long_hash["success"] is False
+
+
+def test_additional_user_id_helpers_defensive():
+    """Verify defensive handling of invalid user_id in additional model helpers."""
+    from app.models import (
+        obtener_juegos_por_usuario,
+        obtener_logs_por_usuario,
+        obtener_token_por_user_id,
+        crear_reset_token,
+    )
+
+    invalid_ids = [None, 12345, ["user123"], "u" * 37]
+
+    for uid in invalid_ids:
+        assert obtener_juegos_por_usuario(uid) == []
+        assert obtener_logs_por_usuario(uid) == []
+        assert obtener_token_por_user_id(uid) is None
+
+        res = crear_reset_token(uid)
+        assert res["success"] is False
+        assert res["error"] == "Usuario no encontrado"

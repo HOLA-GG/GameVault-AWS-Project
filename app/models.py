@@ -1425,6 +1425,8 @@ def crear_juego(
 
 def obtener_juegos_por_usuario(user_id):
     """Obtiene todos los juegos de un usuario (Optimización Bolt: bypass ORM hydration)."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return []
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -1625,6 +1627,8 @@ def actualizar_usuario_nombre(user_id, nombre):
 
 def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
     """Crea un token de recuperación de contraseña."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return {'success': False, 'token': None, 'expires_at': None, 'error': 'Usuario no encontrado'}
     ensure_tables()
     session_factory = get_session_factory()
     now = utcnow()
@@ -1705,6 +1709,8 @@ def usar_token(reset_token: str) -> Dict[str, Any]:
 
 def obtener_token_por_user_id(user_id: str) -> Optional[Dict[str, Any]]:
     """Obtiene el token activo más reciente de un usuario."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return None
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -1858,6 +1864,8 @@ def crear_log_audit(
 
 def obtener_logs_por_usuario(user_id: str, limit: int = 50, **kwargs) -> List[Dict[str, Any]]:
     """Obtiene logs recientes de un usuario (Optimización Bolt: bypass ORM hydration)."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return []
     format_dates = kwargs.get('format_dates', True)
     # Bolt optimization: Allow fetching specific columns to reduce DB load.
     fields = kwargs.get('fields')
