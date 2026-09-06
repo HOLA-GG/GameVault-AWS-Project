@@ -693,3 +693,45 @@ def test_form_submit_aria_disabled_rendered(client):
     html = response.get_data(as_text=True)
 
     assert "button.setAttribute('aria-disabled', 'true');" in html
+
+
+def test_palette_admin_account_live_filter_rendered(monkeypatch, client):
+    """Verify that admin_logs.html renders the client-side live audited account search input, clear button, and screen reader announcements."""
+    import app.routes as routes
+
+    monkeypatch.setattr(
+        routes,
+        'obtener_todos_logs',
+        lambda _filters, limit=300, **kwargs: [
+            {
+                'audit_id': 'a1',
+                'user_id': 'user-1',
+                'action': 'LOGIN',
+                'action_name': 'Inicio de sesión',
+                'resource': 'auth',
+                'timestamp': '2026-03-18T10:00:00+00:00',
+                'status': 'SUCCESS',
+                'ip_address': '127.0.0.1',
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        routes,
+        'obtener_usuarios_por_ids',
+        lambda user_ids, **kwargs: [
+            {'user_id': 'user-1', 'nombre': 'Tester', 'email': 'user@example.com'}
+        ],
+    )
+
+    login_session(client, role='admin')
+    response = client.get('/admin/logs')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="adminAccountSearch"' in html
+    assert 'placeholder="Filtrar cuentas por nombre o email..."' in html
+    assert 'id="adminAccountSearchClearBtn"' in html
+    assert 'aria-label="Borrar filtro de cuentas"' in html
+    assert 'title="Borrar filtro de cuentas"' in html
+    assert 'function filterAccountCards()' in html
+    assert "window.announceToScreenReader?.('Filtro de cuentas borrado');" in html
