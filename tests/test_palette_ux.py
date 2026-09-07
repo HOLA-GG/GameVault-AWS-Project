@@ -191,18 +191,18 @@ def test_dashboard_active_filters_rendered(client):
 
 
 def test_search_input_escape_key_clears_or_blurs(client):
-    """Verify that the base template script contains the Escape keydown handler for the search input (#q)."""
+    """Verify that the base template script contains the universal Escape keydown handler for search inputs."""
     response = client.get('/')
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
-    # Check that base.html defines the Escape key logic for #q
-    assert "document.getElementById('q')" in html
-    assert "document.activeElement === searchInput" in html
-    assert "searchInput.value = '';" in html
-    assert "searchInput.dispatchEvent(new Event('input'));" in html
-    assert "announceToScreenReader('Búsqueda borrada');" in html
-    assert "searchInput.blur();" in html
+    # Check that base.html defines the universal Escape key logic for active search fields
+    assert "const activeEl = document.activeElement;" in html
+    assert "activeEl.tagName === 'INPUT'" in html
+    assert "activeEl.type === 'search' || activeEl.id === 'user_id'" in html
+    assert "activeEl.parentNode?.querySelector('.search-clear-btn');" in html
+    assert "clearBtn.click();" in html
+    assert "activeEl.blur();" in html
 
 
 def test_palette_new_select_on_focus_and_placeholders(client):
