@@ -125,3 +125,7 @@
 ## 2026-09-18 - Live Audited Account Sidebar Search & Accessible Clear Feedback
 **Learning:** In two-column administrative interfaces (such as audit log explorers), navigating through a list of account cards on the sidebar requires manual scanning when searching for a specific user. Adding a progressive client-side live filter field (`#adminAccountSearch`) inside the sidebar header with auto-selection (`.select-on-focus`), an interactive clear control (`×`), and debounced live region announcements (`announceToScreenReader`) delivers immediate search feedback and seamless accessibility parity across administrative panels.
 **Action:** Always provide progressive client-side live search controls for dense list/card sidebars in administrative multi-pane layouts, pairing immediate visual card filtering with accessible clear buttons and debounced ARIA live announcements.
+
+## 2026-09-20 - Universal Search Field Keyboard Esc Clearing and Blur
+**Learning:** Standardizing the `Escape` keydown handler across all search and filter inputs (`input[type="search"]` or `#user_id`) to automatically invoke adjacent clear controls (`.search-clear-btn`) when non-empty, or blur input focus when empty, creates a predictable and intuitive power-keyboard experience without duplicating inline key listeners across views.
+**Action:** Handle `Escape` key navigation globally in base layout listeners by checking `document.activeElement` for search inputs and delegating click events to available clear controls or blurring focus.

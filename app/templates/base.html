@@ -750,15 +750,20 @@
             });
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
-                    const searchInput = document.getElementById('q');
-                    if (searchInput && document.activeElement === searchInput) {
+                    const activeEl = document.activeElement;
+                    if (activeEl && activeEl.tagName === 'INPUT' && (activeEl.type === 'search' || activeEl.id === 'user_id')) {
                         event.preventDefault();
-                        if (searchInput.value) {
-                            searchInput.value = '';
-                            searchInput.dispatchEvent(new Event('input'));
-                            announceToScreenReader('Búsqueda borrada');
+                        if (activeEl.value) {
+                            const clearBtn = activeEl.parentNode?.querySelector('.search-clear-btn');
+                            if (clearBtn) {
+                                clearBtn.click();
+                            } else {
+                                activeEl.value = '';
+                                activeEl.dispatchEvent(new Event('input'));
+                                announceToScreenReader('Búsqueda borrada');
+                            }
                         } else {
-                            searchInput.blur();
+                            activeEl.blur();
                         }
                         return;
                     }
