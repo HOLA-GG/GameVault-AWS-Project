@@ -406,3 +406,24 @@ def test_demo_title_length_validation(client):
     # It should redirect back and show the flashed error message
     assert response.status_code == 200
     assert b"demasiado largo" in response.data or b"255" in response.data
+
+
+def test_login_next_url_length_bounding(client):
+    """Verifies that an oversized 'next' query parameter on login is safely truncated and handled."""
+    client.post('/registro', data={
+        'nombre': 'Next User',
+        'email': 'next_test@example.com',
+        'password': 'SecurePassword123!',
+        'confirm_password': 'SecurePassword123!'
+    })
+    client.post('/logout')
+
+    oversized_next = '/' + 'a' * 5000
+    response = client.post(f'/login?next={oversized_next}', data={
+        'email': 'next_test@example.com',
+        'password': 'SecurePassword123!'
+    })
+    # The truncated next_url is /a... (2048 chars), which is safe (same-origin relative URL)
+    assert response.status_code == 302
+    assert len(response.headers['Location']) == 2048
+    assert response.headers['Location'].startswith('/' + 'a' * 2047)

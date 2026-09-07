@@ -1661,7 +1661,8 @@ def login():
         status='SUCCESS',
     )
 
-    next_url = request.args.get('next')
+    raw_next = request.args.get('next')
+    next_url = raw_next[:2048] if raw_next else None
     if next_url:
         if is_safe_url(next_url):
             return redirect(next_url)
