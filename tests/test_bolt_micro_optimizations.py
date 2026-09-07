@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from datetime import datetime, timezone
 from app.routes import get_action_badge_class, filter_and_sort_games, enrich_game_metadata, enrich_log_metadata
-from app.models import _user_row_to_dict, _game_row_to_dict, _audit_log_row_to_dict, MIN_DATE, utcnow
+from app.models import _user_row_to_dict, _game_row_to_dict, _audit_log_row_to_dict, MIN_DATE, utcnow, validar_password
 
 # Mock Row with _mapping
 class MockRow:
@@ -276,3 +276,23 @@ def test_enrich_game_and_log_metadata():
     already_enriched_log = {'_enriched': True, 'action': 'LOGIN'}
     res_log = enrich_log_metadata(already_enriched_log)
     assert res_log is already_enriched_log
+
+
+def test_validar_password_telefono_optimizations():
+    """Verify that validar_password correctly validates passwords against telephone numbers under various conditions."""
+    # Valid password with non-matching telephone number (>4 digits)
+    assert validar_password('SecurePass123!', telefono='5551234567') is True
+
+    # Password containing telephone digits directly (triggers early short-circuit)
+    assert validar_password('Pass5551234567!', telefono='5551234567') is False
+
+    # Password containing telephone digits formatted across non-digits (e.g. 555-123-4567 inside 15a5a51234567)
+    assert validar_password('Pass15a5a51234567!', telefono='+1 (555) 123-4567') is False
+
+    # Telefono with < 4 digits (e.g. '123' or '+1') should be ignored and pass if password is otherwise valid
+    assert validar_password('SecurePass123!', telefono='123') is True
+    assert validar_password('SecurePass123!', telefono='+1') is True
+
+    # None or non-string telephone
+    assert validar_password('SecurePass123!', telefono=None) is True
+    assert validar_password('SecurePass123!', telefono='') is True
