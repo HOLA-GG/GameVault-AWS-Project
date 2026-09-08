@@ -296,3 +296,49 @@ def test_validar_password_telefono_optimizations():
     # None or non-string telephone
     assert validar_password('SecurePass123!', telefono=None) is True
     assert validar_password('SecurePass123!', telefono='') is True
+
+
+def test_filter_and_sort_games_short_circuit():
+    """Verify that filter_and_sort_games correctly short-circuits when filter options are empty or active."""
+    juegos = [
+        {
+            'game_id': 'g1',
+            'plataforma': 'PC',
+            'estado': 'Nuevo',
+            'categoria': 'Biblioteca',
+            'es_favorito': False,
+            'titulo': 'Alpha',
+            'titulo_lower': 'alpha',
+            'updated_at': '2026-03-01T12:00:00Z',
+            'created_at': '2026-03-01T12:00:00Z',
+        },
+        {
+            'game_id': 'g2',
+            'plataforma': 'Xbox',
+            'estado': 'Bueno',
+            'categoria': 'Jugando',
+            'es_favorito': True,
+            'titulo': 'Beta',
+            'titulo_lower': 'beta',
+            'updated_at': '2026-03-02T12:00:00Z',
+            'created_at': '2026-03-02T12:00:00Z',
+        },
+    ]
+
+    # 1. Completely empty filters with default sort: returns original list reference without loop or copy
+    empty_filters = {'q': '', 'plataforma': '', 'estado': '', 'categoria': '', 'favoritos': '', 'sort': 'updated_desc'}
+    res_empty = filter_and_sort_games(juegos, empty_filters)
+    assert res_empty is juegos
+
+    # 2. Empty filters with non-default sort: returns a shallow copy sorted
+    empty_filters_sorted = {'q': '', 'plataforma': '', 'estado': '', 'categoria': '', 'favoritos': '', 'sort': 'title_asc'}
+    res_sorted = filter_and_sort_games(juegos, empty_filters_sorted)
+    assert res_sorted is not juegos
+    assert len(res_sorted) == 2
+    assert res_sorted[0]['titulo'] == 'Alpha'
+
+    # 3. Active filters: processes through filter loop
+    active_filters = {'q': '', 'plataforma': 'Xbox', 'estado': '', 'categoria': '', 'favoritos': '', 'sort': 'updated_desc'}
+    res_active = filter_and_sort_games(juegos, active_filters)
+    assert len(res_active) == 1
+    assert res_active[0]['game_id'] == 'g2'
