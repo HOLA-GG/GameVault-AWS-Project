@@ -2255,6 +2255,15 @@ def admin_eliminar_usuario(user_id):
         return redirect(url_for('main.admin_panel'))
 
     if session.get('user_id') == user_id:
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'delete_user', 'error': 'cannot_delete_self'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('No puedes eliminar tu propia cuenta desde el panel.', 'error')
         return redirect(url_for('main.admin_panel'))
 
