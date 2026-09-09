@@ -2321,7 +2321,7 @@ def admin_editar_usuario(user_id):
 
     # Prevent administrators from editing other admins to avoid privilege abuse and impersonation (Security hardening)
     target_user = obtener_usuario_por_id(user_id, format_dates=False)
-    if target_user and target_user.get('role') == 'admin':
+    if target_user and target_user.get('role') == 'admin' and user_id != session.get('user_id'):
         crear_log_audit(
             user_id=session.get('user_id'),
             action='ADMIN_ACTION',
