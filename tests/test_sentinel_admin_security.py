@@ -344,3 +344,56 @@ def test_admin_pagination_boundary_overflow(client, app):
         # Ruta de admin logs
         res_logs = client.get(f'/admin/logs?page={giant_page}')
         assert res_logs.status_code == 200
+
+
+def test_admin_can_edit_self(client, app):
+    """Verifica que un administrador si pueda editar/renombrar su propia cuenta desde el panel."""
+    from app.models import get_session_factory, User, AuditLog, crear_usuario
+    from werkzeug.security import generate_password_hash
+    import hashlib
+
+    # 1. Crear Administrador
+    admin_pw = generate_password_hash("SecureAdminSelf1!")
+    admin_user = crear_usuario(
+        nombre="Admin Original",
+        apellido="Self",
+        email="admin_self_edit@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=admin_pw
+    )
+    assert admin_user is not None
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        db_admin = session.get(User, admin_user['user_id'])
+        db_admin.role = 'admin'
+        session.commit()
+
+    # 2. Loguearse como Administrador
+    with client.session_transaction() as sess:
+        sess['user_id'] = admin_user['user_id']
+        sess['email'] = admin_user['email']
+        sess['nombre'] = admin_user['nombre']
+        sess['role'] = 'admin'
+        sess['_pw_hash'] = hashlib.sha256(admin_pw.encode('utf-8')).hexdigest()
+
+    # 3. Renombrar su propia cuenta desde /admin/edit/<user_id>
+    response = client.post(f"/admin/edit/{admin_user['user_id']}", data={'nombre': 'Admin Actualizado'})
+    assert response.status_code == 302
+
+    # 4. Verificar que el nombre del administrador fue actualizado en la DB
+    with session_factory() as session:
+        db_admin_check = session.get(User, admin_user['user_id'])
+        assert db_admin_check is not None
+        assert db_admin_check.nombre == "Admin Actualizado"
+
+    # 5. Verificar que se genero un log de auditoria exitoso
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.user_id == admin_user['user_id'], AuditLog.action == 'ADMIN_ACTION', AuditLog.status == 'SUCCESS')
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log is not None
+        assert log.details.get('target_user_id') == admin_user['user_id']
+        assert log.details.get('operation') == 'rename_user'
