@@ -101,7 +101,7 @@ def test_active_dismiss_multiplier_badge_rendered(client):
 
 
 def test_profile_inputs_select_on_focus(client):
-    """Verify that the pre-filled inputs on the profile page have select-on-focus class."""
+    """Verify that the pre-filled inputs and password fields on the profile page have select-on-focus class."""
     login_session(client)
     response = client.get('/perfil')
     assert response.status_code == 200
@@ -112,6 +112,11 @@ def test_profile_inputs_select_on_focus(client):
     assert 'id="prefijo_pais"' in html
     assert 'id="telefono"' in html
     assert 'class="select-on-focus"' in html
+
+    # Verify that password fields on profile page have select-on-focus class
+    assert 'id="current_password" name="current_password" placeholder="Tu contraseña actual" required autocomplete="current-password" maxlength="128" class="select-on-focus"' in html
+    assert 'id="password" name="password" placeholder="Mínimo 8 caracteres (letras y números)" required autocomplete="new-password" maxlength="128" class="select-on-focus"' in html
+    assert 'id="confirm_password" name="confirm_password" placeholder="Repite tu nueva contraseña" required autocomplete="new-password" maxlength="128" class="select-on-focus"' in html
 
 
 def test_palette_placeholders_and_loading_text(client):
