@@ -94,14 +94,46 @@
         function filterUsers() {
             const rawTerm = searchInput.value.trim();
             const term = rawTerm.toLowerCase();
-            const rows = document.querySelectorAll('.admin-table tbody tr');
-            let visibleCount = 0;
+            const tbody = document.querySelector('.admin-table tbody');
+            const rows = document.querySelectorAll('.admin-table tbody tr:not(#adminUserSearchEmptyRow)');
+            if (!rows.length) return;
 
+            let visibleCount = 0;
             rows.forEach(row => {
                 const matches = !term || row.textContent.toLowerCase().includes(term);
                 row.style.display = matches ? '' : 'none';
                 if (matches) visibleCount++;
             });
+
+            let emptyRow = document.getElementById('adminUserSearchEmptyRow');
+            if (term && visibleCount === 0) {
+                if (!emptyRow && tbody) {
+                    emptyRow = document.createElement('tr');
+                    emptyRow.id = 'adminUserSearchEmptyRow';
+                    emptyRow.innerHTML = `
+                        <td colspan="5" style="text-align: center; padding: 40px 20px;">
+                            <span class="feature-icon" aria-hidden="true" style="font-size: 2rem; margin-bottom: 8px; display: block;">🔍</span>
+                            <strong style="font-size: 1.1rem; color: var(--text-primary); display: block; margin-bottom: 6px;">Sin coincidencia de usuarios</strong>
+                            <p id="adminUserSearchTermText" style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.95rem;"></p>
+                            <button type="button" class="btn btn-secondary btn-small" id="adminUserSearchResetBtn">Limpiar búsqueda</button>
+                        </td>
+                    `;
+                    tbody.appendChild(emptyRow);
+                    emptyRow.querySelector('#adminUserSearchResetBtn')?.addEventListener('click', function() {
+                        searchInput.value = '';
+                        filterUsers();
+                        searchInput.focus();
+                        window.announceToScreenReader?.('Filtro de usuarios borrado');
+                    });
+                }
+                const termText = emptyRow?.querySelector('#adminUserSearchTermText');
+                if (termText) {
+                    termText.textContent = `No se encontraron usuarios que coincidan con "${rawTerm}".`;
+                }
+                if (emptyRow) emptyRow.style.display = '';
+            } else if (emptyRow) {
+                emptyRow.style.display = 'none';
+            }
 
             if (clearBtn) {
                 clearBtn.style.display = term ? 'block' : 'none';
