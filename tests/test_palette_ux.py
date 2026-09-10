@@ -660,7 +660,7 @@ def test_character_counter_threshold_announcements(client):
 
 
 def test_palette_admin_user_live_filter_rendered(client):
-    """Verify that admin.html renders the client-side live user search input, clear button, and screen reader announcements."""
+    """Verify that admin.html renders the client-side live user search input, clear button, empty state creation, and screen reader announcements."""
     login_session(client, role='admin')
     response = client.get('/admin')
     assert response.status_code == 200
@@ -672,6 +672,9 @@ def test_palette_admin_user_live_filter_rendered(client):
     assert 'aria-label="Borrar filtro de usuarios"' in html
     assert 'title="Borrar filtro de usuarios"' in html
     assert 'function filterUsers()' in html
+    assert "emptyRow.id = 'adminUserSearchEmptyRow';" in html
+    assert 'Sin coincidencia de usuarios' in html
+    assert 'id="adminUserSearchResetBtn"' in html
     assert "window.announceToScreenReader?.('Filtro de usuarios borrado');" in html
 
 

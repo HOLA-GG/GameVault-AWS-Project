@@ -129,3 +129,7 @@
 ## 2026-09-20 - Universal Search Field Keyboard Esc Clearing and Blur
 **Learning:** Standardizing the `Escape` keydown handler across all search and filter inputs (`input[type="search"]` or `#user_id`) to automatically invoke adjacent clear controls (`.search-clear-btn`) when non-empty, or blur input focus when empty, creates a predictable and intuitive power-keyboard experience without duplicating inline key listeners across views.
 **Action:** Handle `Escape` key navigation globally in base layout listeners by checking `document.activeElement` for search inputs and delegating click events to available clear controls or blurring focus.
+
+## 2026-09-22 - Client-Side Table Live Search Empty States & Focus Preservation
+**Learning:** Client-side live table search improves administrative speed by hiding `<tr>` elements in real time. However, when no rows match the search query, leaving an empty table body creates a visual dead-end. Dynamically appending a full-width empty state table row (`<td colspan="...">`) with contextual query text, an icon (`aria-hidden="true"`), and an interactive "Limpiar búsqueda" button prevents dead-end UI states and empowers administrators to reset search filters instantly while preserving keyboard focus on the search field.
+**Action:** When implementing client-side table row filtering, dynamically toggle a dedicated empty state row inside `<tbody>` when zero rows match, offering a clear reset button and ARIA live region updates.
