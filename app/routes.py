@@ -1194,6 +1194,15 @@ def dashboard():
 def presign_upload():
     """Genera credenciales temporales para subir portadas directo al storage configurado."""
     if current_app.config.get('STORAGE_BACKEND') == 'none':
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='PRESIGNED_UPLOAD_FAILED',
+            resource='storage',
+            details={'reason': 'storage_disabled'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return jsonify({'error': 'El almacenamiento de imagenes aun no esta configurado.'}), 503
 
     # Handle both form-data and JSON payloads safely (Security hardening)
@@ -1207,10 +1216,28 @@ def presign_upload():
 
     # Basic length checks to prevent storage-based DoS or memory issues (Security hardening)
     if not filename or not content_type or len(filename) > 255 or len(content_type) > 128:
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='PRESIGNED_UPLOAD_FAILED',
+            resource='storage',
+            details={'reason': 'invalid_parameters', 'filename': filename[:100], 'content_type': content_type[:50]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return jsonify({'error': 'filename y content_type son obligatorios y deben ser válidos'}), 400
 
     extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
     if extension not in ALLOWED_IMAGE_EXTENSIONS or content_type not in ALLOWED_IMAGE_MIME_TYPES:
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='PRESIGNED_UPLOAD_FAILED',
+            resource='storage',
+            details={'reason': 'disallowed_file_type', 'extension': extension[:10], 'content_type': content_type[:50]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return jsonify({'error': 'Archivo no permitido'}), 400
 
     try:
@@ -1227,6 +1254,15 @@ def presign_upload():
         return jsonify(payload)
     except Exception as exc:
         current_app.logger.error('presign_upload_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='PRESIGNED_UPLOAD_FAILED',
+            resource='storage',
+            details={'reason': 'exception_raised', 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return jsonify({'error': 'No se pudo generar la carga firmada'}), 500
 
 
