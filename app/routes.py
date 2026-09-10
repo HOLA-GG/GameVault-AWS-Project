@@ -7,6 +7,7 @@ import hashlib
 import math
 import os
 import re
+import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -168,7 +169,6 @@ def clear_sample_collections_cache() -> None:
 def obtener_sample_collections_cached() -> list[dict]:
     """Obtiene colecciones de ejemplo procesadas y valoradas (Optimización Bolt: cache in-memory TTL)."""
     global _SAMPLE_COLLECTIONS_CACHE
-    import time
     now = time.time()
 
     with _SAMPLE_COLLECTIONS_CACHE_LOCK:

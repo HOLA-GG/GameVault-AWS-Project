@@ -14,7 +14,10 @@ import ipaddress
 import os
 import re
 import secrets
+import threading
+import time
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote, unquote, urlparse
@@ -803,7 +806,6 @@ def obtener_metricas_coleccion(user_id: str, full: bool = True) -> Dict[str, Any
             .group_by(Game.plataforma, Game.estado, Game.categoria)
         ).all()
 
-        from collections import defaultdict
         # Bolt Optimization: Use defaultdict(int) to streamline dictionary increments in aggregation loops (~1.3x speedup).
         platform_counts = defaultdict(int)
         status_counts = defaultdict(int)
@@ -1318,7 +1320,6 @@ def obtener_key_desde_url(imagen_url):
 
 
 # Bounded In-Memory Cache for Presigned Image URLs (Bolt Performance Optimization)
-import threading
 _SIGNED_URLS_CACHE: Dict[str, tuple[float, float, str]] = {}
 
 # Bounded In-Memory Cache for Validated IP addresses (Bolt Performance Optimization)
@@ -1344,7 +1345,6 @@ def crear_url_firmada_lectura(imagen_url: str, expires_in: int = 3600) -> str:
 
     # Intentar obtener de la cache en memoria antes de contactar a boto3/cryptography
     global _SIGNED_URLS_CACHE
-    import time
     now = time.time()
     cache_key = f"{imagen_url}:{expires_in}"
 
@@ -1941,7 +1941,6 @@ def obtener_estadisticas_logs() -> Dict[str, Any]:
     Optimización Bolt: Cachea en memoria las estadísticas con un TTL de 15 segundos para evitar
     re-ejecutar agregaciones pesadas sobre la tabla de logs completa en visitas/actualizaciones frecuentes."""
     global _LOG_STATS_CACHE
-    import time
     now = time.time()
 
     with _LOG_STATS_CACHE_LOCK:
@@ -2414,7 +2413,6 @@ def obtener_ratings_multiple(subject_type: str, subject_ids: List[str]) -> Dict[
     subject_ids = list(dict.fromkeys(subject_ids))
 
     global _SAMPLE_RATINGS_CACHE
-    import time
     now = time.time()
 
     mapped = {}
@@ -2651,7 +2649,6 @@ def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_by
             ExpiresIn=3600
         )
         # La URL final del objeto si la subida es exitosa
-        from urllib.parse import quote
         quoted_object_name = quote(object_name)
         if r2_endpoint_url:
             # Para R2 o S3 con endpoint custom
