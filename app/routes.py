@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import math
 import os
 import re
 import time
@@ -498,9 +497,9 @@ def enviar_email_reset_password(destinatario: str, token: str, ip_address: str |
 
 
 def paginate_items(items, page: int, per_page: int) -> dict:
-    """Paginación simple sobre listas en memoria."""
+    """Paginación simple sobre listas en memoria (Optimización Bolt: división entera sin float conversion ni math.ceil)."""
     total_items = len(items)
-    total_pages = max(1, math.ceil(total_items / per_page)) if per_page else 1
+    total_pages = max(1, (total_items + per_page - 1) // per_page) if per_page else 1
     current_page = max(1, min(page, total_pages))
     start = (current_page - 1) * per_page
     end = start + per_page
@@ -2194,7 +2193,8 @@ def admin_panel():
     """Panel simple de administración con paginación (Optimizado: paginación en DB)."""
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
     total_usuarios = contar_usuarios()
-    total_pages = max(1, math.ceil(total_usuarios / per_page)) if per_page else 1
+    # Bolt Optimization: Fast integer division replaces math.ceil float conversion.
+    total_pages = max(1, (total_usuarios + per_page - 1) // per_page) if per_page else 1
 
     # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
     try:
@@ -2242,7 +2242,8 @@ def admin_collections():
 
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
     total_collections = contar_resumenes_colecciones(collection_filter)
-    total_pages = max(1, math.ceil(total_collections / per_page)) if per_page else 1
+    # Bolt Optimization: Fast integer division replaces math.ceil float conversion.
+    total_pages = max(1, (total_collections + per_page - 1) // per_page) if per_page else 1
 
     # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
     try:
