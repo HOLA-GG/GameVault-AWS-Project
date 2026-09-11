@@ -764,7 +764,7 @@ def test_palette_edit_game_upload_announcement(client):
     assert len(juegos) > 0
     game_id = juegos[0]['game_id']
 
-    response = client.get(f'/editar/{game_id}')
+    response = client.get(f'/edit/{game_id}')
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
