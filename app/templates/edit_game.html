@@ -166,6 +166,7 @@
             button.setAttribute('aria-busy', 'true');
             button.setAttribute('aria-label', 'Subiendo portada...');
             button.textContent = 'Subiendo portada...';
+            window.announceToScreenReader?.('Subiendo portada...');
             try {
                 imageUrlInput.value = await window.gameVault.uploadFileDirectToStorage(fileInput.files[0]);
                 form.submit();

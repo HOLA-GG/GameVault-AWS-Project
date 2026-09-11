@@ -743,3 +743,29 @@ def test_palette_admin_account_live_filter_rendered(monkeypatch, client):
     assert 'title="Borrar filtro de cuentas"' in html
     assert 'function filterAccountCards()' in html
     assert "window.announceToScreenReader?.('Filtro de cuentas borrado');" in html
+
+
+def test_palette_edit_game_upload_announcement(client):
+    """Verify that edit_game.html includes ARIA announcement when submitting direct image upload."""
+    login_session(client)
+
+    # Post a game to create it under session user_id
+    client.post('/agregar', data={
+        'titulo': 'Edit Announcement Test Game',
+        'descripcion': 'Test desc',
+        'plataforma': 'PC',
+        'estado': 'Nuevo',
+        'categoria': 'Biblioteca',
+        'prioridad': 'Media',
+    }, follow_redirects=True)
+
+    from app.models import obtener_juegos_por_usuario
+    juegos = obtener_juegos_por_usuario('user-1')
+    assert len(juegos) > 0
+    game_id = juegos[0]['game_id']
+
+    response = client.get(f'/editar/{game_id}')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "window.announceToScreenReader?.('Subiendo portada...');" in html
