@@ -2418,7 +2418,8 @@ def admin_logs():
     )
     # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
     try:
-        page = request.args.get('page', 1, type=int)
+        raw_page = request.args.get('page', 1, type=int)
+        page = max(1, raw_page if raw_page is not None else 1)
     except (ValueError, TypeError, OverflowError):
         page = 1
     stats = obtener_estadisticas_logs()
