@@ -109,17 +109,17 @@
         </div>
         <div class="form-group">
             <label for="collection_visibility">Visibilidad de tu colección</label>
-            <select id="collection_visibility" name="collection_visibility">
+            <select id="collection_visibility" name="collection_visibility" aria-describedby="showcase_help_text">
                 <option value="private" {% if user.collection_visibility != 'public' %}selected{% endif %}>Privada</option>
                 <option value="public" {% if user.collection_visibility == 'public' %}selected{% endif %}>Pública</option>
             </select>
         </div>
         <div class="form-group">
             <label class="checkbox-card" for="homepage_showcase_opt_in">
-                <input type="checkbox" id="homepage_showcase_opt_in" name="homepage_showcase_opt_in" {% if user.homepage_showcase_opt_in %}checked{% endif %}>
+                <input type="checkbox" id="homepage_showcase_opt_in" name="homepage_showcase_opt_in" {% if user.homepage_showcase_opt_in %}checked{% endif %} aria-describedby="showcase_help_text">
                 <span>Permitir que GameVault la muestre en Inicio si está pública</span>
             </label>
-            <small style="color:var(--text-secondary);display:block;margin-top:8px;">
+            <small id="showcase_help_text" style="color:var(--text-secondary);display:block;margin-top:8px;">
                 Solo se mostrará en portada si la colección es pública y tiene contenido real.
             </small>
         </div>

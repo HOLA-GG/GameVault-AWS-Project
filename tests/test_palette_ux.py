@@ -358,6 +358,19 @@ def test_profile_visibility_dynamic_toggle_rendered(client):
     assert 'window.announceToScreenReader?.(' in html
 
 
+def test_profile_visibility_aria_describedby(client):
+    """Verify that collection_visibility and homepage_showcase_opt_in have aria-describedby linked to showcase_help_text."""
+    login_session(client)
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="collection_visibility" name="collection_visibility" aria-describedby="showcase_help_text"' in html
+    assert 'id="homepage_showcase_opt_in" name="homepage_showcase_opt_in"' in html
+    assert 'aria-describedby="showcase_help_text"' in html
+    assert 'id="showcase_help_text"' in html
+
+
 def test_palette_rating_labels_and_delete_loading_text(client):
     """Verify enhanced rating options and delete loading text attributes."""
     login_session(client)
