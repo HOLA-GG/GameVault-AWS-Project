@@ -125,3 +125,77 @@ def test_password_reset_mismatch_failure_audited(client):
         assert log is not None
         assert log.details.get('email') == 'reset_audit2@example.com'
         assert any('coinciden' in err for err in log.details.get('errors', []))
+
+def test_token_creation_failure_audited_forgot_password(client, monkeypatch):
+    """Verifies that a failed token creation in forgot_password records a FAILED audit log."""
+    from app.models import get_session_factory, User, AuditLog, select
+    from werkzeug.security import generate_password_hash
+
+    pw_hash = generate_password_hash("OldPassword123!")
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        user = User(
+            user_id='reset_audit_user3',
+            email='reset_audit3@example.com',
+            nombre='AuditUser3',
+            password_hash=pw_hash,
+            status='active'
+        )
+        db_session.add(user)
+        db_session.commit()
+
+    import app.routes
+    monkeypatch.setattr(app.routes, 'crear_reset_token', lambda user_id, ip: {'success': False, 'error': 'db_error'})
+
+    response = client.post('/forgot-password', data={'email': 'reset_audit3@example.com'}, follow_redirects=True)
+    assert response.status_code == 200
+
+    with session_factory() as db_session:
+        log = db_session.scalar(
+            select(AuditLog).where(
+                AuditLog.user_id == 'reset_audit_user3',
+                AuditLog.action == 'PASSWORD_RESET_REQUEST',
+                AuditLog.status == 'FAILED'
+            )
+        )
+        assert log is not None
+        assert log.details.get('email') == 'reset_audit3@example.com'
+        assert log.details.get('reason') == 'token_creation_failed'
+
+def test_token_creation_failure_audited_forgot_password_manual(client, monkeypatch):
+    """Verifies that a failed token creation in forgot_password_manual records a FAILED audit log."""
+    from app.models import get_session_factory, User, AuditLog, select
+    from werkzeug.security import generate_password_hash
+
+    pw_hash = generate_password_hash("OldPassword123!")
+    session_factory = get_session_factory()
+    with session_factory() as db_session:
+        user = User(
+            user_id='reset_audit_user4',
+            email='reset_audit4@example.com',
+            nombre='AuditUser4',
+            telefono='1234567890',
+            password_hash=pw_hash,
+            status='active'
+        )
+        db_session.add(user)
+        db_session.commit()
+
+    import app.routes
+    monkeypatch.setattr(app.routes, 'crear_reset_token', lambda user_id, ip: {'success': False, 'error': 'db_error'})
+
+    response = client.post('/forgot-password/manual', data={'email': 'reset_audit4@example.com', 'telefono': '1234567890'}, follow_redirects=True)
+    assert response.status_code == 200
+
+    with session_factory() as db_session:
+        log = db_session.scalar(
+            select(AuditLog).where(
+                AuditLog.user_id == 'reset_audit_user4',
+                AuditLog.action == 'PASSWORD_RESET_REQUEST',
+                AuditLog.status == 'FAILED'
+            )
+        )
+        assert log is not None
+        assert log.details.get('email') == 'reset_audit4@example.com'
+        assert log.details.get('channel') == 'manual_token'
+        assert log.details.get('reason') == 'token_creation_failed'

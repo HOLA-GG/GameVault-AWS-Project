@@ -1944,6 +1944,15 @@ def forgot_password():
                 )
         else:
             current_app.logger.error('password_reset_token_creation_failed user_id=%s', user['user_id'])
+            crear_log_audit(
+                user_id=user['user_id'],
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email, 'reason': 'token_creation_failed'},
+                ip_address=request_ip,
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
 
     return redirect(url_for('main.forgot_password'))
 
@@ -1992,6 +2001,15 @@ def forgot_password_manual():
     request_ip = get_request_ip()
     result = crear_reset_token(user['user_id'], request_ip)
     if not result.get('success'):
+        crear_log_audit(
+            user_id=user['user_id'],
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email, 'channel': 'manual_token', 'reason': 'token_creation_failed'},
+            ip_address=request_ip,
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('No se pudo generar el token de recuperación. Intenta de nuevo.', 'error')
         return redirect(url_for('main.forgot_password'))
 
