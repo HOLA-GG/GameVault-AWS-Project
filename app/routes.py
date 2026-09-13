@@ -1322,6 +1322,15 @@ def agregar_juego():
         imagen_url = subir_imagen_a_s3(imagen)
 
     if imagen and imagen.filename and not imagen_url:
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='CREATE_GAME',
+            resource='games',
+            details={'reason': 'image_upload_failed', 'attempted_title': titulo[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('No se pudo subir la portada.', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1340,6 +1349,15 @@ def agregar_juego():
         metadata['es_favorito'],
     )
     if not resultado:
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='CREATE_GAME',
+            resource='games',
+            details={'reason': 'db_save_failed', 'game_id': game_id, 'attempted_title': titulo[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Error al guardar el juego.', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1503,6 +1521,15 @@ def editar_juego_ruta(game_id):
     )
 
     if not resultado['success']:
+        crear_log_audit(
+            user_id=user_id,
+            action='UPDATE_GAME',
+            resource='games',
+            details={'reason': 'db_update_failed', 'game_id': game_id, 'error': str(resultado.get('error', 'desconocido'))[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash(f'No se pudo actualizar el juego: {resultado.get("error", "desconocido")}', 'error')
         return redirect(url_for('main.editar_juego_ruta', game_id=game_id))
 
