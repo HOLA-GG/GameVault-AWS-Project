@@ -782,3 +782,26 @@ def test_palette_edit_game_upload_announcement(client):
     html = response.get_data(as_text=True)
 
     assert "window.announceToScreenReader?.('Subiendo portada...');" in html
+
+
+def test_forgot_password_email_clear_button_rendered(client):
+    """Verify that forgot_password.html and forgot_password_manual.html render accessible email clear buttons and script logic."""
+    # 1. Standard forgot password page
+    response = client.get('/forgot-password')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="emailClearBtn"' in html
+    assert 'aria-label="Borrar correo electrónico"' in html
+    assert 'title="Borrar correo electrónico"' in html
+    assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html
+
+    # 2. Manual forgot password page
+    response_manual = client.get('/forgot-password/manual')
+    assert response_manual.status_code == 200
+    html_manual = response_manual.get_data(as_text=True)
+
+    assert 'id="manualEmailClearBtn"' in html_manual
+    assert 'aria-label="Borrar correo electrónico"' in html_manual
+    assert 'title="Borrar correo electrónico"' in html_manual
+    assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html_manual
