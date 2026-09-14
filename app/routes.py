@@ -1322,6 +1322,15 @@ def agregar_juego():
         imagen_url = subir_imagen_a_s3(imagen)
 
     if imagen and imagen.filename and not imagen_url:
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='CREATE_GAME',
+            resource='games',
+            details={'reason': 'image_upload_failed', 'title': (titulo or '')[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('No se pudo subir la portada.', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1340,6 +1349,15 @@ def agregar_juego():
         metadata['es_favorito'],
     )
     if not resultado:
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='CREATE_GAME',
+            resource='games',
+            details={'reason': 'db_save_failed', 'title': (titulo or '')[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Error al guardar el juego.', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1388,6 +1406,15 @@ def eliminar_juego_ruta(game_id):
 
     resultado = eliminar_juego(user_id, game_id)
     if not resultado['success']:
+        crear_log_audit(
+            user_id=user_id,
+            action='DELETE_GAME',
+            resource='games',
+            details={'game_id': game_id, 'title': juego.get('titulo'), 'reason': 'db_delete_failed', 'error': str(resultado.get('error'))[:200]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash(f'No se pudo eliminar el juego: {resultado.get("error", "desconocido")}', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1503,6 +1530,15 @@ def editar_juego_ruta(game_id):
     )
 
     if not resultado['success']:
+        crear_log_audit(
+            user_id=user_id,
+            action='UPDATE_GAME',
+            resource='games',
+            details={'game_id': game_id, 'reason': 'db_update_failed', 'error': str(resultado.get('error'))[:200]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash(f'No se pudo actualizar el juego: {resultado.get("error", "desconocido")}', 'error')
         return redirect(url_for('main.editar_juego_ruta', game_id=game_id))
 
