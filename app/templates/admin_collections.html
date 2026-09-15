@@ -97,7 +97,8 @@
                 function filterCollections() {
                     const rawTerm = searchInput.value.trim();
                     const term = rawTerm.toLowerCase();
-                    const rows = document.querySelectorAll('.admin-table tbody tr');
+                    const tbody = document.querySelector('.admin-table tbody');
+                    const rows = document.querySelectorAll('.admin-table tbody tr:not(#adminCollectionSearchEmptyRow)');
                     let visibleCount = 0;
 
                     rows.forEach(row => {
@@ -105,6 +106,36 @@
                         row.style.display = matches ? '' : 'none';
                         if (matches) visibleCount++;
                     });
+
+                    let emptyRow = document.getElementById('adminCollectionSearchEmptyRow');
+                    if (term && visibleCount === 0) {
+                        if (!emptyRow && tbody) {
+                            emptyRow = document.createElement('tr');
+                            emptyRow.id = 'adminCollectionSearchEmptyRow';
+                            emptyRow.innerHTML = `
+                                <td colspan="7" style="text-align: center; padding: 40px 20px;">
+                                    <span class="feature-icon" aria-hidden="true" style="font-size: 2rem; margin-bottom: 8px; display: block;">🔍</span>
+                                    <strong style="font-size: 1.1rem; color: var(--text-primary); display: block; margin-bottom: 6px;">Sin coincidencia de colecciones</strong>
+                                    <p id="adminCollectionSearchTermText" style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.95rem;"></p>
+                                    <button type="button" class="btn btn-secondary btn-small" id="adminCollectionSearchResetBtn">Limpiar búsqueda</button>
+                                </td>
+                            `;
+                            tbody.appendChild(emptyRow);
+                            emptyRow.querySelector('#adminCollectionSearchResetBtn')?.addEventListener('click', function() {
+                                searchInput.value = '';
+                                filterCollections();
+                                searchInput.focus();
+                                window.announceToScreenReader?.('Filtro de colecciones borrado');
+                            });
+                        }
+                        const termText = emptyRow?.querySelector('#adminCollectionSearchTermText');
+                        if (termText) {
+                            termText.textContent = `No se encontraron colecciones que coincidan con "${rawTerm}".`;
+                        }
+                        if (emptyRow) emptyRow.style.display = '';
+                    } else if (emptyRow) {
+                        emptyRow.style.display = 'none';
+                    }
 
                     if (clearBtn) {
                         clearBtn.style.display = term ? 'block' : 'none';

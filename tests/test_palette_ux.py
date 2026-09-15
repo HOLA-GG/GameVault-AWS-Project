@@ -692,7 +692,7 @@ def test_palette_admin_user_live_filter_rendered(client):
 
 
 def test_palette_admin_collection_live_filter_rendered(client):
-    """Verify that admin_collections.html renders the client-side live collection search input, clear button, and screen reader announcements."""
+    """Verify that admin_collections.html renders the client-side live collection search input, clear button, empty state creation, and screen reader announcements."""
     login_session(client, role='admin')
     response = client.get('/admin/collections')
     assert response.status_code == 200
@@ -704,6 +704,9 @@ def test_palette_admin_collection_live_filter_rendered(client):
     assert 'aria-label="Borrar filtro de colecciones"' in html
     assert 'title="Borrar filtro de colecciones"' in html
     assert 'function filterCollections()' in html
+    assert "emptyRow.id = 'adminCollectionSearchEmptyRow';" in html
+    assert 'Sin coincidencia de colecciones' in html
+    assert 'id="adminCollectionSearchResetBtn"' in html
     assert "window.announceToScreenReader?.('Filtro de colecciones borrado');" in html
 
 
