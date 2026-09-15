@@ -1617,6 +1617,9 @@ def eliminar_usuario(user_id):
         user = session.get(User, user_id)
         if user is None:
             return {'success': False, 'error': 'Usuario no encontrado'}
+        for game in user.games:
+            if game.imagen_url:
+                eliminar_imagen_s3(game.imagen_url)
         session.delete(user)
         session.commit()
         clear_public_collections_cache()
