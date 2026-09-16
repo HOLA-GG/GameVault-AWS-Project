@@ -2631,7 +2631,11 @@ def registrar_rating_showcase(subject_type: str, subject_id: str, rating: int, i
 
 def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_bytes: int) -> Dict[str, Any]:
     """Genera una URL firmada (Presigned POST) para subir archivos directamente a Cloudflare R2 / S3."""
-    storage_backend = STORAGE_BACKEND
+    try:
+        storage_backend = current_app.config.get('STORAGE_BACKEND', STORAGE_BACKEND)
+    except RuntimeError:
+        storage_backend = STORAGE_BACKEND
+
     if storage_backend not in {'r2', 's3'}:
         raise RuntimeError(f'El backend de almacenamiento "{storage_backend}" no soporta cargas firmadas.')
 
@@ -2651,7 +2655,11 @@ def crear_presigned_upload(nombre_archivo: str, content_type: str, max_upload_by
     if not s3_client:
         raise RuntimeError('No se pudo inicializar el cliente S3/R2.')
 
-    object_name = f"covers/{uuid.uuid4()}-{nombre_archivo}"
+    # Sanitize filename defense-in-depth to prevent object key manipulation (Security hardening)
+    safe_name = secure_filename(str(nombre_archivo or '').strip())
+    if not safe_name:
+        safe_name = 'cover.jpg'
+    object_name = f"covers/{uuid.uuid4()}-{safe_name}"
 
     try:
         response = s3_client.generate_presigned_post(
