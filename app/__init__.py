@@ -63,7 +63,10 @@ def configure_logging(app: Flask) -> None:
     class RequestFormatter(logging.Formatter):
         def format(self, record):
             if not hasattr(record, 'request_id'):
-                record.request_id = getattr(g, 'request_id', '-')
+                try:
+                    record.request_id = getattr(g, 'request_id', '-')
+                except RuntimeError:
+                    record.request_id = '-'
             return super().format(record)
 
     handler = logging.StreamHandler()
@@ -76,16 +79,26 @@ def configure_logging(app: Flask) -> None:
 
 
 def configure_sentry(app: Flask) -> None:
-    """Activa Sentry solo cuando hay DSN configurado."""
+    """Activa Sentry solo cuando hay DSN configurado con filtrado de seguridad."""
     sentry_dsn = os.environ.get('SENTRY_DSN', '').strip()
     if not sentry_dsn:
         return
+
+    from app.models import redact_sensitive_details
+
+    def before_send(event, hint):
+        try:
+            # Prevents leaking passwords, hashes, tokens, and PII to Sentry (Security hardening)
+            return redact_sensitive_details(event)
+        except Exception:
+            return event
 
     init_sentry_sdk(
         dsn=sentry_dsn,
         integrations=[FlaskIntegration()],
         traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.0')),
         environment=app.config['APP_ENV'],
+        before_send=before_send,
     )
 
 
@@ -129,6 +142,9 @@ def build_config() -> dict:
     else:
         database_backend = 'postgres'
 
+    session_cookie_secure = env_bool('SESSION_COOKIE_SECURE', session_secure_default)
+    session_cookie_name = '__Host-session' if session_cookie_secure else 'session'
+
     return {
         'APP_ENV': app_env,
         'SECRET_KEY': secret_key,
@@ -147,7 +163,8 @@ def build_config() -> dict:
         'MAX_CONTENT_LENGTH': max_upload_mb * 1024 * 1024,
         'MAX_UPLOAD_MB': max_upload_mb,
         'MAX_IMAGE_UPLOAD_BYTES': max_upload_mb * 1024 * 1024,
-        'SESSION_COOKIE_SECURE': env_bool('SESSION_COOKIE_SECURE', session_secure_default),
+        'SESSION_COOKIE_SECURE': session_cookie_secure,
+        'SESSION_COOKIE_NAME': session_cookie_name,
         'SESSION_COOKIE_HTTPONLY': env_bool('SESSION_COOKIE_HTTPONLY', True),
         'SESSION_COOKIE_SAMESITE': os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax'),
         'PERMANENT_SESSION_LIFETIME': timedelta(hours=12),
@@ -167,6 +184,13 @@ def build_config() -> dict:
         'R2_ENDPOINT_URL': os.environ.get('R2_ENDPOINT_URL'),
         'RESET_TOKEN_EXPIRY_MINUTES': env_int('RESET_TOKEN_EXPIRY_MINUTES', 30),
         'AUDIT_LOG_RETENTION_DAYS': env_int('AUDIT_LOG_RETENTION_DAYS', 90),
+        'NEON_PROJECT_ID': os.environ.get('NEON_PROJECT_ID', ''),
+        'NEON_SSLMODE': os.environ.get('NEON_SSLMODE', 'require'),
+        'DB_USE_NULLPOOL': env_bool('DB_USE_NULLPOOL', True),
+        'DB_POOL_SIZE': env_int('DB_POOL_SIZE', 5),
+        'DB_MAX_OVERFLOW': env_int('DB_MAX_OVERFLOW', 10),
+        'DB_POOL_RECYCLE': env_int('DB_POOL_RECYCLE', 280),
+        'DB_POOL_TIMEOUT': env_int('DB_POOL_TIMEOUT', 30),
         'GAMES_PER_PAGE': env_int('GAMES_PER_PAGE', 12),
         'ADMIN_USERS_PER_PAGE': env_int('ADMIN_USERS_PER_PAGE', 25),
         'ADMIN_LOGS_PER_PAGE': env_int('ADMIN_LOGS_PER_PAGE', 50),
@@ -190,7 +214,11 @@ def create_app() -> Flask:
 
     @app.before_request
     def assign_request_context() -> None:
-        g.request_id = request.headers.get('X-Request-Id') or str(uuid.uuid4())
+        req_id = request.headers.get('X-Request-Id') or ''
+        # Limit the length of custom request IDs to prevent memory-based DoS (Security hardening)
+        if len(req_id) > 100:
+            req_id = req_id[:100]
+        g.request_id = req_id or str(uuid.uuid4())
         # Generate cryptographic nonce for CSP (Security hardening)
         g.csp_nonce = base64.b64encode(os.urandom(16)).decode('utf-8')
 
@@ -202,12 +230,13 @@ def create_app() -> Flask:
         if log_path.startswith('/reset-password/'):
             log_path = '/reset-password/[REDACTED]'
 
+        from app.models import sanitize_and_validate_ip
         app.logger.info(
             '%s %s status=%s remote_addr=%s',
             request.method,
             log_path,
             response.status_code,
-            request.remote_addr,
+            sanitize_and_validate_ip(request.remote_addr),
         )
         response.headers['X-Request-Id'] = request_id
         response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -254,7 +283,7 @@ def create_app() -> Flask:
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), hid=(), serial=()'
 
         # Harden CSP by restricting S3/R2 access to the specific bucket host (Security enhancement)
-        img_sources = ["'self'", "data:"]
+        img_sources = ["'self'", "data:", "blob:"]
         connect_sources = ["'self'"]
         storage_backend = app.config.get('STORAGE_BACKEND')
         if storage_backend and storage_backend not in {'none', 'local'}:
@@ -320,7 +349,7 @@ def create_app() -> Flask:
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
-        from app.models import crear_log_audit
+        from app.models import crear_log_audit, sanitize_and_validate_ip
         app.logger.warning('csrf_validation_failed reason=%s', error.description)
 
         log_path = request.path
@@ -332,23 +361,73 @@ def create_app() -> Flask:
             action='CSRF_FAILURE',
             resource='web',
             details={'reason': error.description, 'path': log_path},
-            ip_address=request.remote_addr or 'unknown',
+            ip_address=sanitize_and_validate_ip(request.remote_addr),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
         return ('Tu formulario expiro o no paso la validacion de seguridad.', 400)
 
+    @app.errorhandler(500)
+    @app.errorhandler(Exception)
+    def handle_internal_server_error(error):
+        """Global error handler to log tracebacks securely and present a clean error screen (Fail Securely)."""
+        from werkzeug.exceptions import HTTPException
+        if isinstance(error, HTTPException):
+            return error
+
+        import html
+        from flask import jsonify
+        app.logger.exception('unhandled_exception_occurred')
+
+        request_id = getattr(g, 'request_id', '-')
+        safe_request_id = html.escape(request_id)
+
+        # Determine if JSON is expected by the client
+        if request.path.startswith('/api/') or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
+            return jsonify({
+                'error': 'Ocurrio un error interno en el servidor.',
+                'request_id': safe_request_id
+            }), 500
+
+        html_content = (
+            f"<!DOCTYPE html>\n"
+            f"<html>\n"
+            f"<head>\n"
+            f"  <meta charset='UTF-8'>\n"
+            f"  <title>Error Interno - GameVault</title>\n"
+            f"</head>\n"
+            f"<body style='font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: #f8fafc;'>\n"
+            f"  <h1 style='color: #ef4444;'>Error Interno del Servidor</h1>\n"
+            f"  <p>Lo sentimos, ha ocurrido un error inesperado en nuestro sistema.</p>\n"
+            f"  <p style='color: #94a3b8;'>ID de solicitud: <strong>{safe_request_id}</strong></p>\n"
+            f"  <p><a href='/' style='color: #3b82f6; text-decoration: none;'>Volver al inicio</a></p>\n"
+            f"</body>\n"
+            f"</html>"
+        )
+        return (html_content, 500)
+
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        """Releases database connections back to the pool to prevent resource exhaustion (DoS)."""
+        from app.models import get_session_factory
+        session_factory = get_session_factory()
+        if session_factory:
+            session_factory.remove()
+
     from app.models import ensure_bootstrap_admin, init_database
     from app.routes import main_bp
 
-    init_database()
-    if app.config['BOOTSTRAP_ADMIN_ENABLED']:
-        ensure_bootstrap_admin(
-            email=app.config['BOOTSTRAP_ADMIN_EMAIL'],
-            password=app.config['BOOTSTRAP_ADMIN_PASSWORD'],
-            nombre=app.config['BOOTSTRAP_ADMIN_NAME'],
-            apellido=app.config['BOOTSTRAP_ADMIN_LAST_NAME'],
-        )
+    try:
+        init_database()
+        if app.config['BOOTSTRAP_ADMIN_ENABLED']:
+            ensure_bootstrap_admin(
+                email=app.config['BOOTSTRAP_ADMIN_EMAIL'],
+                password=app.config['BOOTSTRAP_ADMIN_PASSWORD'],
+                nombre=app.config['BOOTSTRAP_ADMIN_NAME'],
+                apellido=app.config['BOOTSTRAP_ADMIN_LAST_NAME'],
+            )
+    except Exception as exc:
+        app.logger.warning('database_init_failed_on_startup error=%s', exc)
 
     app.register_blueprint(main_bp, url_prefix='/')
     return app

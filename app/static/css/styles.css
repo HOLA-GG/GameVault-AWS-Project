@@ -838,6 +838,12 @@ header p {
     width: 100%;
 }
 
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
 .form-group input[type="text"],
 .form-group input[type="search"],
 .form-group input[type="email"],
@@ -883,6 +889,12 @@ header p {
 .form-group input[type="file"]:hover {
     border-color: var(--primary-dark);
     background: rgba(233, 69, 96, 0.1);
+}
+
+.form-group input[type="file"].is-dragover {
+    border-color: var(--electric-color) !important;
+    background: rgba(var(--primary-color-rgb), 0.12) !important;
+    box-shadow: var(--shadow-electric) !important;
 }
 
 .form-group textarea {
@@ -1560,6 +1572,46 @@ kbd {
 }
 
 /* ================================
+   FAQ ACCORDION
+   ================================ */
+.faq-card {
+    cursor: pointer;
+    min-height: auto;
+}
+
+.faq-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.faq-summary::-webkit-details-marker {
+    display: none;
+}
+
+.faq-summary h4 {
+    margin: 0;
+}
+
+.faq-icon {
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    transition: transform var(--transition-fast);
+}
+
+.faq-card[open] .faq-icon {
+    transform: rotate(180deg);
+}
+
+.faq-card p {
+    margin-top: 10px;
+}
+
+/* ================================
    STEPS
    ================================ */
 .steps-grid {
@@ -1964,8 +2016,9 @@ kbd {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.admin-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.03);
+.admin-table tbody tr:hover,
+.admin-table tbody tr:focus-within {
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .log-explorer {
@@ -2328,6 +2381,56 @@ kbd {
 }
 
 /* ================================
+   SCROLL TO TOP
+   ================================ */
+.scroll-to-top {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: #fff;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+}
+
+.scroll-to-top.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.scroll-to-top:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-electric), var(--shadow-lg);
+    background: var(--primary-dark);
+}
+
+.scroll-to-top-icon {
+    width: 24px;
+    height: 24px;
+}
+
+[data-theme="light"] .scroll-to-top {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="gamer"] .scroll-to-top {
+    background: linear-gradient(135deg, #ff00b8, #16d9ff);
+    border: 1px solid rgba(0, 247, 255, 0.35);
+    box-shadow: 0 0 12px rgba(0, 247, 255, 0.3);
+}
+
+/* ================================
    IMAGE PREVIEW
    ================================ */
 .image-preview-container {
@@ -2355,7 +2458,7 @@ kbd {
 }
 .pw-toggle:hover { color: var(--primary-color); }
 .pw-toggle svg { width: 20px; height: 20px; }
-.form-group input[type="password"] { padding-right: 44px; }
+.pw-field-wrapper input { padding-right: 44px; }
 
 /* ================================
    PASSWORD STRENGTH METER
@@ -2459,6 +2562,14 @@ kbd {
 }
 
 .btn-copy.is-copied::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-12px);
+}
+
+.btn-copy.is-copy-failed::after {
+    content: "¡Error al copiar!";
+    background: var(--danger-color);
     opacity: 1;
     visibility: visible;
     transform: translateX(-50%) translateY(-12px);

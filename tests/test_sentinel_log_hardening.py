@@ -40,16 +40,56 @@ def test_crear_reset_token_ip_truncation(app_with_db):
 
     with app_with_db.app_context():
         user = crear_usuario("Test", "User", "longip@example.com", "", "", "hash")
+
+        # Invalid IP should be converted to 'unknown'
         long_ip = "a" * 100
         result = crear_reset_token(user['user_id'], ip_address=long_ip)
         assert result['success'] is True
 
+        # Valid IPv4 with port should be normalized
+        result_v4_port = crear_reset_token(user['user_id'], ip_address='127.0.0.1:8080')
+        assert result_v4_port['success'] is True
+
+        # Valid IPv6 with port should be normalized
+        result_v6_port = crear_reset_token(user['user_id'], ip_address='[::1]:8080')
+        assert result_v6_port['success'] is True
+
         # Verify in DB
         session_factory = get_session_factory()
         with session_factory() as session:
-            token = session.scalar(select(PasswordResetToken).where(PasswordResetToken.user_id == user['user_id']))
-            assert len(token.ip_address) <= 64
-            assert token.ip_address == "a" * 64
+            # 1. Check invalid IP
+            token1 = session.scalar(select(PasswordResetToken).where(PasswordResetToken.user_id == user['user_id']).order_by(PasswordResetToken.created_at.asc()).limit(1))
+            assert token1.ip_address == 'unknown'
+
+            # 2. Check normalized IPv4 with port
+            # (get the latest token since we created v4_port and v6_port)
+            tokens = session.scalars(select(PasswordResetToken).where(PasswordResetToken.user_id == user['user_id']).order_by(PasswordResetToken.created_at.desc())).all()
+            assert tokens[0].ip_address == '::1'
+            assert tokens[1].ip_address == '127.0.0.1'
+
+
+def test_ip_address_html_escaping(app_with_db):
+    from app.routes import enviar_email_reset_password
+    from unittest.mock import patch
+
+    with app_with_db.app_context():
+        # Override MAIL_SUPPRESS_SEND temporarily
+        app_with_db.config['MAIL_SUPPRESS_SEND'] = False
+
+        # Use test_request_context to allow url_for to build URLs
+        with app_with_db.test_request_context():
+            # We mock mail.send to inspect the HTML content of the message
+            with patch('app.routes.mail.send') as mock_send:
+                enviar_email_reset_password(
+                    destinatario='test@example.com',
+                    token='dummy-token',
+                    ip_address='<script>alert("XSS")</script>'
+                )
+                assert mock_send.called
+                sent_msg = mock_send.call_args[0][0]
+                # Ensure HTML is escaped and the raw script tag is not present
+                assert '<script>' not in sent_msg.html
+                assert '&lt;script&gt;' in sent_msg.html
 
 def test_crear_log_audit_field_truncation(app_with_db):
     from app.models import crear_log_audit, get_session_factory, AuditLog, select

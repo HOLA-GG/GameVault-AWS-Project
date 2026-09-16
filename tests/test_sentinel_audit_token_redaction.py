@@ -154,3 +154,38 @@ def test_unauthorized_access_url_redaction(client, app):
         # url_for encodes [REDACTED] as %5BREDACTED%5D
         assert "REDACTED" in log.details['target_url']
         assert token not in log.details['target_url']
+
+
+def test_redact_sensitive_details_strings():
+    """Verify that redact_sensitive_details replaces sensitive reset tokens and query params from strings, dicts, and lists."""
+    from app.models import redact_sensitive_details
+
+    # Test plain string with reset token path
+    test_str = "Go to https://gamevault.app/reset-password/my-token-123-xyz to reset."
+    redacted = redact_sensitive_details(test_str)
+    assert redacted == "Go to https://gamevault.app/reset-password/[REDACTED] to reset."
+
+    # Test plain string with query param tokens
+    test_str_q = "https://gamevault.app/verify-token?token=secret123&other=val&token=secret456"
+    redacted_q = redact_sensitive_details(test_str_q)
+    assert redacted_q == "https://gamevault.app/verify-token?token=[REDACTED]&other=val&token=[REDACTED]"
+
+    # Test dictionary values redaction
+    test_dict = {
+        "url": "https://gamevault.app/reset-password/token-abc",
+        "nested": {
+            "query": "https://some-endpoint?token=token-def"
+        }
+    }
+    redacted_dict = redact_sensitive_details(test_dict)
+    assert redacted_dict["url"] == "https://gamevault.app/reset-password/[REDACTED]"
+    assert redacted_dict["nested"]["query"] == "https://some-endpoint?token=[REDACTED]"
+
+    # Test list values redaction
+    test_list = [
+        "https://gamevault.app/reset-password/token-1",
+        {"path": "https://some-endpoint?token=token-2"}
+    ]
+    redacted_list = redact_sensitive_details(test_list)
+    assert redacted_list[0] == "https://gamevault.app/reset-password/[REDACTED]"
+    assert redacted_list[1]["path"] == "https://some-endpoint?token=[REDACTED]"

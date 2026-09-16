@@ -95,6 +95,71 @@ def test_open_redirect_bypass_attempts(client):
         assert not response.headers['Location'].startswith('//malicious.com')
         assert not response.headers['Location'].startswith('\\malicious.com')
 
+
+def test_open_redirect_control_chars_and_whitespace(client):
+    """Verifies that redirect targets with embedded control characters or whitespace are rejected."""
+    # Register a user first
+    client.post('/registro', data={
+        'nombre': 'Control User',
+        'email': 'control_user@example.com',
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
+    })
+    client.post('/logout')
+
+    # Test bypass attempts using tabs, newlines, null bytes or other control chars inside the URL target
+    control_and_whitespace_targets = [
+        '/%09/malicious.com',  # Tab inside path
+        '//\tmalicious.com',   # Tab inside netloc
+        '//malicious.com%0d%0asomething', # CRLF injection in path
+        '//evil.com\r\n',      # CRLF at the end (urlparse might keep it if not stripped correctly)
+        '/java%00script:alert(1)', # Null byte inside path
+    ]
+
+    for target in control_and_whitespace_targets:
+        response = client.post(f'/login?next={target}', data={
+            'email': 'control_user@example.com',
+            'password': 'SecurePass123!'
+        })
+        assert response.status_code == 302
+        # Location header should either point to dashboard or default, never the external/manipulated domain
+        assert not response.headers['Location'].startswith('http://malicious.com')
+        assert not response.headers['Location'].startswith('https://malicious.com')
+        assert not response.headers['Location'].startswith('//malicious.com')
+        assert not response.headers['Location'].startswith('\\malicious.com')
+        assert not response.headers['Location'].startswith('//evil.com')
+
+def test_open_redirect_encoded_bypass_attempts(client):
+    """Verifies that URL-encoded redirect targets are decoded and validated correctly."""
+    # Register a user first
+    client.post('/registro', data={
+        'nombre': 'Encoded User',
+        'email': 'encoded_bypass@example.com',
+        'password': 'SecurePass123!',
+        'confirm_password': 'SecurePass123!'
+    })
+    client.post('/logout')
+
+    # Test URL-encoded bypass attempts
+    encoded_bypasses = [
+        '%2f%2fmalicious.com',
+        '%5c%5cmalicious.com',
+        '%2f%2f%2fmalicious.com',
+        '%5c%2f%2fmalicious.com',
+        '//%2fmalicious.com'
+    ]
+
+    for target in encoded_bypasses:
+        response = client.post(f'/login?next={target}', data={
+            'email': 'encoded_bypass@example.com',
+            'password': 'SecurePass123!'
+        })
+        assert response.status_code == 302
+        assert not response.headers['Location'].startswith('http://malicious.com')
+        assert not response.headers['Location'].startswith('https://malicious.com')
+        assert not response.headers['Location'].startswith('//malicious.com')
+        assert not response.headers['Location'].startswith('\\malicious.com')
+
 def test_forgot_password_manual_token_enumeration(client):
     app = client.application
     app.config['SHOW_RESET_DEBUG_TOKEN'] = False
@@ -286,3 +351,79 @@ def test_strict_referrer_policy_on_sensitive_routes(client):
     # Verify that a normal route still has the default safe policy
     response = client.get('/')
     assert response.headers.get('Referrer-Policy') == 'strict-origin-when-cross-origin'
+
+def test_unhandled_exception_secure_response(app):
+    """Verifica que un error interno no filtre tracebacks y escape adecuadamente el request ID para evitar inyección HTML."""
+    @app.route('/trigger-internal-error')
+    def trigger_error():
+        # Raise an exception containing mock sensitive data (like DB credentials) to ensure it is never returned to client.
+        raise ValueError("Simulated sensitive internal error with DB credentials: db://user:password@host")
+
+    # Disable propagating exceptions so our custom error handler is triggered in tests
+    app.config['PROPAGATE_EXCEPTIONS'] = False
+
+    with app.test_client() as client:
+        # Pass a malicious X-Request-Id to test for HTML/XSS injection vulnerabilities
+        response = client.get('/trigger-internal-error', headers={'X-Request-Id': '<script>alert("xss")</script>'})
+        assert response.status_code == 500
+
+        # Assert no sensitive details are exposed
+        assert b"Simulated sensitive internal error" not in response.data
+        assert b"db://user:password@host" not in response.data
+        assert b"ValueError" not in response.data
+        assert b"Traceback" not in response.data
+
+        # Assert that HTML injection in request ID was successfully sanitized
+        assert b"<script>alert(\"xss\")</script>" not in response.data
+        assert b"&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;" in response.data
+
+
+def test_sqlite_file_permissions(app):
+    """Verifies that the SQLite database file is created with secure permissions (0o600)."""
+    import os
+    import stat
+    from app.models import init_database, DATABASE_URL
+
+    if DATABASE_URL.startswith('sqlite') and ':memory:' not in DATABASE_URL:
+        parts = DATABASE_URL.split(':///', 1)
+        if len(parts) > 1:
+            db_path = parts[1]
+            if db_path and os.path.exists(db_path):
+                init_database()
+                mode = os.stat(db_path).st_mode
+                # Check that group and other permissions are completely revoked (only owner read/write, usually 0o600)
+                assert (mode & 0o077) == 0
+
+
+def test_demo_title_length_validation(client):
+    """Verifies that submitting an excessively long title to /demo is safely rejected to mitigate DoS."""
+    # Try with an oversized title (> 255 characters)
+    oversized_title = "A" * 256
+    response = client.post('/demo', data={
+        'titulo': oversized_title
+    }, follow_redirects=True)
+
+    # It should redirect back and show the flashed error message
+    assert response.status_code == 200
+    assert b"demasiado largo" in response.data or b"255" in response.data
+
+
+def test_login_next_url_length_bounding(client):
+    """Verifies that an oversized 'next' query parameter on login is safely truncated and handled."""
+    client.post('/registro', data={
+        'nombre': 'Next User',
+        'email': 'next_test@example.com',
+        'password': 'SecurePassword123!',
+        'confirm_password': 'SecurePassword123!'
+    })
+    client.post('/logout')
+
+    oversized_next = '/' + 'a' * 5000
+    response = client.post(f'/login?next={oversized_next}', data={
+        'email': 'next_test@example.com',
+        'password': 'SecurePassword123!'
+    })
+    # The truncated next_url is /a... (2048 chars), which is safe (same-origin relative URL)
+    assert response.status_code == 302
+    assert len(response.headers['Location']) == 2048
+    assert response.headers['Location'].startswith('/' + 'a' * 2047)

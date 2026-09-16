@@ -62,43 +62,64 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" required maxlength="120" autofocus class="select-on-focus">
+                <input type="text" id="nombre" name="nombre" value="{{ user.nombre }}" placeholder="Ej: Juan" required maxlength="120" autofocus class="select-on-focus">
             </div>
             <div class="form-group">
                 <label for="apellido">Apellidos</label>
-                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" maxlength="120">
+                <input type="text" id="apellido" name="apellido" value="{{ user.apellido or '' }}" placeholder="Ej: Pérez" maxlength="120" class="select-on-focus">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="prefijo_pais">Prefijo país</label>
-                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10">
+                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10" class="select-on-focus" list="prefijos_lista">
+                <datalist id="prefijos_lista">
+                    <option value="+34">España (+34)</option>
+                    <option value="+52">México (+52)</option>
+                    <option value="+54">Argentina (+54)</option>
+                    <option value="+55">Brasil (+55)</option>
+                    <option value="+56">Chile (+56)</option>
+                    <option value="+57">Colombia (+57)</option>
+                    <option value="+58">Venezuela (+58)</option>
+                    <option value="+51">Perú (+51)</option>
+                    <option value="+593">Ecuador (+593)</option>
+                    <option value="+591">Bolivia (+591)</option>
+                    <option value="+595">Paraguay (+595)</option>
+                    <option value="+598">Uruguay (+598)</option>
+                    <option value="+502">Guatemala (+502)</option>
+                    <option value="+503">El Salvador (+503)</option>
+                    <option value="+504">Honduras (+504)</option>
+                    <option value="+505">Nicaragua (+505)</option>
+                    <option value="+506">Costa Rica (+506)</option>
+                    <option value="+507">Panamá (+507)</option>
+                    <option value="+1">EE.UU. / Canadá (+1)</option>
+                </datalist>
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567" maxlength="20">
+                <input type="tel" id="telefono" name="telefono" value="{{ user.telefono or '' }}" placeholder="3001234567" maxlength="20" class="select-on-focus">
             </div>
         </div>
         <div class="form-group">
             <label for="email">Correo</label>
             <div class="pw-field-wrapper">
                 <input type="email" id="email" value="{{ user.email }}" readonly class="select-on-focus" style="padding-right: 44px;">
-                <button type="button" class="pw-toggle btn-copy" data-copy="{{ user.email }}" title="Copiar correo" aria-label="Copiar correo"></button>
+                <button type="button" class="pw-toggle btn-copy" data-copy="{{ user.email }}" title="Copiar correo electrónico" aria-label="Copiar correo electrónico al portapapeles"></button>
             </div>
         </div>
         <div class="form-group">
             <label for="collection_visibility">Visibilidad de tu colección</label>
-            <select id="collection_visibility" name="collection_visibility">
+            <select id="collection_visibility" name="collection_visibility" aria-describedby="showcase_help_text">
                 <option value="private" {% if user.collection_visibility != 'public' %}selected{% endif %}>Privada</option>
                 <option value="public" {% if user.collection_visibility == 'public' %}selected{% endif %}>Pública</option>
             </select>
         </div>
         <div class="form-group">
             <label class="checkbox-card" for="homepage_showcase_opt_in">
-                <input type="checkbox" id="homepage_showcase_opt_in" name="homepage_showcase_opt_in" {% if user.homepage_showcase_opt_in %}checked{% endif %}>
+                <input type="checkbox" id="homepage_showcase_opt_in" name="homepage_showcase_opt_in" {% if user.homepage_showcase_opt_in %}checked{% endif %} aria-describedby="showcase_help_text">
                 <span>Permitir que GameVault la muestre en Inicio si está pública</span>
             </label>
-            <small style="color:var(--text-secondary);display:block;margin-top:8px;">
+            <small id="showcase_help_text" style="color:var(--text-secondary);display:block;margin-top:8px;">
                 Solo se mostrará en portada si la colección es pública y tiene contenido real.
             </small>
         </div>
@@ -113,46 +134,23 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="current_password">Contraseña actual</label>
-                <input type="password" id="current_password" name="current_password" required autocomplete="current-password" maxlength="128">
+                <input type="password" id="current_password" name="current_password" placeholder="Tu contraseña actual" required autocomplete="current-password" maxlength="128" class="select-on-focus">
             </div>
             <div class="form-group">
                 <label for="password">Nueva contraseña</label>
-                <input type="password" id="password" name="password" required autocomplete="new-password" maxlength="128">
+                <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres (letras y números)" required autocomplete="new-password" maxlength="128" class="select-on-focus">
                 <div class="strength-meter"><div class="strength-meter-bar"></div></div>
                 <small class="strength-text" aria-live="polite"></small>
             </div>
         </div>
         <div class="form-group">
             <label for="confirm_password">Confirmar nueva contraseña</label>
-            <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password" maxlength="128">
+            <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite tu nueva contraseña" required autocomplete="new-password" maxlength="128" class="select-on-focus">
         </div>
         <button type="submit" class="btn-submit" id="passwordSubmitButton" data-loading-text="Actualizando contraseña...">Actualizar contraseña</button>
     </form>
 </section>
 
-<script nonce="{{ g.csp_nonce }}">
-    document.addEventListener('DOMContentLoaded', function() {
-        const profileForm = document.getElementById('profileForm');
-        const profileSubmitButton = document.getElementById('profileSubmitButton');
-        const passwordForm = document.getElementById('passwordForm');
-        const passwordSubmitButton = document.getElementById('passwordSubmitButton');
-        const newPassword = document.getElementById('password');
-        const confirmPassword = document.getElementById('confirm_password');
-
-        if (newPassword && confirmPassword) {
-            function validatePassword() {
-                if (newPassword.value !== confirmPassword.value) {
-                    confirmPassword.setCustomValidity('Las contraseñas no coinciden');
-                } else {
-                    confirmPassword.setCustomValidity('');
-                }
-            }
-            newPassword.addEventListener('change', validatePassword);
-            confirmPassword.addEventListener('input', validatePassword);
-        }
-
-    });
-</script>
 
 {% if recent_activity_logs %}
 <section class="section">
@@ -212,4 +210,48 @@
     </div>
 </section>
 {% endif %}
+
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        const visibilitySelect = document.getElementById('collection_visibility');
+        const optInCheckbox = document.getElementById('homepage_showcase_opt_in');
+
+        if (visibilitySelect && optInCheckbox) {
+            const checkboxCard = optInCheckbox.closest('.checkbox-card');
+            const helpText = checkboxCard ? checkboxCard.nextElementSibling : null;
+
+            function updateOptInState(isInitial = false) {
+                const isPrivate = visibilitySelect.value !== 'public';
+                optInCheckbox.disabled = isPrivate;
+
+                if (isPrivate) {
+                    if (checkboxCard) {
+                        checkboxCard.style.opacity = '0.5';
+                        checkboxCard.style.pointerEvents = 'none';
+                    }
+                    if (helpText && helpText.tagName === 'SMALL') {
+                        helpText.innerHTML = '<strong>Deshabilitado:</strong> Tu colección es privada. Cámbiala a Pública para poder destacarla en Inicio.';
+                    }
+                    if (!isInitial) {
+                        window.announceToScreenReader?.('Opción de destacar en inicio deshabilitada porque la colección es privada.');
+                    }
+                } else {
+                    if (checkboxCard) {
+                        checkboxCard.style.opacity = '1';
+                        checkboxCard.style.pointerEvents = 'auto';
+                    }
+                    if (helpText && helpText.tagName === 'SMALL') {
+                        helpText.textContent = 'Solo se mostrará en portada si la colección es pública y tiene contenido real.';
+                    }
+                    if (!isInitial) {
+                        window.announceToScreenReader?.('Opción de destacar en inicio habilitada.');
+                    }
+                }
+            }
+
+            updateOptInState(true);
+            visibilitySelect.addEventListener('change', () => updateOptInState(false));
+        }
+    });
+</script>
 {% endblock %}

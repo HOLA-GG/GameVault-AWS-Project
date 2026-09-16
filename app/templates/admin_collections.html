@@ -43,6 +43,13 @@
     </form>
 
     {% if collections %}
+        <div class="form-group" style="margin-bottom:20px;">
+            <label for="adminCollectionSearch" class="sr-only">Filtrar colecciones en esta página</label>
+            <div style="position: relative; display: flex; align-items: center; max-width: 400px;">
+                <input type="search" id="adminCollectionSearch" placeholder="Filtrar por propietario o plataforma..." class="select-on-focus" style="padding-right: 36px;">
+                <button type="button" id="adminCollectionSearchClearBtn" class="search-clear-btn" aria-label="Borrar filtro de colecciones" title="Borrar filtro de colecciones" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+            </div>
+        </div>
         <div class="table-container">
             <table class="admin-table">
                 <thead>
@@ -79,22 +86,104 @@
                 </tbody>
             </table>
         </div>
+
+        <script nonce="{{ g.csp_nonce }}">
+            document.addEventListener('DOMContentLoaded', function () {
+                const searchInput = document.getElementById('adminCollectionSearch');
+                const clearBtn = document.getElementById('adminCollectionSearchClearBtn');
+                if (!searchInput) return;
+
+                let debounceTimeout;
+                function filterCollections() {
+                    const rawTerm = searchInput.value.trim();
+                    const term = rawTerm.toLowerCase();
+                    const tbody = document.querySelector('.admin-table tbody');
+                    const rows = document.querySelectorAll('.admin-table tbody tr:not(#adminCollectionSearchEmptyRow)');
+                    let visibleCount = 0;
+
+                    rows.forEach(row => {
+                        const matches = !term || row.textContent.toLowerCase().includes(term);
+                        row.style.display = matches ? '' : 'none';
+                        if (matches) visibleCount++;
+                    });
+
+                    let emptyRow = document.getElementById('adminCollectionSearchEmptyRow');
+                    if (term && visibleCount === 0) {
+                        if (!emptyRow && tbody) {
+                            emptyRow = document.createElement('tr');
+                            emptyRow.id = 'adminCollectionSearchEmptyRow';
+                            emptyRow.innerHTML = `
+                                <td colspan="7" style="text-align: center; padding: 40px 20px;">
+                                    <span class="feature-icon" aria-hidden="true" style="font-size: 2rem; margin-bottom: 8px; display: block;">🔍</span>
+                                    <strong style="font-size: 1.1rem; color: var(--text-primary); display: block; margin-bottom: 6px;">Sin coincidencia de colecciones</strong>
+                                    <p id="adminCollectionSearchTermText" style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.95rem;"></p>
+                                    <button type="button" class="btn btn-secondary btn-small" id="adminCollectionSearchResetBtn">Limpiar búsqueda</button>
+                                </td>
+                            `;
+                            tbody.appendChild(emptyRow);
+                            emptyRow.querySelector('#adminCollectionSearchResetBtn')?.addEventListener('click', function() {
+                                searchInput.value = '';
+                                filterCollections();
+                                searchInput.focus();
+                                window.announceToScreenReader?.('Filtro de colecciones borrado');
+                            });
+                        }
+                        const termText = emptyRow?.querySelector('#adminCollectionSearchTermText');
+                        if (termText) {
+                            termText.textContent = `No se encontraron colecciones que coincidan con "${rawTerm}".`;
+                        }
+                        if (emptyRow) emptyRow.style.display = '';
+                    } else if (emptyRow) {
+                        emptyRow.style.display = 'none';
+                    }
+
+                    if (clearBtn) {
+                        clearBtn.style.display = term ? 'block' : 'none';
+                    }
+
+                    clearTimeout(debounceTimeout);
+                    debounceTimeout = setTimeout(() => {
+                        const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'colección coincide' : 'colecciones coinciden'} con "${rawTerm}"` : 'Mostrando todas las colecciones';
+                        window.announceToScreenReader?.(msg);
+                    }, 400);
+                }
+
+                searchInput.addEventListener('input', filterCollections);
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function () {
+                        searchInput.value = '';
+                        filterCollections();
+                        searchInput.focus();
+                        window.announceToScreenReader?.('Filtro de colecciones borrado');
+                    });
+                }
+            });
+        </script>
     {% else %}
-        <div class="empty-state"><p>No hay colecciones para esos filtros.</p></div>
+        <div class="empty-state">
+            <span class="feature-icon" aria-hidden="true">🔍</span>
+            <h3>Sin colecciones para estos filtros</h3>
+            <p>No se encontraron colecciones que coincidan con los criterios seleccionados.</p>
+            {% if visibility %}
+                <div class="mt-20">
+                    <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary">Limpiar filtros</a>
+                </div>
+            {% endif %}
+        </div>
     {% endif %}
 </section>
 
 {% if pagination.total_pages > 1 %}
 <section class="section" style="text-align:center;">
-    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+    <nav aria-label="Paginación de colecciones" style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;">
         {% if pagination.has_prev %}
-            <a href="{{ url_for('main.admin_collections', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary">Anterior</a>
+            <a href="{{ url_for('main.admin_collections', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary" aria-label="Ir a la página anterior (Página {{ pagination.prev_page }})">Anterior</a>
         {% endif %}
-        <span style="padding:10px 16px;color:var(--text-secondary);">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+        <span style="padding:10px 16px;color:var(--text-secondary);" aria-current="page">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
         {% if pagination.has_next %}
-            <a href="{{ url_for('main.admin_collections', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary">Siguiente</a>
+            <a href="{{ url_for('main.admin_collections', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary" aria-label="Ir a la página siguiente (Página {{ pagination.next_page }})">Siguiente</a>
         {% endif %}
-    </div>
+    </nav>
 </section>
 {% endif %}
 {% endblock %}

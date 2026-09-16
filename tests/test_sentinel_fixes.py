@@ -255,3 +255,35 @@ def test_rate_showcase_type_safety(client):
     assert response.status_code == 400
     data = response.get_json()
     assert 'Datos de valoración inválidos.' in data.get('error', '')
+
+
+def test_rate_showcase_public_invalid_id(client, app):
+    """Verifica que un subject_id público malformado o de longitud/caracteres inválidos sea rechazado."""
+    from app.models import get_session_factory, AuditLog, select
+
+    # Enviar un ID de vitrina pública con caracteres no permitidos o longitud incorrecta
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 'public',
+            'subject_id': 'invalid-uuid-with-spaces-and-symbols!!',
+            'rating': 5
+        }
+    )
+    assert response.status_code == 404
+    data = response.get_json()
+    assert 'Colección pública no disponible para portada.' in data.get('error', '')
+
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(
+                AuditLog.action == 'RATE_SHOWCASE',
+                AuditLog.status == 'FAILED',
+                AuditLog.details['reason'].as_string() == 'invalid_public_subject_id'
+            )
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log is not None
+        assert log.details.get('reason') == 'invalid_public_subject_id'

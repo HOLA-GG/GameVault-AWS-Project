@@ -23,6 +23,13 @@
     <p style="color:var(--text-secondary);margin-bottom:20px;">Total actual: {{ total_usuarios }} usuarios.</p>
 
     {% if usuarios %}
+        <div class="form-group" style="margin-bottom:20px;">
+            <label for="adminUserSearch" class="sr-only">Filtrar usuarios en esta página</label>
+            <div style="position: relative; display: flex; align-items: center; max-width: 400px;">
+                <input type="search" id="adminUserSearch" placeholder="Filtrar por nombre o email..." class="select-on-focus" style="padding-right: 36px;">
+                <button type="button" id="adminUserSearchClearBtn" class="search-clear-btn" aria-label="Borrar filtro de usuarios" title="Borrar filtro de usuarios" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+            </div>
+        </div>
         <div class="table-container">
             <table class="admin-table">
                 <thead>
@@ -57,7 +64,7 @@
                             <td>
                                 {% if usuario.user_id != session.get('user_id') %}
                                     <form action="{{ url_for('main.admin_eliminar_usuario', user_id=usuario.user_id) }}" method="POST" style="display:inline;" data-confirm="¿Eliminar a {{ usuario.email }}?">
-                                        <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar usuario {{ usuario.email }}">Eliminar</button>
+                                        <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar usuario {{ usuario.email }}" data-loading-text="Eliminando...">Eliminar</button>
                                     </form>
                                 {% else %}
                                     <span class="badge badge-admin">Cuenta actual</span>
@@ -69,21 +76,99 @@
             </table>
         </div>
     {% else %}
-        <div class="empty-state"><p>No hay usuarios registrados.</p></div>
+        <div class="empty-state">
+            <span class="feature-icon" aria-hidden="true">👥</span>
+            <h3>Sin usuarios registrados</h3>
+            <p>No hay cuentas registradas en el sistema actualmente.</p>
+        </div>
     {% endif %}
 </section>
 
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('adminUserSearch');
+        const clearBtn = document.getElementById('adminUserSearchClearBtn');
+        if (!searchInput) return;
+
+        let debounceTimeout;
+        function filterUsers() {
+            const rawTerm = searchInput.value.trim();
+            const term = rawTerm.toLowerCase();
+            const tbody = document.querySelector('.admin-table tbody');
+            const rows = document.querySelectorAll('.admin-table tbody tr:not(#adminUserSearchEmptyRow)');
+            if (!rows.length) return;
+
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const matches = !term || row.textContent.toLowerCase().includes(term);
+                row.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            let emptyRow = document.getElementById('adminUserSearchEmptyRow');
+            if (term && visibleCount === 0) {
+                if (!emptyRow && tbody) {
+                    emptyRow = document.createElement('tr');
+                    emptyRow.id = 'adminUserSearchEmptyRow';
+                    emptyRow.innerHTML = `
+                        <td colspan="5" style="text-align: center; padding: 40px 20px;">
+                            <span class="feature-icon" aria-hidden="true" style="font-size: 2rem; margin-bottom: 8px; display: block;">🔍</span>
+                            <strong style="font-size: 1.1rem; color: var(--text-primary); display: block; margin-bottom: 6px;">Sin coincidencia de usuarios</strong>
+                            <p id="adminUserSearchTermText" style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.95rem;"></p>
+                            <button type="button" class="btn btn-secondary btn-small" id="adminUserSearchResetBtn">Limpiar búsqueda</button>
+                        </td>
+                    `;
+                    tbody.appendChild(emptyRow);
+                    emptyRow.querySelector('#adminUserSearchResetBtn')?.addEventListener('click', function() {
+                        searchInput.value = '';
+                        filterUsers();
+                        searchInput.focus();
+                        window.announceToScreenReader?.('Filtro de usuarios borrado');
+                    });
+                }
+                const termText = emptyRow?.querySelector('#adminUserSearchTermText');
+                if (termText) {
+                    termText.textContent = `No se encontraron usuarios que coincidan con "${rawTerm}".`;
+                }
+                if (emptyRow) emptyRow.style.display = '';
+            } else if (emptyRow) {
+                emptyRow.style.display = 'none';
+            }
+
+            if (clearBtn) {
+                clearBtn.style.display = term ? 'block' : 'none';
+            }
+
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'usuario coincide' : 'usuarios coinciden'} con "${rawTerm}"` : 'Mostrando todos los usuarios';
+                window.announceToScreenReader?.(msg);
+            }, 400);
+        }
+
+        searchInput.addEventListener('input', filterUsers);
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                searchInput.value = '';
+                filterUsers();
+                searchInput.focus();
+                window.announceToScreenReader?.('Filtro de usuarios borrado');
+            });
+        }
+    });
+</script>
+
 {% if pagination.total_pages > 1 %}
 <section class="section" style="text-align:center;">
-    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+    <nav aria-label="Paginación de usuarios" style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;">
         {% if pagination.has_prev %}
-            <a href="{{ url_for('main.admin_panel', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary">Anterior</a>
+            <a href="{{ url_for('main.admin_panel', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary" aria-label="Ir a la página anterior (Página {{ pagination.prev_page }})">Anterior</a>
         {% endif %}
-        <span style="padding:10px 16px;color:var(--text-secondary);">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+        <span style="padding:10px 16px;color:var(--text-secondary);" aria-current="page">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
         {% if pagination.has_next %}
-            <a href="{{ url_for('main.admin_panel', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary">Siguiente</a>
+            <a href="{{ url_for('main.admin_panel', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary" aria-label="Ir a la página siguiente (Página {{ pagination.next_page }})">Siguiente</a>
         {% endif %}
-    </div>
+    </nav>
 </section>
 {% endif %}
 {% endblock %}

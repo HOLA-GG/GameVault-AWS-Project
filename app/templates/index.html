@@ -93,8 +93,8 @@
         <input type="hidden" name="imagen_url" id="imagen_url">
         <div class="form-row">
             <div class="form-group">
-                <label for="titulo">Título</label>
-                <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required maxlength="255" class="select-on-focus">
+                <label for="titulo">Título <small id="title-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>N</kbd>)</small></label>
+                <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required maxlength="255" class="select-on-focus" aria-describedby="title-hint">
             </div>
             <div class="form-group">
                 <label for="plataforma">Plataforma</label>
@@ -139,8 +139,20 @@
                 <label for="calificacion">Calificación personal</label>
                 <select id="calificacion" name="calificacion">
                     <option value="">Sin nota</option>
-                    {% for value in GAME_RATING_OPTIONS %}
-                        <option value="{{ value }}">{{ value }}/10</option>
+                    {% set RATING_DESCRIPTIONS = {
+                        10: '10/10 ⭐ Obra maestra',
+                        9: '9/10 ⭐ Excelente',
+                        8: '8/10 ⭐ Muy bueno',
+                        7: '7/10 ⭐ Bueno',
+                        6: '6/10 ⭐ Aceptable',
+                        5: '5/10 ⭐ Mediocre',
+                        4: '4/10 ⭐ Malo',
+                        3: '3/10 ⭐ Muy malo',
+                        2: '2/10 ⭐ Pésimo',
+                        1: '1/10 ⭐ Injugable'
+                    } %}
+                    {% for value in GAME_RATING_OPTIONS|reverse %}
+                        <option value="{{ value }}">{{ RATING_DESCRIPTIONS.get(value, value ~ '/10') }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -178,7 +190,10 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="q">Búsqueda <small id="search-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
-                <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma..." aria-describedby="search-hint" aria-keyshortcuts="/" class="select-on-focus">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Título, descripción, plataforma..." aria-describedby="search-hint" aria-keyshortcuts="/" class="select-on-focus" style="padding-right: 36px;">
+                    <button type="button" id="qClearBtn" class="search-clear-btn" aria-label="Borrar búsqueda" title="Borrar búsqueda" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: {{ 'block' if filters.q else 'none' }};">&times;</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="filter_plataforma">Plataforma</label>
@@ -244,6 +259,39 @@
             <a href="{{ url_for('main.dashboard') }}" style="margin-left:8px; font-size: 0.9em; text-decoration: underline;">(Limpiar filtros)</a>
         {% endif %}
     </p>
+    {% if filters.q or filters.plataforma or filters.estado or filters.categoria or filters.favoritos %}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;" class="active-filters">
+            <span style="color: var(--text-secondary); font-size: 0.9em;">Filtros activos:</span>
+            {% if filters.q %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(q=None, page=None)) }}" class="badge" style="text-decoration: none; background: var(--border-color); color: var(--text-primary);" aria-label="Quitar filtro de búsqueda: {{ filters.q }}" title="Quitar filtro de búsqueda: {{ filters.q }}">
+                    Búsqueda: "{{ filters.q }}" &times;
+                </a>
+            {% endif %}
+            {% if filters.plataforma %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None, page=None)) }}" class="badge plataforma is-active" style="text-decoration: none;" aria-label="Quitar filtro de plataforma: {{ filters.plataforma }}" title="Quitar filtro de plataforma: {{ filters.plataforma }}">
+                    {{ filters.plataforma }} &times;
+                </a>
+            {% endif %}
+            {% if filters.estado %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None, page=None)) }}" class="badge estado is-active" style="text-decoration: none;" aria-label="Quitar filtro de estado: {{ filters.estado }}" title="Quitar filtro de estado: {{ filters.estado }}">
+                    {{ filters.estado }} &times;
+                </a>
+            {% endif %}
+            {% if filters.categoria %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None, page=None)) }}" class="badge categoria is-active" style="text-decoration: none;" aria-label="Quitar filtro de categoría: {{ filters.categoria }}" title="Quitar filtro de categoría: {{ filters.categoria }}">
+                    {{ filters.categoria }} &times;
+                </a>
+            {% endif %}
+            {% if filters.favoritos == 'solo' %}
+                <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None, page=None)) }}" class="badge favorito is-active" style="text-decoration: none;" aria-label="Quitar filtro de solo favoritos" title="Quitar filtro de solo favoritos">
+                    Favorito &times;
+                </a>
+            {% endif %}
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small" style="padding: 2px 8px; font-size: 0.8em;" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros">
+                Limpiar todos
+            </a>
+        </div>
+    {% endif %}
     <div class="section-note">
         La actividad reciente ahora vive en tu perfil para que la colección se mantenga más limpia y enfocada.
         <a href="{{ url_for('main.profile') }}">Ver actividad</a>
@@ -267,14 +315,14 @@
                         </a>
                     <div class="game-badges">
                         {% set plat_active = filters.plataforma and filters.plataforma == juego.plataforma %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None if plat_active else juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" title="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(plataforma=None if plat_active else juego.plataforma, page=None)) }}" class="badge plataforma {{ 'is-active' if plat_active }}" aria-label="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" title="{{ 'Quitar filtro de plataforma ' ~ (juego.plataforma or 'PC') if plat_active else 'Filtrar por plataforma ' ~ (juego.plataforma or 'PC') }}" {{ 'aria-current="true"'|safe if plat_active }}>{{ juego.plataforma or 'PC' }}{% if plat_active %} &times;{% endif %}</a>
                         {% set status_active = filters.estado and filters.estado == juego.estado %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None if status_active else juego.estado, page=None)) }}" class="badge estado {{ 'is-active' if status_active }}" aria-label="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" title="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" {{ 'aria-current="true"'|safe if status_active }}>{{ juego.estado or 'N/A' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(estado=None if status_active else juego.estado, page=None)) }}" class="badge estado {{ 'is-active' if status_active }}" aria-label="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" title="{{ 'Quitar filtro de estado ' ~ (juego.estado or 'N/A') if status_active else 'Filtrar por estado ' ~ (juego.estado or 'N/A') }}" {{ 'aria-current="true"'|safe if status_active }}>{{ juego.estado or 'N/A' }}{% if status_active %} &times;{% endif %}</a>
                         {% set cat_active = filters.categoria and filters.categoria == juego.categoria %}
-                        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if cat_active else juego.categoria, page=None)) }}" class="badge categoria {{ 'is-active' if cat_active }}" aria-label="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" title="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" {{ 'aria-current="true"'|safe if cat_active }}>{{ juego.categoria or 'Biblioteca' }}</a>
+                        <a href="{{ url_for('main.dashboard', **query_args_builder(categoria=None if cat_active else juego.categoria, page=None)) }}" class="badge categoria {{ 'is-active' if cat_active }}" aria-label="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" title="{{ 'Quitar filtro de categoría ' ~ (juego.categoria or 'Biblioteca') if cat_active else 'Filtrar por categoría ' ~ (juego.categoria or 'Biblioteca') }}" {{ 'aria-current="true"'|safe if cat_active }}>{{ juego.categoria or 'Biblioteca' }}{% if cat_active %} &times;{% endif %}</a>
                         {% if juego.es_favorito %}
                             {% set fav_active = filters.favoritos == 'solo' %}
-                            <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None if fav_active else 'solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" title="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" {{ 'aria-current="true"'|safe if fav_active }}>Favorito</a>
+                            <a href="{{ url_for('main.dashboard', **query_args_builder(favoritos=None if fav_active else 'solo', page=None)) }}" class="badge favorito {{ 'is-active' if fav_active }}" aria-label="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" title="{{ 'Quitar filtro de favoritos' if fav_active else 'Ver solo favoritos' }}" {{ 'aria-current="true"'|safe if fav_active }}>Favorito{% if fav_active %} &times;{% endif %}</a>
                         {% endif %}
                         {% if is_next_focus %}
                             <span class="badge badge-next-focus">🎯 Siguiente foco</span>
@@ -295,8 +343,9 @@
                         </div>
                         <div class="game-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
                             <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="btn btn-secondary btn-small" aria-label="Editar {{ juego.titulo }}">Editar</a>
+                            <button type="button" class="btn btn-secondary btn-small btn-copy" data-copy="{{ juego.titulo }} ({{ juego.plataforma or 'PC' }})" aria-label="Copiar nombre de {{ juego.titulo }}" title="Copiar nombre de {{ juego.titulo }}">Copiar</button>
                             <form action="{{ url_for('main.eliminar_juego_ruta', game_id=juego.game_id) }}" method="POST" data-confirm="¿Eliminar {{ juego.titulo }}? Esta acción no se puede deshacer." style="display:inline;">
-                                <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar {{ juego.titulo }}">Eliminar</button>
+                                <button type="submit" class="btn btn-danger btn-small" aria-label="Eliminar {{ juego.titulo }}" data-loading-text="Eliminando...">Eliminar</button>
                             </form>
                         </div>
                     </div>
@@ -326,15 +375,15 @@
 
 {% if pagination.total_pages > 1 %}
 <section class="section" style="text-align:center;">
-    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+    <nav aria-label="Paginación de juegos" style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;">
         {% if pagination.has_prev %}
-            <a href="{{ url_for('main.dashboard', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary">Anterior</a>
+            <a href="{{ url_for('main.dashboard', **query_args_builder(page=pagination.prev_page)) }}" class="btn btn-secondary" aria-label="Ir a la página anterior (Página {{ pagination.prev_page }})">Anterior</a>
         {% endif %}
-        <span style="padding:10px 16px;color:var(--text-secondary);">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+        <span style="padding:10px 16px;color:var(--text-secondary);" aria-current="page">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
         {% if pagination.has_next %}
-            <a href="{{ url_for('main.dashboard', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary">Siguiente</a>
+            <a href="{{ url_for('main.dashboard', **query_args_builder(page=pagination.next_page)) }}" class="btn btn-secondary" aria-label="Ir a la página siguiente (Página {{ pagination.next_page }})">Siguiente</a>
         {% endif %}
-    </div>
+    </nav>
 </section>
 {% endif %}
 
@@ -347,13 +396,103 @@
                 const targetForm = document.getElementById(targetId);
                 const firstInput = targetForm ? targetForm.querySelector('input:not([type="hidden"])') : null;
 
-                if (firstInput) {
-                    // Small delay to allow scroll to complete before focusing
-                    setTimeout(() => {
-                        firstInput.focus();
-                    }, 100);
+                if (targetForm) {
+                    e.preventDefault();
+                    targetForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (firstInput) {
+                        setTimeout(() => {
+                            firstInput.focus();
+                            firstInput.select();
+                        }, 300);
+                    }
+                    window.announceToScreenReader?.('Formulario de agregar nuevo juego enfocado');
                 }
             });
+        }
+
+        const searchInput = document.getElementById('q');
+        const searchClearBtn = document.getElementById('qClearBtn');
+
+        if (searchInput) {
+            let filterTimeout;
+            function filterGameCards() {
+                const rawTerm = searchInput.value.trim();
+                const term = rawTerm.toLowerCase();
+                const cards = document.querySelectorAll('.game-card');
+                if (!cards.length) return;
+
+                let visibleCount = 0;
+                cards.forEach(card => {
+                    const matches = !term || card.textContent.toLowerCase().includes(term);
+                    card.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                });
+
+                let liveEmpty = document.getElementById('liveSearchEmptyState');
+                if (term && visibleCount === 0) {
+                    if (!liveEmpty) {
+                        liveEmpty = document.createElement('div');
+                        liveEmpty.id = 'liveSearchEmptyState';
+                        liveEmpty.className = 'empty-state';
+                        liveEmpty.style.marginTop = '20px';
+                        liveEmpty.innerHTML = `
+                            <span class="feature-icon" aria-hidden="true">🔍</span>
+                            <h3>Sin coincidencias en esta página</h3>
+                            <p id="liveSearchTermText"></p>
+                            <div class="mt-20">
+                                <button type="button" class="btn btn-secondary btn-small" id="liveSearchClearBtn">Limpiar búsqueda</button>
+                            </div>
+                        `;
+                        const gamesGrid = document.querySelector('.games-grid');
+                        if (gamesGrid && gamesGrid.parentNode) {
+                            gamesGrid.parentNode.insertBefore(liveEmpty, gamesGrid.nextSibling);
+                        }
+                        liveEmpty.querySelector('#liveSearchClearBtn')?.addEventListener('click', function() {
+                            searchInput.value = '';
+                            updateClearBtnVisibility();
+                            filterGameCards();
+                            searchInput.focus();
+                            window.announceToScreenReader?.('Búsqueda borrada');
+                        });
+                    }
+                    const termText = liveEmpty.querySelector('#liveSearchTermText');
+                    if (termText) {
+                        termText.textContent = `No encontramos juegos en esta página que coincidan con "${rawTerm}".`;
+                    }
+                    liveEmpty.style.display = 'block';
+                } else if (liveEmpty) {
+                    liveEmpty.style.display = 'none';
+                }
+
+                clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(() => {
+                    const msg = term ? `${visibleCount} ${visibleCount === 1 ? 'juego coincide' : 'juegos coinciden'} con "${rawTerm}"` : 'Mostrando todos los juegos';
+                    window.announceToScreenReader?.(msg);
+                }, 400);
+            }
+
+            function updateClearBtnVisibility() {
+                if (searchClearBtn) {
+                    searchClearBtn.style.display = searchInput.value.trim().length > 0 ? 'block' : 'none';
+                }
+            }
+
+            updateClearBtnVisibility();
+
+            searchInput.addEventListener('input', function () {
+                updateClearBtnVisibility();
+                filterGameCards();
+            });
+
+            if (searchClearBtn) {
+                searchClearBtn.addEventListener('click', function() {
+                    searchInput.value = '';
+                    updateClearBtnVisibility();
+                    filterGameCards();
+                    searchInput.focus();
+                    window.announceToScreenReader?.('Búsqueda borrada');
+                });
+            }
         }
 
         const form = document.getElementById('gameForm');
@@ -373,6 +512,7 @@
                 }
                 previewImage.src = URL.createObjectURL(file);
                 previewContainer.style.display = 'flex';
+                window.announceToScreenReader?.(`Imagen seleccionada: ${file.name}`);
             } else {
                 previewContainer.style.display = 'none';
             }
@@ -383,8 +523,10 @@
                 URL.revokeObjectURL(previewImage.src);
             }
             fileInput.value = '';
+            fileInput.focus();
             previewContainer.style.display = 'none';
             previewImage.src = '';
+            window.announceToScreenReader?.('Imagen seleccionada quitada');
         });
 
         form.addEventListener('submit', async function (event) {
