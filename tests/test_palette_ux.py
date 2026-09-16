@@ -758,6 +758,9 @@ def test_palette_admin_account_live_filter_rendered(monkeypatch, client):
     assert 'aria-label="Borrar filtro de cuentas"' in html
     assert 'title="Borrar filtro de cuentas"' in html
     assert 'function filterAccountCards()' in html
+    assert "emptyBlock.id = 'adminAccountSearchEmptyBlock';" in html
+    assert 'Sin coincidencia de cuentas' in html
+    assert 'id="adminAccountSearchResetBtn"' in html
     assert "window.announceToScreenReader?.('Filtro de cuentas borrado');" in html
 
 
