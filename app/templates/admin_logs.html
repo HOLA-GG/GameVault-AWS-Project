@@ -277,6 +277,7 @@
             function filterAccountCards() {
                 const rawTerm = accountSearchInput.value.trim();
                 const term = rawTerm.toLowerCase();
+                const listContainer = document.querySelector('.log-account-list');
                 const cards = document.querySelectorAll('.log-account-card');
                 let visibleCount = 0;
 
@@ -285,6 +286,35 @@
                     card.style.display = matches ? '' : 'none';
                     if (matches) visibleCount++;
                 });
+
+                let emptyBlock = document.getElementById('adminAccountSearchEmptyBlock');
+                if (term && visibleCount === 0) {
+                    if (!emptyBlock && listContainer) {
+                        emptyBlock = document.createElement('div');
+                        emptyBlock.id = 'adminAccountSearchEmptyBlock';
+                        emptyBlock.style.cssText = 'text-align: center; padding: 24px 12px; color: var(--text-secondary);';
+                        emptyBlock.innerHTML = `
+                            <span class="feature-icon" aria-hidden="true" style="font-size: 1.5rem; margin-bottom: 6px; display: block;">🔍</span>
+                            <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; margin-bottom: 4px;">Sin coincidencia de cuentas</strong>
+                            <p id="adminAccountSearchTermText" style="margin-bottom: 12px; font-size: 0.85rem; color: var(--text-secondary);"></p>
+                            <button type="button" class="btn btn-secondary btn-small" id="adminAccountSearchResetBtn">Limpiar búsqueda</button>
+                        `;
+                        listContainer.appendChild(emptyBlock);
+                        emptyBlock.querySelector('#adminAccountSearchResetBtn')?.addEventListener('click', function() {
+                            accountSearchInput.value = '';
+                            filterAccountCards();
+                            accountSearchInput.focus();
+                            window.announceToScreenReader?.('Filtro de cuentas borrado');
+                        });
+                    }
+                    const termText = emptyBlock?.querySelector('#adminAccountSearchTermText');
+                    if (termText) {
+                        termText.textContent = `No se encontraron cuentas que coincidan con "${rawTerm}".`;
+                    }
+                    if (emptyBlock) emptyBlock.style.display = '';
+                } else if (emptyBlock) {
+                    emptyBlock.style.display = 'none';
+                }
 
                 if (accountSearchClearBtn) {
                     accountSearchClearBtn.style.display = term ? 'block' : 'none';
