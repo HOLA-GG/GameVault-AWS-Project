@@ -1622,6 +1622,15 @@ def registro():
     password_hash = generate_password_hash(password)
     resultado = crear_usuario(nombre, '', email, prefijo_pais, telefono, password_hash)
     if not resultado:
+        crear_log_audit(
+            user_id=None,
+            action='REGISTER',
+            resource='users',
+            details={'email': email, 'reason': 'account_creation_failed'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('No se pudo crear tu cuenta. Intenta de nuevo.', 'error')
         return redirect(url_for('main.registro'))
 
