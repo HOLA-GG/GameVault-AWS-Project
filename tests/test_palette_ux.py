@@ -449,7 +449,7 @@ def test_search_input_clear_button_rendered(client):
 
     assert 'id="qClearBtn"' in html
     assert 'aria-label="Borrar búsqueda"' in html
-    assert 'title="Borrar búsqueda"' in html
+    assert 'title="Borrar búsqueda (Esc)"' in html
     assert "const searchClearBtn = document.getElementById('qClearBtn');" in html
     assert "window.announceToScreenReader?.('Búsqueda borrada');" in html
 
@@ -642,7 +642,7 @@ def test_admin_logs_user_id_clear_button_rendered(client):
 
     assert 'id="userIdClearBtn"' in html
     assert 'aria-label="Borrar búsqueda de usuario"' in html
-    assert 'title="Borrar búsqueda de usuario"' in html
+    assert 'title="Borrar búsqueda de usuario (Esc)"' in html
     assert "const userIdInput = document.getElementById('user_id');" in html
     assert "const userIdClearBtn = document.getElementById('userIdClearBtn');" in html
     assert "window.announceToScreenReader?.('Búsqueda de usuario borrada');" in html
@@ -683,7 +683,7 @@ def test_palette_admin_user_live_filter_rendered(client):
     assert 'placeholder="Filtrar por nombre o email..."' in html
     assert 'id="adminUserSearchClearBtn"' in html
     assert 'aria-label="Borrar filtro de usuarios"' in html
-    assert 'title="Borrar filtro de usuarios"' in html
+    assert 'title="Borrar filtro de usuarios (Esc)"' in html
     assert 'function filterUsers()' in html
     assert "emptyRow.id = 'adminUserSearchEmptyRow';" in html
     assert 'Sin coincidencia de usuarios' in html
@@ -702,7 +702,7 @@ def test_palette_admin_collection_live_filter_rendered(client):
     assert 'placeholder="Filtrar por propietario o plataforma..."' in html
     assert 'id="adminCollectionSearchClearBtn"' in html
     assert 'aria-label="Borrar filtro de colecciones"' in html
-    assert 'title="Borrar filtro de colecciones"' in html
+    assert 'title="Borrar filtro de colecciones (Esc)"' in html
     assert 'function filterCollections()' in html
     assert "emptyRow.id = 'adminCollectionSearchEmptyRow';" in html
     assert 'Sin coincidencia de colecciones' in html
@@ -756,7 +756,7 @@ def test_palette_admin_account_live_filter_rendered(monkeypatch, client):
     assert 'placeholder="Filtrar cuentas por nombre o email..."' in html
     assert 'id="adminAccountSearchClearBtn"' in html
     assert 'aria-label="Borrar filtro de cuentas"' in html
-    assert 'title="Borrar filtro de cuentas"' in html
+    assert 'title="Borrar filtro de cuentas (Esc)"' in html
     assert 'function filterAccountCards()' in html
     assert "emptyBlock.id = 'adminAccountSearchEmptyBlock';" in html
     assert 'Sin coincidencia de cuentas' in html
