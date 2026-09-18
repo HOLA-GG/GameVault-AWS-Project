@@ -811,3 +811,26 @@ def test_forgot_password_email_clear_button_rendered(client):
     assert 'aria-label="Borrar correo electrónico"' in html_manual
     assert 'title="Borrar correo electrónico"' in html_manual
     assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html_manual
+
+
+def test_login_and_register_email_clear_buttons_rendered(client):
+    """Verify that login.html and registro.html render accessible email clear buttons and script logic."""
+    # 1. Login page
+    response_login = client.get('/login')
+    assert response_login.status_code == 200
+    html_login = response_login.get_data(as_text=True)
+
+    assert 'id="loginEmailClearBtn"' in html_login
+    assert 'aria-label="Borrar correo electrónico"' in html_login
+    assert 'title="Borrar correo electrónico"' in html_login
+    assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html_login
+
+    # 2. Register page
+    response_reg = client.get('/registro')
+    assert response_reg.status_code == 200
+    html_reg = response_reg.get_data(as_text=True)
+
+    assert 'id="registerEmailClearBtn"' in html_reg
+    assert 'aria-label="Borrar correo electrónico"' in html_reg
+    assert 'title="Borrar correo electrónico"' in html_reg
+    assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html_reg
