@@ -380,7 +380,8 @@
                     el.setAttribute('aria-describedby', `${existingDescribedBy} ${counterId}`.trim());
                 }
 
-                el.parentNode.insertBefore(counter, el.nextSibling);
+                const target = el.parentNode && (el.parentNode.style.display?.includes('flex') || el.parentNode.classList.contains('pw-field-wrapper')) ? el.parentNode : el;
+                target.parentNode.insertBefore(counter, target.nextSibling);
                 updateCounter();
                 el.addEventListener('input', updateCounter);
             });
