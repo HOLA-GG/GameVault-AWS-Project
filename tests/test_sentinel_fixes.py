@@ -287,3 +287,60 @@ def test_rate_showcase_public_invalid_id(client, app):
         )
         assert log is not None
         assert log.details.get('reason') == 'invalid_public_subject_id'
+
+
+def test_rate_showcase_not_found_auditing(client, app):
+    """Verifica la auditoría en intentos de valoración sobre colecciones inexistentes o inelegibles."""
+    from app.models import get_session_factory, AuditLog, select
+
+    # 1. Intentar valorar un subject_id de tipo sample inexistente
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 'sample',
+            'subject_id': 'non-existent-sample-id',
+            'rating': 5
+        }
+    )
+    assert response.status_code == 404
+    assert 'Colección de ejemplo no encontrada.' in response.get_json().get('error', '')
+
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        log_sample = session.scalar(
+            select(AuditLog)
+            .where(
+                AuditLog.action == 'RATE_SHOWCASE',
+                AuditLog.status == 'FAILED',
+                AuditLog.details['reason'].as_string() == 'sample_collection_not_found'
+            )
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log_sample is not None
+        assert log_sample.details.get('reason') == 'sample_collection_not_found'
+
+    # 2. Intentar valorar un subject_id público bien formado pero inexistente en DB
+    fake_uuid = str(uuid.uuid4())
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 'public',
+            'subject_id': fake_uuid,
+            'rating': 5
+        }
+    )
+    assert response.status_code == 404
+    assert 'Colección pública no disponible para portada.' in response.get_json().get('error', '')
+
+    with session_factory() as session:
+        log_public = session.scalar(
+            select(AuditLog)
+            .where(
+                AuditLog.action == 'RATE_SHOWCASE',
+                AuditLog.status == 'FAILED',
+                AuditLog.details['reason'].as_string() == 'public_collection_not_found_or_not_eligible'
+            )
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log_public is not None
+        assert log_public.details.get('reason') == 'public_collection_not_found_or_not_eligible'
