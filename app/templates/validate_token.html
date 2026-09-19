@@ -10,10 +10,37 @@
     <form action="{{ url_for('main.verify_token') }}" method="POST" id="validateTokenForm">
         <div class="form-group">
             <label for="token">Token</label>
-            <input type="text" id="token" name="token" placeholder="Pega el token aquí" required autocomplete="off" autofocus class="select-on-focus">
+            <div style="position: relative; display: flex; align-items: center;">
+                <input type="text" id="token" name="token" placeholder="Pega el token aquí" required autocomplete="off" autofocus class="select-on-focus" style="padding-right: 36px;">
+                <button type="button" id="tokenClearBtn" class="search-clear-btn" aria-label="Borrar token" title="Borrar token" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+            </div>
         </div>
         <button type="submit" class="btn-submit" id="validateTokenSubmitButton" style="width:100%;" data-loading-text="Validando token...">Validar token</button>
     </form>
 </section>
 
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        const tokenInput = document.getElementById('token');
+        const tokenClearBtn = document.getElementById('tokenClearBtn');
+
+        if (tokenInput && tokenClearBtn) {
+            function updateClearBtnVisibility() {
+                tokenClearBtn.style.display = tokenInput.value.trim().length > 0 ? 'block' : 'none';
+            }
+
+            updateClearBtnVisibility();
+
+            tokenInput.addEventListener('input', updateClearBtnVisibility);
+
+            tokenClearBtn.addEventListener('click', function() {
+                tokenInput.value = '';
+                updateClearBtnVisibility();
+                tokenInput.dispatchEvent(new Event('input'));
+                tokenInput.focus();
+                window.announceToScreenReader?.('Token borrado');
+            });
+        }
+    });
+</script>
 {% endblock %}

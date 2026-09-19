@@ -834,3 +834,15 @@ def test_login_and_register_email_clear_buttons_rendered(client):
     assert 'aria-label="Borrar correo electrónico"' in html_reg
     assert 'title="Borrar correo electrónico"' in html_reg
     assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html_reg
+
+
+def test_validate_token_clear_button_rendered(client):
+    """Verify that validate_token.html renders accessible token clear button and script logic."""
+    response = client.get('/validate-token')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="tokenClearBtn"' in html
+    assert 'aria-label="Borrar token"' in html
+    assert 'title="Borrar token"' in html
+    assert "window.announceToScreenReader?.('Token borrado');" in html
