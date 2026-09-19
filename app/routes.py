@@ -2380,6 +2380,15 @@ def admin_collections():
 def admin_eliminar_usuario(user_id):
     """Elimina un usuario salvo al propio admin actual y otros administradores."""
     if not is_valid_id(user_id):
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id[:36] if user_id else None, 'operation': 'delete_user', 'error': 'invalid_user_id'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Usuario no encontrado.', 'error')
         return redirect(url_for('main.admin_panel'))
 
@@ -2444,6 +2453,15 @@ def admin_eliminar_usuario(user_id):
 def admin_editar_usuario(user_id):
     """Edita el nombre principal de un usuario."""
     if not is_valid_id(user_id):
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id[:36] if user_id else None, 'operation': 'rename_user', 'error': 'invalid_user_id'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Usuario no encontrado.', 'error')
         return redirect(url_for('main.admin_panel'))
 
@@ -2464,10 +2482,28 @@ def admin_editar_usuario(user_id):
 
     nuevo_nombre = request.form.get('nombre', '').strip()
     if not nuevo_nombre:
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'empty_name'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('El nombre no puede estar vacío.', 'error')
         return redirect(url_for('main.admin_panel'))
 
     if len(nuevo_nombre) > 120:
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'name_too_long'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('El nombre es demasiado largo (máximo 120 caracteres).', 'error')
         return redirect(url_for('main.admin_panel'))
 
