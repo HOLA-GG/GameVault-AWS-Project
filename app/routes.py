@@ -1894,6 +1894,15 @@ def profile():
         resultado = actualizar_password_usuario(session['user_id'], generate_password_hash(password))
         if not resultado['success']:
             flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='CHANGE_PASSWORD',
+                resource='users',
+                details={'email': session.get('email'), 'reason': 'db_update_failed'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
             return redirect(url_for('main.profile'))
 
         crear_log_audit(
@@ -1931,6 +1940,15 @@ def profile():
     if errores:
         for error in errores:
             flash(error, 'error')
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='UPDATE_PROFILE',
+            resource='users',
+            details={'email': session.get('email'), 'errors': errores},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.profile'))
 
     resultado = actualizar_usuario_perfil(
@@ -1946,6 +1964,15 @@ def profile():
     )
     if not resultado['success']:
         flash(f'No se pudo actualizar el perfil: {resultado["error"]}', 'error')
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='UPDATE_PROFILE',
+            resource='users',
+            details={'email': session.get('email'), 'reason': 'db_update_failed'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         return redirect(url_for('main.profile'))
 
     session['nombre'] = nombre
