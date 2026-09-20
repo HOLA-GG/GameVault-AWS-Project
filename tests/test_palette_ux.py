@@ -846,3 +846,29 @@ def test_validate_token_clear_button_rendered(client):
     assert 'aria-label="Borrar token"' in html
     assert 'title="Borrar token"' in html
     assert "window.announceToScreenReader?.('Token borrado');" in html
+
+
+def test_reset_password_clear_buttons_rendered(client, monkeypatch):
+    """Verify that reset_password.html renders accessible password clear buttons and script logic."""
+    import app.routes
+
+    monkeypatch.setattr(
+        app.routes,
+        'validar_reset_token',
+        lambda token, **kwargs: {'valid': True, 'user_id': 'u1', 'email': 'test@example.com'},
+    )
+    monkeypatch.setattr(
+        app.routes,
+        'obtener_usuario_por_id',
+        lambda uid, **kwargs: {'user_id': 'u1', 'email': 'test@example.com', 'status': 'active'},
+    )
+
+    response = client.get('/reset-password/valid-token-123')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'setupPasswordClearControl' in html
+    assert "'resetPasswordClearBtn'" in html
+    assert "'resetConfirmPasswordClearBtn'" in html
+    assert "'Borrar nueva contraseña'" in html
+    assert "'Borrar confirmación de contraseña'" in html
