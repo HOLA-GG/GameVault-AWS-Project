@@ -292,10 +292,20 @@ def get_engine():
     if _engine is not None:
         return _engine
 
+    db_url = DATABASE_URL
+    try:
+        if current_app and current_app.config.get('DATABASE_URL'):
+            cfg_url = normalize_database_url(current_app.config['DATABASE_URL'])
+            # If app config has a non-sqlite URL or module DATABASE_URL is default sqlite, use cfg_url
+            if not cfg_url.startswith('sqlite') or DATABASE_URL.startswith('sqlite'):
+                db_url = cfg_url
+    except RuntimeError:
+        pass
+
     kwargs: Dict[str, Any] = {'future': True, 'pool_pre_ping': True}
-    if DATABASE_URL.startswith('sqlite'):
+    if db_url.startswith('sqlite'):
         kwargs['connect_args'] = {'check_same_thread': False}
-        if ':memory:' in DATABASE_URL:
+        if ':memory:' in db_url:
             kwargs['poolclass'] = StaticPool
     else:
         # Optimizaciones para Neon Postgres en Render
@@ -306,7 +316,7 @@ def get_engine():
             config_use_nullpool = False
 
         env_use_nullpool = os.environ.get('DB_USE_NULLPOOL', 'false').strip().lower() in {'1', 'true', 'yes', 'on'}
-        use_nullpool = config_use_nullpool or env_use_nullpool or '-pooler' in DATABASE_URL
+        use_nullpool = config_use_nullpool or env_use_nullpool or '-pooler' in db_url
         if use_nullpool:
             from sqlalchemy.pool import NullPool
             kwargs['poolclass'] = NullPool
@@ -316,7 +326,7 @@ def get_engine():
             kwargs['pool_recycle'] = int(os.environ.get('DB_POOL_RECYCLE', 280))
             kwargs['pool_timeout'] = int(os.environ.get('DB_POOL_TIMEOUT', 30))
 
-    _engine = create_engine(DATABASE_URL, **kwargs)
+    _engine = create_engine(db_url, **kwargs)
     return _engine
 
 

@@ -69,23 +69,27 @@ with app.app_context():
         # Check pool parameters
         is_neon = 'neon' in db_url or 'neon.tech' in db_url or app.config.get('DATABASE_BACKEND') == 'neon' or bool(app.config.get('NEON_PROJECT_ID'))
         is_pooler = '-pooler' in db_url
-        use_nullpool = app.config.get('DB_USE_NULLPOOL') or is_pooler
+        is_sqlite = db_url.startswith('sqlite')
+        use_nullpool = (app.config.get('DB_USE_NULLPOOL') or is_pooler) and not is_sqlite
 
         print(f"  - Neon Database Detected: {is_neon}")
         print(f"  - Pooled Host Detected (-pooler): {is_pooler}")
         print(f"  - DB_USE_NULLPOOL Configured: {app.config.get('DB_USE_NULLPOOL')}")
-        print(f"  - Effective NullPool Active: {use_nullpool} (Expected Class: NullPool if True, QueuePool/StaticPool if False)")
+        print(f"  - Effective NullPool Active: {pool_class_name == 'NullPool'} (Class: {pool_class_name})")
 
-        if not use_nullpool:
-            print(f"    -> Connection Pool Settings (QueuePool):")
-            print(f"       * DB_POOL_SIZE: {app.config.get('DB_POOL_SIZE')}")
-            print(f"       * DB_MAX_OVERFLOW: {app.config.get('DB_MAX_OVERFLOW')}")
-            print(f"       * DB_POOL_RECYCLE: {app.config.get('DB_POOL_RECYCLE')}s")
-            print(f"       * DB_POOL_TIMEOUT: {app.config.get('DB_POOL_TIMEOUT')}s")
-            if is_neon:
-                print("    -> [TIP] Since you are using a Neon database on Render, consider setting DB_USE_NULLPOOL=true")
-                print("            or using a pooled connection string (with '-pooler') to delegate connection pooling")
-                print("            to Neon's PgBouncer, preventing connection leaks and limit exhaustion.")
+        if pool_class_name != 'NullPool':
+            print(f"    -> Connection Pool Settings ({pool_class_name}):")
+            if not is_sqlite:
+                print(f"       * DB_POOL_SIZE: {app.config.get('DB_POOL_SIZE')}")
+                print(f"       * DB_MAX_OVERFLOW: {app.config.get('DB_MAX_OVERFLOW')}")
+                print(f"       * DB_POOL_RECYCLE: {app.config.get('DB_POOL_RECYCLE')}s")
+                print(f"       * DB_POOL_TIMEOUT: {app.config.get('DB_POOL_TIMEOUT')}s")
+                if is_neon:
+                    print("    -> [TIP] Since you are using a Neon database on Render, consider setting DB_USE_NULLPOOL=true")
+                    print("            or using a pooled connection string (with '-pooler') to delegate connection pooling")
+                    print("            to Neon's PgBouncer, preventing connection leaks and limit exhaustion.")
+            else:
+                print("    -> [INFO] SQLite detected; SQLite manages its own internal pool (StaticPool / QueuePool).")
         else:
             print("    -> [OK] NullPool active: Connection pooling delegated directly to Neon PgBouncer.")
     except Exception as e:
