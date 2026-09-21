@@ -252,6 +252,61 @@
             updateOptInState(true);
             visibilitySelect.addEventListener('change', () => updateOptInState(false));
         }
+
+        setTimeout(function () {
+            function setupPasswordClearControl(inputId, clearBtnId, clearLabel, clearMessage) {
+                const inputEl = document.getElementById(inputId);
+                if (!inputEl) return;
+
+                const wrapper = inputEl.closest('.pw-field-wrapper') || inputEl.parentNode;
+                if (!wrapper) return;
+
+                inputEl.style.paddingRight = '72px';
+
+                const clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.id = clearBtnId;
+                clearBtn.className = 'search-clear-btn';
+                clearBtn.setAttribute('aria-label', clearLabel);
+                clearBtn.setAttribute('title', clearLabel);
+                clearBtn.style.position = 'absolute';
+                clearBtn.style.right = '40px';
+                clearBtn.style.top = '50%';
+                clearBtn.style.transform = 'translateY(-50%)';
+                clearBtn.style.background = 'none';
+                clearBtn.style.border = 'none';
+                clearBtn.style.color = 'var(--text-secondary)';
+                clearBtn.style.cursor = 'pointer';
+                clearBtn.style.fontSize = '1.2rem';
+                clearBtn.style.lineHeight = '1';
+                clearBtn.style.padding = '2px 6px';
+                clearBtn.style.borderRadius = '50%';
+                clearBtn.style.display = 'none';
+                clearBtn.style.zIndex = '6';
+                clearBtn.innerHTML = '&times;';
+
+                wrapper.appendChild(clearBtn);
+
+                function updateVisibility() {
+                    clearBtn.style.display = inputEl.value.length > 0 ? 'block' : 'none';
+                }
+
+                updateVisibility();
+                inputEl.addEventListener('input', updateVisibility);
+
+                clearBtn.addEventListener('click', function () {
+                    inputEl.value = '';
+                    updateVisibility();
+                    inputEl.dispatchEvent(new Event('input'));
+                    inputEl.focus();
+                    window.announceToScreenReader?.(clearMessage);
+                });
+            }
+
+            setupPasswordClearControl('current_password', 'profileCurrentPasswordClearBtn', 'Borrar contraseña actual', 'Contraseña actual borrada');
+            setupPasswordClearControl('password', 'profilePasswordClearBtn', 'Borrar nueva contraseña', 'Nueva contraseña borrada');
+            setupPasswordClearControl('confirm_password', 'profileConfirmPasswordClearBtn', 'Borrar confirmación de contraseña', 'Confirmación de contraseña borrada');
+        }, 0);
     });
 </script>
 {% endblock %}
