@@ -140,3 +140,7 @@
 ## 2026-09-25 - Interactive Email Clear Controls Across Core Forms
 **Learning:** Email input fields on login and registration pages often require full backspacing or manual text highlighting when fixing typos. Providing an interactive clear button (`×`) inside email input wrappers that dynamically toggles visibility based on value length, restores focus, dispatches `input` events, and emits real-time ARIA live region announcements (`announceToScreenReader`) provides seamless interaction consistency across all authentication views.
 **Action:** Standardize clear button triggers inside input wrappers for critical email fields across login, registration, and password recovery forms, ensuring focus restoration and live screen reader feedback upon clearing.
+
+## 2026-09-28 - Interactive Password Clear Controls Beside Password Toggles
+**Learning:** Adding interactive clear buttons (`×`) inside password field wrappers that already contain visibility eye toggles (`.pw-toggle`) requires explicit input right-padding (`padding-right: 72px`) and vertical alignment (`top: 50%; transform: translateY(-50%)`) to prevent overlapping visual controls or obscuring text. Furthermore, dispatching native `input` events upon clearing ensures attached strength meters and password matching validation indicators update in real time.
+**Action:** When adding clear controls to password fields in field wrappers, set proper right padding (`72px`), position clear buttons at `right: 40px`, and dispatch an `input` event on clear to maintain live validation parity.

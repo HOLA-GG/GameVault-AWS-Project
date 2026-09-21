@@ -872,3 +872,20 @@ def test_reset_password_clear_buttons_rendered(client, monkeypatch):
     assert "'resetConfirmPasswordClearBtn'" in html
     assert "'Borrar nueva contraseña'" in html
     assert "'Borrar confirmación de contraseña'" in html
+
+
+def test_profile_password_clear_buttons_rendered(client):
+    """Verify that profile.html renders accessible password clear controls and script logic."""
+    login_session(client)
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'setupPasswordClearControl' in html
+    assert "'profileCurrentPasswordClearBtn'" in html
+    assert "'profilePasswordClearBtn'" in html
+    assert "'profileConfirmPasswordClearBtn'" in html
+    assert "'Borrar contraseña actual'" in html
+    assert "'Borrar nueva contraseña'" in html
+    assert "'Borrar confirmación de contraseña'" in html
+    assert "'Contraseña actual borrada'" in html
