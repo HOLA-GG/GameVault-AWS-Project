@@ -1122,6 +1122,9 @@ def validar_email(email):
     """Valida el formato y longitud del email (max 255)."""
     if not email or not isinstance(email, str) or len(email) > 255:
         return False
+    # Reject consecutive dots ('..') to prevent email parsing bypasses and invalid domain/local-part structures (Security hardening)
+    if '..' in email:
+        return False
     # Bolt Optimization: Use pre-compiled regex.
     return _EMAIL_RE.match(email) is not None
 
