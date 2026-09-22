@@ -7,3 +7,8 @@
 **Vulnerability:** In `crear_presigned_upload`, relying on module-level `STORAGE_BACKEND` instead of dynamic `current_app.config` caused config mismatches, while unsanitized filename parameters in presigned POST key generation posed object path manipulation risks.
 **Learning:** Storage helper functions must dynamically resolve application configuration via `current_app.config.get('STORAGE_BACKEND', STORAGE_BACKEND)` inside `try...except RuntimeError` and sanitize user-provided filename strings with `secure_filename` before interpolating them into storage object keys.
 **Prevention:** Always sanitize object key components and read storage configuration dynamically from Flask application context.
+
+## 2026-09-22 - Audit Trail Hardening on Early-Return Token Validation Paths
+**Vulnerability:** In `/verify-token` and `/reset-password/<token>`, early length-checking and empty-token guard clauses returned responses without recording `TOKEN_VALIDATION_FAILED` audit log entries.
+**Learning:** Early validation returns prior to model function execution can create auditing blind spots where malformed or oversized authentication attempt inputs bypass audit trail recording.
+**Prevention:** Always record `crear_log_audit` with `status='FAILED'` before returning on early validation failure branches in security-sensitive route handlers.

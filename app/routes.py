@@ -2163,11 +2163,29 @@ def verify_token():
 
     token = request.form.get('token', '').strip()
     if not token:
+        crear_log_audit(
+            user_id=None,
+            action='TOKEN_VALIDATION_FAILED',
+            resource='auth',
+            details={'reason': 'empty_token', 'context': 'verify_token'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('El token es requerido.', 'error')
         return redirect(url_for('main.validate_token_page'))
 
     # Limit token length to prevent potential payload/hashing DoS
     if len(token) > 128:
+        crear_log_audit(
+            user_id=None,
+            action='TOKEN_VALIDATION_FAILED',
+            resource='auth',
+            details={'reason': 'token_too_long', 'context': 'verify_token'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('El token no es válido.', 'error')
         return redirect(url_for('main.validate_token_page'))
 
@@ -2213,6 +2231,15 @@ def reset_password_with_email(token):
 
     # Limit token length to prevent potential payload/hashing DoS
     if len(token) > 128:
+        crear_log_audit(
+            user_id=None,
+            action='TOKEN_VALIDATION_FAILED',
+            resource='auth',
+            details={'reason': 'token_too_long', 'context': 'reset_password'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('El token no es válido.', 'error')
         return redirect(url_for('main.forgot_password'))
 

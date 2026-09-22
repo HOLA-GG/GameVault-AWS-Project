@@ -133,3 +133,54 @@ def test_verify_token_inactive_or_missing_user(client, app):
         assert log is not None
         assert log.details.get('reason') == 'user_not_found_or_inactive'
         assert log.details.get('context') == 'verify_token'
+
+
+def test_verify_token_empty_and_oversized_audit_logs(client, app):
+    """Verifica que verify_token y reset_password_with_email registren logs de auditoría ante tokens vacíos o sobrepasados."""
+    from sqlalchemy import select
+    from app.models import get_session_factory, AuditLog
+
+    session_factory = get_session_factory()
+
+    # 1. Post empty token to /verify-token
+    response = client.post('/verify-token', data={'token': ''}, follow_redirects=True)
+    assert response.status_code == 200
+
+    with session_factory() as session:
+        log_empty = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == 'TOKEN_VALIDATION_FAILED', AuditLog.status == 'FAILED')
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log_empty is not None
+        assert log_empty.details.get('reason') == 'empty_token'
+        assert log_empty.details.get('context') == 'verify_token'
+
+    # 2. Post oversized token (150 chars) to /verify-token
+    oversized_token = "a" * 150
+    response_over = client.post('/verify-token', data={'token': oversized_token}, follow_redirects=True)
+    assert response_over.status_code == 200
+
+    with session_factory() as session:
+        log_over = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == 'TOKEN_VALIDATION_FAILED', AuditLog.status == 'FAILED')
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log_over is not None
+        assert log_over.details.get('reason') == 'token_too_long'
+        assert log_over.details.get('context') == 'verify_token'
+
+    # 3. GET oversized token route /reset-password/<token>
+    response_reset = client.get(f'/reset-password/{oversized_token}', follow_redirects=True)
+    assert response_reset.status_code == 200
+
+    with session_factory() as session:
+        log_reset_over = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == 'TOKEN_VALIDATION_FAILED', AuditLog.status == 'FAILED')
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log_reset_over is not None
+        assert log_reset_over.details.get('reason') == 'token_too_long'
+        assert log_reset_over.details.get('context') == 'reset_password'
