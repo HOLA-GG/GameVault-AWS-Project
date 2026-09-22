@@ -889,3 +889,15 @@ def test_profile_password_clear_buttons_rendered(client):
     assert "'Borrar nueva contraseña'" in html
     assert "'Borrar confirmación de contraseña'" in html
     assert "'Contraseña actual borrada'" in html
+
+
+def test_accessibility_panel_focus_trap_rendered(client):
+    """Verify that base.html renders the accessible focus trap script logic for the accessibility panel drawer."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'function setupAccessibilityPanelFocusTrap()' in html
+    assert 'setupAccessibilityPanelFocusTrap();' in html
+    assert "panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])')" in html
+    assert 'event.key !== \'Tab\' || panel.hidden' in html

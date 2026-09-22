@@ -144,3 +144,7 @@
 ## 2026-09-28 - Interactive Password Clear Controls Beside Password Toggles
 **Learning:** Adding interactive clear buttons (`×`) inside password field wrappers that already contain visibility eye toggles (`.pw-toggle`) requires explicit input right-padding (`padding-right: 72px`) and vertical alignment (`top: 50%; transform: translateY(-50%)`) to prevent overlapping visual controls or obscuring text. Furthermore, dispatching native `input` events upon clearing ensures attached strength meters and password matching validation indicators update in real time.
 **Action:** When adding clear controls to password fields in field wrappers, set proper right padding (`72px`), position clear buttons at `right: 40px`, and dispatch an `input` event on clear to maintain live validation parity.
+
+## 2026-10-01 - Dynamic Focus Trapping in Slide-Over Settings Drawers
+**Learning:** Slide-over settings panels or modal drawers allow users to navigate away using keyboard `Tab` cycles unless keyboard focus is explicitly trapped within the active drawer. Dynamically querying focusable controls (`panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')`) and filtering for visible, non-disabled elements ensures forward (`Tab`) and backward (`Shift + Tab`) focus wraps seamlessly without hardcoding element IDs.
+**Action:** When creating modal drawers or flyout panels, implement a dynamic keydown focus trap on the drawer container to ensure keyboard focus remains contained until explicitly closed.
