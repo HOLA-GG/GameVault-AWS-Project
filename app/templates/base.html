@@ -286,6 +286,36 @@
             }
         }
 
+        function setupAccessibilityPanelFocusTrap() {
+            const panel = document.getElementById('accessibilityPanel');
+            if (!panel) return;
+
+            panel.addEventListener('keydown', function(event) {
+                if (event.key !== 'Tab' || panel.hidden) return;
+
+                const focusables = Array.from(
+                    panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+                ).filter(el => !el.disabled && el.offsetWidth > 0 && el.offsetHeight > 0);
+
+                if (!focusables.length) return;
+
+                const firstFocusable = focusables[0];
+                const lastFocusable = focusables[focusables.length - 1];
+
+                if (event.shiftKey) {
+                    if (document.activeElement === firstFocusable) {
+                        event.preventDefault();
+                        lastFocusable.focus();
+                    }
+                } else {
+                    if (document.activeElement === lastFocusable) {
+                        event.preventDefault();
+                        firstFocusable.focus();
+                    }
+                }
+            });
+        }
+
         function injectCsrfTokens() {
             document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(form => {
                 if (form.querySelector('input[name="csrf_token"]')) return;
@@ -965,6 +995,7 @@
             setupDragAndDropFeedback();
             setupScrollToTop();
             setupDateRangeBounds();
+            setupAccessibilityPanelFocusTrap();
 
         // Botón Volver arriba (Scroll to Top)
         function setupScrollToTop() {
