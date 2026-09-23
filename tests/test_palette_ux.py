@@ -901,3 +901,27 @@ def test_accessibility_panel_focus_trap_rendered(client):
     assert 'setupAccessibilityPanelFocusTrap();' in html
     assert "panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])')" in html
     assert 'event.key !== \'Tab\' || panel.hidden' in html
+
+
+def test_palette_admin_forms_enhanced_ux(client):
+    """Verify that administrative forms in admin_logs.html and admin.html render enhanced accessibility, helper text, and loading state attributes."""
+    login_session(client, role='admin')
+
+    # 1. Admin logs page retention form and export button
+    response_logs = client.get('/admin/logs')
+    assert response_logs.status_code == 200
+    html_logs = response_logs.get_data(as_text=True)
+
+    assert 'aria-describedby="clear-logs-help"' in html_logs
+    assert 'id="clear-logs-help"' in html_logs
+    assert 'data-loading-text="Liberando..."' in html_logs
+    assert 'data-confirm="¿Eliminar logs antiguos? Esta acción no se puede deshacer."' in html_logs
+    assert 'title="Exportar registros auditados a un archivo CSV"' in html_logs
+    assert 'aria-label="Exportar registros auditados a un archivo CSV"' in html_logs
+
+    # 2. Admin panel user edit form
+    response_admin = client.get('/admin')
+    assert response_admin.status_code == 200
+    html_admin = response_admin.get_data(as_text=True)
+
+    assert 'data-loading-text="Guardando..."' in html_admin
