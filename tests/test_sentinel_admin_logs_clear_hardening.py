@@ -92,3 +92,48 @@ def test_admin_logs_clear_boundary_inputs(client, app):
             assert log is not None
             assert log.details.get('operation') == 'clear_logs'
             assert log.details.get('days') == expected_dias
+
+
+def test_admin_logs_clear_error_handling(client, app, monkeypatch):
+    """Verifica que si la limpieza de logs falla, se registre auditoría FAILED y se redireccione adecuadamente."""
+    from app.models import get_session_factory, User, AuditLog, crear_usuario
+    import app.routes
+    from werkzeug.security import generate_password_hash
+
+    admin_pw = generate_password_hash("SecureAdmin1!")
+    admin_user = crear_usuario(
+        nombre="Admin Clear Error",
+        apellido="",
+        email="admin_clear_err@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=admin_pw
+    )
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        db_admin = session.get(User, admin_user['user_id'])
+        db_admin.role = 'admin'
+        session.commit()
+
+    with client.session_transaction() as sess:
+        sess['user_id'] = admin_user['user_id']
+        sess['email'] = admin_user['email']
+        sess['nombre'] = admin_user['nombre']
+        sess['role'] = 'admin'
+        sess['_pw_hash'] = hashlib.sha256(admin_pw.encode('utf-8')).hexdigest()
+
+    # Mock limpiar_logs_antiguos to simulate database failure
+    monkeypatch.setattr(app.routes, 'limpiar_logs_antiguos', lambda days: {'deleted': 0, 'error': 'database_locked'})
+
+    response = client.post('/admin/logs/clear', data={'dias': '30'})
+    assert response.status_code == 302
+
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.user_id == admin_user['user_id'], AuditLog.action == 'ADMIN_ACTION', AuditLog.status == 'FAILED')
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log is not None
+        assert log.details.get('operation') == 'clear_logs'
+        assert log.details.get('error') == 'database_locked'
