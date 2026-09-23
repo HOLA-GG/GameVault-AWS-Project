@@ -2077,13 +2077,16 @@ def limpiar_logs_antiguos(days: int = None) -> Dict[str, Any]:
     except OverflowError:
         cutoff_date = utcnow() - timedelta(days=AUDIT_LOG_RETENTION_DAYS)
     session_factory = get_session_factory()
-    with session_factory() as session:
-        stmt = delete(AuditLog).where(AuditLog.timestamp < cutoff_date)
-        result = session.execute(stmt)
-        deleted = result.rowcount
-        session.commit()
-        clear_log_stats_cache()
-        return {'deleted': deleted, 'error': None}
+    try:
+        with session_factory() as session:
+            stmt = delete(AuditLog).where(AuditLog.timestamp < cutoff_date)
+            result = session.execute(stmt)
+            deleted = result.rowcount
+            session.commit()
+            clear_log_stats_cache()
+            return {'deleted': deleted, 'error': None}
+    except Exception as exc:
+        return {'deleted': 0, 'error': str(exc)}
 
 
 # Bolt Optimization: Constant tuple for standard non-detail audit log field names in CSV export.

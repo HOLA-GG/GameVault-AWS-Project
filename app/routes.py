@@ -2714,6 +2714,19 @@ def admin_logs_clear():
     except (ValueError, TypeError, OverflowError):
         dias = 7
     resultado = limpiar_logs_antiguos(dias)
+    if resultado.get('error'):
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='audit_logs',
+            details={'operation': 'clear_logs', 'days': dias, 'error': str(resultado['error'])[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudieron eliminar los logs antiguos.', 'error')
+        return redirect(url_for('main.admin_logs'))
+
     crear_log_audit(
         user_id=session['user_id'],
         action='ADMIN_ACTION',
