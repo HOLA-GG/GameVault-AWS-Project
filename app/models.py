@@ -114,8 +114,9 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-# Bolt Optimization: Constant for safe date comparisons.
+# Bolt Optimization: Constants for safe date comparisons and pre-formatted ISO strings.
 MIN_DATE = datetime(1, 1, 1, tzinfo=timezone.utc)
+_MIN_DATE_ISO = MIN_DATE.isoformat()
 
 
 def iso_now() -> str:
@@ -551,7 +552,8 @@ def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
                 pass
         elif l == 6:
             try:
-                cre_iso = _MIN_DATE.isoformat() if format_dates else _MIN_DATE
+                # Bolt Optimization: Use pre-calculated _MIN_DATE_ISO constant instead of dynamic isoformat() calls.
+                cre_iso = _MIN_DATE_ISO if format_dates else _MIN_DATE
                 return {
                     'user_id': m['user_id'],
                     'email': m['email'] or '',
@@ -571,7 +573,8 @@ def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
                 pass
         elif l == 3:
             try:
-                cre_iso = _MIN_DATE.isoformat() if format_dates else _MIN_DATE
+                # Bolt Optimization: Use pre-calculated _MIN_DATE_ISO constant instead of dynamic isoformat() calls.
+                cre_iso = _MIN_DATE_ISO if format_dates else _MIN_DATE
                 return {
                     'user_id': m['user_id'],
                     'email': m['email'] or '',
