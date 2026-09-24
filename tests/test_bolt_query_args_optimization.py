@@ -27,6 +27,11 @@ def test_build_query_args_with_request_context():
         assert hasattr(g, '_query_args_base')
         assert g._query_args_base == {'q': 'chrono', 'plataforma': 'PC'}
 
+        # Empty updates call should short-circuit and return a shallow copy of base_args
+        res_empty = build_query_args()
+        assert res_empty == {'q': 'chrono', 'plataforma': 'PC'}
+        assert res_empty is not g._query_args_base
+
         # Second call should reuse the cache and avoid re-converting request.args
         res2 = build_query_args(categoria='Backlog')
         assert res2 == {'q': 'chrono', 'plataforma': 'PC', 'categoria': 'Backlog'}
