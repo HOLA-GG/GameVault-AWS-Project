@@ -117,6 +117,7 @@ def utcnow() -> datetime:
 # Bolt Optimization: Constants for safe date comparisons and pre-formatted ISO strings.
 MIN_DATE = datetime(1, 1, 1, tzinfo=timezone.utc)
 _MIN_DATE_ISO = MIN_DATE.isoformat()
+_ONE_DAY = timedelta(days=1)
 
 
 def iso_now() -> str:
@@ -1063,7 +1064,8 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
 
 
 def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
-    """Convierte filtros de fecha simple a datetime UTC."""
+    """Convierte filtros de fecha simple a datetime UTC.
+    Optimización Bolt: Utiliza constante de módulo _ONE_DAY para evitar asignaciones en hot paths."""
     if not value or not isinstance(value, str) or len(value) > 50:
         return None
     try:
@@ -1071,7 +1073,7 @@ def parse_date_filter(value: str, *, end: bool = False) -> Optional[datetime]:
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
         if end:
-            parsed = parsed + timedelta(days=1)
+            parsed = parsed + _ONE_DAY
         return parsed
     except (ValueError, OverflowError):
         return None
