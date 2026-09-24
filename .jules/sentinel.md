@@ -12,3 +12,8 @@
 **Vulnerability:** In `/verify-token` and `/reset-password/<token>`, early length-checking and empty-token guard clauses returned responses without recording `TOKEN_VALIDATION_FAILED` audit log entries.
 **Learning:** Early validation returns prior to model function execution can create auditing blind spots where malformed or oversized authentication attempt inputs bypass audit trail recording.
 **Prevention:** Always record `crear_log_audit` with `status='FAILED'` before returning on early validation failure branches in security-sensitive route handlers.
+
+## 2026-09-28 - Bounded Stream Reading for In-Memory Image Processing
+**Vulnerability:** In `procesar_imagen_base64`, calling `archivo.read()` without size bounds on unauthenticated uploads could cause memory exhaustion DoS when processing large files on the public demo endpoint.
+**Learning:** File stream reads in memory processing functions must pass explicit byte limits (`archivo.read(max_bytes + 1)`) matching application configuration (`MAX_IMAGE_UPLOAD_BYTES`), rejecting streams that exceed the limit before base64 encoding or buffering.
+**Prevention:** Always bound file stream reads with `read(max_bytes + 1)` when processing uploaded file objects in memory.
