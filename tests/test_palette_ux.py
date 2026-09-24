@@ -791,7 +791,7 @@ def test_palette_edit_game_upload_announcement(client):
 
 
 def test_forgot_password_email_clear_button_rendered(client):
-    """Verify that forgot_password.html and forgot_password_manual.html render accessible email clear buttons and script logic."""
+    """Verify that forgot_password.html and forgot_password_manual.html render accessible email and phone clear buttons and script logic."""
     # 1. Standard forgot password page
     response = client.get('/forgot-password')
     assert response.status_code == 200
@@ -810,7 +810,10 @@ def test_forgot_password_email_clear_button_rendered(client):
     assert 'id="manualEmailClearBtn"' in html_manual
     assert 'aria-label="Borrar correo electrónico"' in html_manual
     assert 'title="Borrar correo electrónico"' in html_manual
-    assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html_manual
+    assert 'id="manualPhoneClearBtn"' in html_manual
+    assert 'aria-label="Borrar teléfono"' in html_manual
+    assert 'title="Borrar teléfono"' in html_manual
+    assert "setupClearControl('manual_telefono', 'manualPhoneClearBtn', 'Teléfono borrado');" in html_manual
 
 
 def test_login_and_register_email_clear_buttons_rendered(client):
