@@ -444,17 +444,32 @@ def get_request_ip() -> str:
 
 
 def procesar_imagen_base64(archivo):
-    """Procesa una imagen en memoria para la demo pública."""
+    """Procesa una imagen en memoria para la demo pública con límite estricto de tamaño (Security Hardening)."""
     try:
         if archivo is None or archivo.filename == '':
             return None
 
-        imagen_bytes = archivo.read()
+        try:
+            max_bytes = current_app.config.get('MAX_IMAGE_UPLOAD_BYTES', 5 * 1024 * 1024)
+        except RuntimeError:
+            max_bytes = 5 * 1024 * 1024
+
+        imagen_bytes = archivo.read(max_bytes + 1)
+        if len(imagen_bytes) > max_bytes:
+            try:
+                current_app.logger.warning('demo_image_size_exceeded size=%d max=%d', len(imagen_bytes), max_bytes)
+            except RuntimeError:
+                pass
+            return None
+
         content_type = archivo.content_type or 'image/jpeg'
         imagen_base64 = base64.b64encode(imagen_bytes).decode('utf-8')
         return f'data:{content_type};base64,{imagen_base64}'
     except Exception as exc:
-        current_app.logger.error('demo_image_processing_failed error=%s', exc)
+        try:
+            current_app.logger.error('demo_image_processing_failed error=%s', exc)
+        except RuntimeError:
+            pass
         return None
 
 
