@@ -17,3 +17,8 @@
 **Vulnerability:** In `procesar_imagen_base64`, calling `archivo.read()` without size bounds on unauthenticated uploads could cause memory exhaustion DoS when processing large files on the public demo endpoint.
 **Learning:** File stream reads in memory processing functions must pass explicit byte limits (`archivo.read(max_bytes + 1)`) matching application configuration (`MAX_IMAGE_UPLOAD_BYTES`), rejecting streams that exceed the limit before base64 encoding or buffering.
 **Prevention:** Always bound file stream reads with `read(max_bytes + 1)` when processing uploaded file objects in memory.
+
+## 2026-10-05 - Audit Trail Coverage on ID Format Validation Failure Branches
+**Vulnerability:** In `eliminar_juego_ruta` and `editar_juego_ruta`, early-return guard clauses checking `is_valid_id(game_id)` returned early without recording `crear_log_audit` entries when malformed or oversized `game_id` values were supplied.
+**Learning:** Early validation returns on route handlers prior to database model lookups can create auditing blind spots where invalid or malformed resource manipulation attempts evade audit trail tracking.
+**Prevention:** Always invoke `crear_log_audit` with `status='FAILED'` and an explicit reason before returning early on ID format validation failures.

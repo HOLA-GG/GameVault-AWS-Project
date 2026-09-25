@@ -187,3 +187,92 @@ def test_game_deletion_failure_audit_logged(client, app):
         assert log is not None
         assert log.details.get('game_id') == game_id
         assert log.details.get('reason') == 'db_delete_failed'
+
+def test_invalid_game_id_deletion_audit_logged(client, app):
+    """Verifica que el intento de eliminar un juego con un ID inválido registre un log de auditoría FAILED."""
+    from app.models import get_session_factory, AuditLog, crear_usuario
+    from werkzeug.security import generate_password_hash
+    import hashlib
+
+    pw = generate_password_hash("GameUserPass1!")
+    user = crear_usuario(
+        nombre="Game Audit Invalid",
+        apellido="Tester",
+        email="game_audit_invalid_del@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=pw
+    )
+    assert user is not None
+
+    with client.session_transaction() as sess:
+        sess['user_id'] = user['user_id']
+        sess['email'] = user['email']
+        sess['nombre'] = user['nombre']
+        sess['role'] = 'user'
+        sess['_pw_hash'] = hashlib.sha256(pw.encode('utf-8')).hexdigest()
+
+    invalid_game_id = "invalid_id_format_too_long_12345678901234567890"
+    response = client.post(f'/delete/{invalid_game_id}')
+    assert response.status_code == 302
+
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(
+                AuditLog.user_id == user['user_id'],
+                AuditLog.action == 'DELETE_GAME',
+                AuditLog.status == 'FAILED'
+            )
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log is not None
+        assert log.details.get('reason') == 'invalid_game_id'
+
+def test_invalid_game_id_edit_audit_logged(client, app):
+    """Verifica que el intento de editar un juego con un ID inválido registre un log de auditoría FAILED."""
+    from app.models import get_session_factory, AuditLog, crear_usuario
+    from werkzeug.security import generate_password_hash
+    import hashlib
+
+    pw = generate_password_hash("GameUserPass1!")
+    user = crear_usuario(
+        nombre="Game Audit Invalid Edit",
+        apellido="Tester",
+        email="game_audit_invalid_edit@example.com",
+        prefijo_pais="",
+        telefono="",
+        password_hash=pw
+    )
+    assert user is not None
+
+    with client.session_transaction() as sess:
+        sess['user_id'] = user['user_id']
+        sess['email'] = user['email']
+        sess['nombre'] = user['nombre']
+        sess['role'] = 'user'
+        sess['_pw_hash'] = hashlib.sha256(pw.encode('utf-8')).hexdigest()
+
+    invalid_game_id = "invalid_id_format_too_long_12345678901234567890"
+    response = client.post(f'/edit/{invalid_game_id}', data={
+        'titulo': 'Should Fail',
+        'descripcion': 'Should Fail Desc',
+        'plataforma': 'PC',
+        'estado': 'Nuevo'
+    })
+    assert response.status_code == 302
+
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(
+                AuditLog.user_id == user['user_id'],
+                AuditLog.action == 'UPDATE_GAME',
+                AuditLog.status == 'FAILED'
+            )
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log is not None
+        assert log.details.get('reason') == 'invalid_game_id'
