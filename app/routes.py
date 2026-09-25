@@ -1440,6 +1440,16 @@ def agregar_juego():
 def eliminar_juego_ruta(game_id):
     """Elimina un juego del usuario autenticado."""
     if not is_valid_id(game_id):
+        # Audit trail logging on early validation failure branch to prevent auditing blind spots (Security hardening)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='DELETE_GAME',
+            resource='games',
+            details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'invalid_game_id'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Juego no encontrado o sin permisos.', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -1491,6 +1501,16 @@ def eliminar_juego_ruta(game_id):
 def editar_juego_ruta(game_id):
     """Edita un juego existente."""
     if not is_valid_id(game_id):
+        # Audit trail logging on early validation failure branch to prevent auditing blind spots (Security hardening)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='UPDATE_GAME',
+            resource='games',
+            details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'invalid_game_id'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Juego no encontrado o sin permisos.', 'error')
         return redirect(url_for('main.dashboard'))
 
