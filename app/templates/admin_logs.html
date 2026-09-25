@@ -119,6 +119,40 @@
         Elimina registros auditados más antiguos que los días seleccionados para optimizar el almacenamiento.
     </small>
 
+    {% if filters.user_id or filters.action or filters.status or filters.start_date or filters.end_date %}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;" class="active-filters">
+            <span style="color: var(--text-secondary); font-size: 0.9em;">Filtros activos:</span>
+            {% if filters.user_id %}
+                <a href="{{ url_for('main.admin_logs', **query_args_builder(user_id=None, page=None)) }}" class="badge badge-log-resource" style="text-decoration: none;" aria-label="Quitar filtro de usuario: {{ filters.user_id }}" title="Quitar filtro de usuario: {{ filters.user_id }}">
+                    Usuario: {{ filters.user_id }} &times;
+                </a>
+            {% endif %}
+            {% if filters.action %}
+                <a href="{{ url_for('main.admin_logs', **query_args_builder(action=None, page=None)) }}" class="badge badge-log-action is-active" style="text-decoration: none;" aria-label="Quitar filtro de acción: {{ AUDIT_ACTIONS.get(filters.action, filters.action) }}" title="Quitar filtro de acción: {{ AUDIT_ACTIONS.get(filters.action, filters.action) }}">
+                    Acción: {{ AUDIT_ACTIONS.get(filters.action, filters.action) }} &times;
+                </a>
+            {% endif %}
+            {% if filters.status %}
+                <a href="{{ url_for('main.admin_logs', **query_args_builder(status=None, page=None)) }}" class="badge {{ 'badge-log-success' if filters.status == 'SUCCESS' else 'badge-log-error' if filters.status in ['FAILED', 'ERROR'] else 'badge-log-neutral' }} is-active" style="text-decoration: none;" aria-label="Quitar filtro de estado: {{ filters.status }}" title="Quitar filtro de estado: {{ filters.status }}">
+                    Estado: {{ filters.status }} &times;
+                </a>
+            {% endif %}
+            {% if filters.start_date %}
+                <a href="{{ url_for('main.admin_logs', **query_args_builder(start_date=None, page=None)) }}" class="badge badge-log-resource" style="text-decoration: none;" aria-label="Quitar filtro de fecha desde: {{ filters.start_date }}" title="Quitar filtro de fecha desde: {{ filters.start_date }}">
+                    Desde: {{ filters.start_date }} &times;
+                </a>
+            {% endif %}
+            {% if filters.end_date %}
+                <a href="{{ url_for('main.admin_logs', **query_args_builder(end_date=None, page=None)) }}" class="badge badge-log-resource" style="text-decoration: none;" aria-label="Quitar filtro de fecha hasta: {{ filters.end_date }}" title="Quitar filtro de fecha hasta: {{ filters.end_date }}">
+                    Hasta: {{ filters.end_date }} &times;
+                </a>
+            {% endif %}
+            <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary btn-small" style="padding: 2px 8px; font-size: 0.8em;" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros">
+                Limpiar todos
+            </a>
+        </div>
+    {% endif %}
+
     {% if grouped_logs %}
         <div class="log-explorer">
             <aside class="log-account-browser">

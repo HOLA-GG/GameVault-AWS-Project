@@ -928,3 +928,39 @@ def test_palette_admin_forms_enhanced_ux(client):
     html_admin = response_admin.get_data(as_text=True)
 
     assert 'data-loading-text="Guardando..."' in html_admin
+
+
+def test_palette_admin_logs_active_filters_rendered(client):
+    """Verify that admin_logs.html renders the active filters summary row with accessible dismiss links and clear all button when filters are active."""
+    login_session(client, role='admin')
+
+    # Request admin logs with active filters
+    response = client.get('/admin/logs?action=LOGIN&status=FAILED&user_id=test@example.com&start_date=2026-01-01&end_date=2026-03-01')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check that active filters row is rendered
+    assert 'class="active-filters"' in html
+    assert 'Filtros activos:' in html
+
+    # Check user_id filter badge
+    assert 'Usuario: test@example.com' in html
+    assert 'aria-label="Quitar filtro de usuario: test@example.com"' in html
+
+    # Check action filter badge
+    assert 'Acción: Inicio de sesión' in html
+    assert 'aria-label="Quitar filtro de acción: Inicio de sesión"' in html
+
+    # Check status filter badge
+    assert 'Estado: FAILED' in html
+    assert 'aria-label="Quitar filtro de estado: FAILED"' in html
+
+    # Check date filter badges
+    assert 'Desde: 2026-01-01' in html
+    assert 'aria-label="Quitar filtro de fecha desde: 2026-01-01"' in html
+    assert 'Hasta: 2026-03-01' in html
+    assert 'aria-label="Quitar filtro de fecha hasta: 2026-03-01"' in html
+
+    # Check "Limpiar todos" button
+    assert 'Limpiar todos' in html
+    assert 'aria-label="Limpiar todos los filtros"' in html
