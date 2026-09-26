@@ -964,3 +964,26 @@ def test_palette_admin_logs_active_filters_rendered(client):
     # Check "Limpiar todos" button
     assert 'Limpiar todos' in html
     assert 'aria-label="Limpiar todos los filtros"' in html
+
+
+def test_palette_admin_collections_active_filters_rendered(client):
+    """Verify that admin_collections.html renders the active filters summary row with accessible dismiss links and clear all button when visibility filter is active."""
+    login_session(client, role='admin')
+
+    # Request admin collections with visibility filter
+    response = client.get('/admin/collections?visibility=public')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check that active filters row is rendered
+    assert 'class="active-filters"' in html
+    assert 'Filtros activos:' in html
+
+    # Check visibility filter badge
+    assert 'Visibilidad: Pública' in html
+    assert 'aria-label="Quitar filtro de visibilidad: Pública"' in html
+    assert 'title="Quitar filtro de visibilidad: Pública"' in html
+
+    # Check "Limpiar todos" button
+    assert 'Limpiar todos' in html
+    assert 'aria-label="Limpiar todos los filtros"' in html

@@ -42,6 +42,18 @@
         </div>
     </form>
 
+    {% if visibility %}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;" class="active-filters">
+            <span style="color: var(--text-secondary); font-size: 0.9em;">Filtros activos:</span>
+            <a href="{{ url_for('main.admin_collections', **query_args_builder(visibility=None, page=None)) }}" class="badge {{ 'badge-public' if visibility == 'public' else 'badge-private' }} is-active" style="text-decoration: none;" aria-label="Quitar filtro de visibilidad: {{ 'Pública' if visibility == 'public' else 'Privada' }}" title="Quitar filtro de visibilidad: {{ 'Pública' if visibility == 'public' else 'Privada' }}">
+                Visibilidad: {{ 'Pública' if visibility == 'public' else 'Privada' }} &times;
+            </a>
+            <a href="{{ url_for('main.admin_collections') }}" class="btn btn-secondary btn-small" style="padding: 2px 8px; font-size: 0.8em;" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros">
+                Limpiar todos
+            </a>
+        </div>
+    {% endif %}
+
     {% if collections %}
         <div class="form-group" style="margin-bottom:20px;">
             <label for="adminCollectionSearch" class="sr-only">Filtrar colecciones en esta página</label>
