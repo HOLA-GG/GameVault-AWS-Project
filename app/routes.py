@@ -1745,10 +1745,28 @@ def login():
     email = request.form.get('email', '').strip().lower()
     password = request.form.get('password', '').strip()
     if not email or not password:
+        crear_log_audit(
+            user_id=None,
+            action='FAILED_LOGIN',
+            resource='auth',
+            details={'email': email[:255] if email else None, 'reason': 'empty_credentials'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Email y contraseña son requeridos.', 'error')
         return redirect(url_for('main.login'))
 
     if len(email) > 255 or len(password) > 128:
+        crear_log_audit(
+            user_id=None,
+            action='FAILED_LOGIN',
+            resource='auth',
+            details={'email': email[:255], 'reason': 'credentials_too_long'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Email o contraseña demasiado largos.', 'error')
         return redirect(url_for('main.login'))
 
