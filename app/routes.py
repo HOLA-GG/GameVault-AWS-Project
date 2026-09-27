@@ -2060,10 +2060,28 @@ def forgot_password():
 
     email = request.form.get('email', '').strip().lower()
     if not email:
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'reason': 'empty_email'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('El email es requerido.', 'error')
         return redirect(url_for('main.forgot_password'))
 
     if len(email) > 255:
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email[:255], 'reason': 'email_too_long'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Email demasiado largo.', 'error')
         return redirect(url_for('main.forgot_password'))
 
@@ -2136,10 +2154,28 @@ def forgot_password_manual():
     email = request.form.get('email', '').strip().lower()
     telefono = request.form.get('telefono', '').strip()
     if not email or not telefono:
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email[:255] if email else None, 'reason': 'empty_credentials', 'channel': 'manual_token'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Para la opción 2 debes indicar correo y teléfono.', 'error')
         return redirect(url_for('main.forgot_password'))
 
     if len(email) > 255 or len(telefono) > 20:
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email[:255], 'reason': 'credentials_too_long', 'channel': 'manual_token'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
         flash('Email o teléfono demasiado largos.', 'error')
         return redirect(url_for('main.forgot_password'))
 

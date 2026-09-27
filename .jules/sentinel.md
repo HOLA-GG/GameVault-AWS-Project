@@ -22,3 +22,8 @@
 **Vulnerability:** In `eliminar_juego_ruta` and `editar_juego_ruta`, early-return guard clauses checking `is_valid_id(game_id)` returned early without recording `crear_log_audit` entries when malformed or oversized `game_id` values were supplied.
 **Learning:** Early validation returns on route handlers prior to database model lookups can create auditing blind spots where invalid or malformed resource manipulation attempts evade audit trail tracking.
 **Prevention:** Always invoke `crear_log_audit` with `status='FAILED'` and an explicit reason before returning early on ID format validation failures.
+
+## 2026-10-12 - Audit Trail Coverage on Early Validation Password Reset Requests
+**Vulnerability:** In `forgot_password` and `forgot_password_manual`, early validation returns on empty or oversized inputs returned without recording `PASSWORD_RESET_REQUEST` failed audit log entries.
+**Learning:** Early validation guard clauses returning before user resolution create auditing blind spots where malformed password recovery requests evade audit trail tracking and security monitoring.
+**Prevention:** Always invoke `crear_log_audit` with `status='FAILED'` and an explicit reason before returning early on validation failures in password reset request handlers.
