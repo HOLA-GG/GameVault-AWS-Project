@@ -966,6 +966,42 @@ def test_palette_admin_logs_active_filters_rendered(client):
     assert 'aria-label="Limpiar todos los filtros"' in html
 
 
+def test_edit_game_delete_button_and_copy_rendered(client):
+    """Verify that edit_game.html renders the copy title button and the direct game deletion form."""
+    login_session(client)
+
+    # Create a game first
+    client.post('/agregar', data={
+        'titulo': 'Chrono Cross',
+        'descripcion': 'PS1 RPG classic',
+        'plataforma': 'PlayStation',
+        'estado': 'Usado',
+        'categoria': 'Biblioteca',
+        'prioridad': 'Media',
+    }, follow_redirects=True)
+
+    from app.models import obtener_juegos_por_usuario
+    juegos = obtener_juegos_por_usuario('user-1')
+    assert len(juegos) > 0
+    game_id = juegos[0]['game_id']
+
+    response = client.get(f'/edit/{game_id}')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Verify copy button rendered
+    assert 'btn-copy' in html
+    assert 'data-copy="Chrono Cross (PlayStation)"' in html
+    assert 'aria-label="Copiar nombre de Chrono Cross"' in html
+
+    # Verify delete form and button rendered
+    assert 'id="deleteGameForm"' in html
+    assert 'data-confirm="¿Eliminar Chrono Cross? Esta acción no se puede deshacer."' in html
+    assert 'aria-label="Eliminar Chrono Cross"' in html
+    assert 'data-loading-text="Eliminando..."' in html
+    assert 'Eliminar juego' in html
+
+
 def test_palette_admin_collections_active_filters_rendered(client):
     """Verify that admin_collections.html renders the active filters summary row with accessible dismiss links and clear all button when visibility filter is active."""
     login_session(client, role='admin')
