@@ -1947,6 +1947,17 @@ def profile():
         if errores:
             for error in errores:
                 flash(error, 'error')
+            # Record audit log for password validation failures if not already audited by early checks
+            if 'La contraseña actual no es correcta.' not in errores and 'La nueva contraseña no puede ser igual a la contraseña actual.' not in errores:
+                crear_log_audit(
+                    user_id=session['user_id'],
+                    action='CHANGE_PASSWORD',
+                    resource='users',
+                    details={'email': session.get('email'), 'errors': errores, 'reason': 'validation_failed'},
+                    ip_address=get_request_ip(),
+                    user_agent=request.headers.get('User-Agent', 'unknown'),
+                    status='FAILED',
+                )
             return redirect(url_for('main.profile'))
 
         resultado = actualizar_password_usuario(session['user_id'], generate_password_hash(password))

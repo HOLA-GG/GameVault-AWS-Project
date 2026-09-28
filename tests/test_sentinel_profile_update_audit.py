@@ -7,6 +7,8 @@ from pathlib import Path
 import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 @pytest.fixture
@@ -185,3 +187,47 @@ def test_password_change_db_failure_creates_audit_log(test_app, monkeypatch):
             l for l in logs if l['action'] == 'CHANGE_PASSWORD' and l['status'] == 'FAILED' and l['details'].get('reason') == 'db_update_failed'
         ]
         assert len(failed_pw_logs) == 1
+
+
+def test_password_change_validation_failure_creates_audit_log(test_app):
+    """Verifica que fallos de validación de contraseña (como complejidad o mismatch) registren auditoría FAILED."""
+    from app.models import crear_usuario, obtener_logs_por_usuario
+    from werkzeug.security import generate_password_hash
+
+    with test_app.app_context():
+        user = crear_usuario("Password Validation User", "", "pw_val_audit@example.com", "", "", generate_password_hash("OldPassword123!"))
+        user_id = user["user_id"]
+        pw_hash = hashlib.sha256(user["password_hash"].encode('utf-8')).hexdigest()
+
+    client = test_app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = user_id
+        sess['email'] = "pw_val_audit@example.com"
+        sess['nombre'] = "Password Validation User"
+        sess['role'] = "user"
+        sess['_pw_hash'] = pw_hash
+        sess['_user_agent'] = "test-agent"
+
+    # Enviar solicitud con contraseñas que no coinciden
+    response = client.post(
+        '/perfil',
+        data={
+            'form_name': 'password',
+            'current_password': 'OldPassword123!',
+            'password': 'NewPassword123!',
+            'confirm_password': 'DifferentPassword123!',
+        },
+        headers={'User-Agent': 'test-agent'},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+
+    with test_app.app_context():
+        logs = obtener_logs_por_usuario(user_id)
+        failed_pw_val_logs = [
+            l for l in logs if l['action'] == 'CHANGE_PASSWORD' and l['status'] == 'FAILED' and l['details'].get('reason') == 'validation_failed'
+        ]
+        assert len(failed_pw_val_logs) == 1
+        assert failed_pw_val_logs[0]['details']['email'] == "pw_val_audit@example.com"
+        assert 'errors' in failed_pw_val_logs[0]['details']
