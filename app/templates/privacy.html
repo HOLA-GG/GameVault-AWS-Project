@@ -3,11 +3,39 @@
 {% block title %}GameVault - Privacidad{% endblock %}
 
 {% block content %}
+<div class="nav-bar">
+    <div class="nav-links">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+        <a href="{{ url_for('main.demo') }}" class="btn btn-secondary">Demo</a>
+    </div>
+    {% if session.get('user_id') %}
+        <div class="user-info">
+            <span>{{ session.get('nombre') }}</span>
+            {% if session.get('role') == 'admin' %}
+                <a href="{{ url_for('main.admin_panel') }}" class="btn btn-secondary btn-small">Panel admin</a>
+            {% else %}
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small">Mi colección</a>
+            {% endif %}
+            <form action="{{ url_for('main.logout') }}" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-secondary btn-small">Cerrar sesión</button>
+            </form>
+        </div>
+    {% else %}
+        <div class="nav-links">
+            <a href="{{ url_for('main.login') }}" class="btn btn-secondary">Iniciar sesión</a>
+            <a href="{{ url_for('main.registro') }}" class="btn btn-primary">Crear cuenta</a>
+        </div>
+    {% endif %}
+</div>
+
 <section class="section">
     <h2>Privacidad</h2>
     <p>GameVault almacena los datos necesarios para operar tu cuenta, tu colección y la recuperación de acceso.</p>
     <p>Los registros funcionales se almacenan en nuestra infraestructura de base de datos y no vendemos tus datos.</p>
     <p>Los logs de actividad se conservan con fines operativos y de seguridad dentro de la ventana de retención configurada.</p>
     <p>Si necesitas eliminar tu cuenta o tus datos, debes hacerlo desde soporte o administración mientras la beta siga cerrada.</p>
+    <div class="mt-20">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary btn-small">← Volver al inicio</a>
+    </div>
 </section>
 {% endblock %}
