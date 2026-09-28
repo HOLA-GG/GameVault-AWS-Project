@@ -1023,3 +1023,24 @@ def test_palette_admin_collections_active_filters_rendered(client):
     # Check "Limpiar todos" button
     assert 'Limpiar todos' in html
     assert 'aria-label="Limpiar todos los filtros"' in html
+
+
+def test_privacy_and_terms_navigation_landmarks(client):
+    """Verify that privacy.html and terms.html render the top navigation bar and return action buttons."""
+    # 1. Privacy page
+    response_privacy = client.get('/privacy')
+    assert response_privacy.status_code == 200
+    html_privacy = response_privacy.get_data(as_text=True)
+
+    assert 'class="nav-bar"' in html_privacy
+    assert 'class="nav-links"' in html_privacy
+    assert '← Volver al inicio' in html_privacy
+
+    # 2. Terms page
+    response_terms = client.get('/terms')
+    assert response_terms.status_code == 200
+    html_terms = response_terms.get_data(as_text=True)
+
+    assert 'class="nav-bar"' in html_terms
+    assert 'class="nav-links"' in html_terms
+    assert '← Volver al inicio' in html_terms
