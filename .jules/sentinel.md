@@ -27,3 +27,8 @@
 **Vulnerability:** In `forgot_password` and `forgot_password_manual`, early validation returns on empty or oversized inputs returned without recording `PASSWORD_RESET_REQUEST` failed audit log entries.
 **Learning:** Early validation guard clauses returning before user resolution create auditing blind spots where malformed password recovery requests evade audit trail tracking and security monitoring.
 **Prevention:** Always invoke `crear_log_audit` with `status='FAILED'` and an explicit reason before returning early on validation failures in password reset request handlers.
+
+## 2026-10-18 - Exception Handling and Failure Audit Trail Logging on Administrative Data Exports
+**Vulnerability:** Unhandled exceptions during administrative CSV audit log exports (`/admin/logs/export`) could trigger 500 server crashes and bypass audit log recording for failed administrative data exports.
+**Learning:** Administrative data export controllers that lack try-except error handling can crash on database or stream generation errors and create auditing blind spots when failure events go unrecorded.
+**Prevention:** Always wrap administrative data export routines in `try...except` blocks, recording `crear_log_audit` with `status='FAILED'` before redirecting with a sanitized error flash message.

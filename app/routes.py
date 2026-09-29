@@ -2791,21 +2791,35 @@ def admin_logs_export():
         'start_date': request.args.get('start_date', '').strip()[:50],
         'end_date': request.args.get('end_date', '').strip()[:50],
     }
-    csv_content = exportar_logs_csv(obtener_todos_logs(filters, limit=1000))
+    try:
+        csv_content = exportar_logs_csv(obtener_todos_logs(filters, limit=1000))
 
-    crear_log_audit(
-        user_id=session['user_id'],
-        action='ADMIN_ACTION',
-        resource='audit_logs',
-        details={'operation': 'export_logs', 'filters': filters},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='ADMIN_ACTION',
+            resource='audit_logs',
+            details={'operation': 'export_logs', 'filters': filters},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
 
-    response = Response(csv_content, mimetype='text/csv')
-    response.headers.set('Content-Disposition', 'attachment', filename='gamevault_audit_logs.csv')
-    return response
+        response = Response(csv_content, mimetype='text/csv')
+        response.headers.set('Content-Disposition', 'attachment', filename='gamevault_audit_logs.csv')
+        return response
+    except Exception as exc:
+        current_app.logger.error('admin_logs_export_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='audit_logs',
+            details={'operation': 'export_logs', 'filters': filters, 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudieron exportar los logs de auditoría.', 'error')
+        return redirect(url_for('main.admin_logs'))
 
 
 @main_bp.route('/admin/logs/clear', methods=['POST'])
