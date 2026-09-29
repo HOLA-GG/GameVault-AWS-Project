@@ -381,9 +381,11 @@
 
         document.querySelectorAll('details.faq-card').forEach(function (detail) {
             detail.addEventListener('toggle', function () {
+                const questionText = this.querySelector('h4')?.textContent.trim() || '';
                 if (this.open) {
-                    const questionText = this.querySelector('h4')?.textContent.trim() || '';
                     window.announceToScreenReader?.(`Pregunta desplegada: ${questionText}`);
+                } else {
+                    window.announceToScreenReader?.(`Pregunta contraída: ${questionText}`);
                 }
             });
         });

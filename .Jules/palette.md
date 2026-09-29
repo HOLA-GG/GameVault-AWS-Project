@@ -156,3 +156,7 @@
 ## 2026-10-10 - Un-nested Form Actions & Standard HTML5 Form Association
 **Learning:** Placing secondary form actions (such as a destructive delete button) inside an outer form wrapper creates invalid nested HTML forms (`<form><form>...</form></form>`), causing browsers to break DOM parsing or submit the outer form unexpectedly. Placing the secondary form separately in the DOM (e.g. outside the primary `<form>`) and associating the submit trigger using HTML5's native `form="deleteGameForm"` attribute preserves valid HTML markup, prevents form submission bugs, and maintains clean visual alignment within the action bar.
 **Action:** Never nest `<form>` elements in HTML. Always place secondary action forms separately in the DOM and associate action buttons via the standard `form="form_id"` attribute.
+
+## 2026-10-15 - Symmetrical Screen Reader Announcements for Disclosure Toggles
+**Learning:** Disclosure controls like accordions (`<details>/<summary>`) often trigger live region announcements when expanded (`Pregunta desplegada`), but omitting announcements on collapse leaves assistive technology users without confirmation that content was hidden. Providing symmetrical, localized announcements (`Pregunta contraída`) on toggle events ensures complete accessibility parity for open/closed state transitions.
+**Action:** Always pair expansion announcements with explicit collapse announcements in event listeners for interactive disclosure or accordion elements.

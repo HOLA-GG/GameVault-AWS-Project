@@ -591,9 +591,10 @@ def test_faq_accordion_rendered(client):
     assert 'summary class="faq-summary"' in html
     assert 'class="faq-icon"' in html
 
-    # Verify script handles toggle events and screen reader announcements
+    # Verify script handles toggle events and screen reader announcements for both expand and collapse states
     assert "document.querySelectorAll('details.faq-card').forEach" in html
     assert "window.announceToScreenReader?.(`Pregunta desplegada: ${questionText}`);" in html
+    assert "window.announceToScreenReader?.(`Pregunta contraída: ${questionText}`);" in html
 
 
 def test_image_preview_remove_focus_restoration(client):
