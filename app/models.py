@@ -1456,29 +1456,43 @@ def crear_juego(
     calificacion=None,
     es_favorito=False,
 ):
-    """Guarda un juego para un usuario."""
-    ensure_tables()
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        game = Game(
-            game_id=game_id,
-            user_id=user_id,
-            titulo=titulo.strip(),
-            descripcion=descripcion.strip(),
-            imagen_url=(imagen_url or '').strip() or None,
-            plataforma=plataforma,
-            estado=estado,
-            categoria=(categoria or 'Biblioteca').strip(),
-            prioridad=(prioridad or 'Media').strip(),
-            calificacion=calificacion,
-            es_favorito=bool(es_favorito),
-            created_at=utcnow(),
-            updated_at=utcnow(),
-        )
-        session.add(game)
-        session.commit()
-        clear_public_collections_cache()
-        return game_to_dict(game)
+    """Guarda un juego para un usuario con validación defensiva y manejo de excepciones."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return None
+    if not game_id or not isinstance(game_id, str) or len(game_id) > 36:
+        return None
+    if not titulo or not isinstance(titulo, str) or not titulo.strip() or len(titulo.strip()) > 255:
+        return None
+
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            game = Game(
+                game_id=game_id,
+                user_id=user_id,
+                titulo=titulo.strip(),
+                descripcion=str(descripcion or '').strip(),
+                imagen_url=(imagen_url or '').strip() or None,
+                plataforma=str(plataforma or 'PC').strip()[:80],
+                estado=str(estado or 'N/A').strip()[:80],
+                categoria=(categoria or 'Biblioteca').strip()[:80],
+                prioridad=(prioridad or 'Media').strip()[:20],
+                calificacion=calificacion if isinstance(calificacion, int) and 1 <= calificacion <= 10 else None,
+                es_favorito=bool(es_favorito),
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add(game)
+            session.commit()
+            clear_public_collections_cache()
+            return game_to_dict(game)
+    except Exception as exc:
+        try:
+            current_app.logger.error('crear_juego_failed error=%s', exc)
+        except RuntimeError:
+            pass
+        return None
 
 
 def obtener_juegos_por_usuario(user_id):
