@@ -1045,3 +1045,30 @@ def test_privacy_and_terms_navigation_landmarks(client):
     assert 'class="nav-bar"' in html_terms
     assert 'class="nav-links"' in html_terms
     assert '← Volver al inicio' in html_terms
+
+
+def test_demo_form_title_clear_button_and_result_copy_rendered(client):
+    """Verify that demo_form.html renders title clear button and demo_result.html renders title copy trigger."""
+    # 1. Demo form title clear button
+    response_form = client.get('/demo')
+    assert response_form.status_code == 200
+    html_form = response_form.get_data(as_text=True)
+
+    assert 'id="demoTitleClearBtn"' in html_form
+    assert 'aria-label="Borrar título"' in html_form
+    assert 'title="Borrar título"' in html_form
+    assert "window.announceToScreenReader?.('Título borrado');" in html_form
+
+    # 2. Demo result title copy button (simulating demo submit)
+    import io
+    data = {
+        'titulo': 'Chrono Trigger Demo',
+        'imagen': (io.BytesIO(b'fake image data'), 'test.jpg'),
+    }
+    response_res = client.post('/demo', data=data, content_type='multipart/form-data')
+    assert response_res.status_code == 200
+    html_res = response_res.get_data(as_text=True)
+
+    assert 'btn-copy' in html_res
+    assert 'data-copy="Chrono Trigger Demo"' in html_res
+    assert 'aria-label="Copiar título Chrono Trigger Demo"' in html_res
