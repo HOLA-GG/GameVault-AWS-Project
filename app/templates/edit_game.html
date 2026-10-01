@@ -94,13 +94,13 @@
                 <input type="file" id="nueva_imagen" name="nueva_imagen" accept="image/*">
                 <div id="editImagePreviewContainer" class="image-preview-container" style="display:none;">
                     <img id="editImagePreview" src="" alt="Vista previa de la nueva portada" class="image-preview">
-                    <button type="button" id="editRemoveImageButton" class="btn btn-secondary btn-small" aria-label="Quitar nueva imagen seleccionada">Quitar</button>
+                    <button type="button" id="editRemoveImageButton" class="btn btn-secondary btn-small" aria-label="Quitar nueva imagen seleccionada" title="Quitar nueva imagen seleccionada">Quitar</button>
                 </div>
             </div>
             <div class="form-group">
                 <label class="checkbox-card" for="es_favorito">
                     <input type="checkbox" id="es_favorito" name="es_favorito" {% if juego.es_favorito %}checked{% endif %}>
-                    <span>Marcar como favorito</span>
+                    <span id="favoritoLabel">{% if juego.es_favorito %}⭐ Marcado como favorito{% else %}Marcar como favorito{% endif %}</span>
                 </label>
             </div>
         </div>
@@ -165,6 +165,31 @@
             previewImage.src = '';
             window.announceToScreenReader?.('Imagen seleccionada quitada');
         });
+
+        function setupFavoriteCheckbox() {
+            const favCheckbox = document.getElementById('es_favorito');
+            if (!favCheckbox) return;
+            const labelSpan = favCheckbox.nextElementSibling;
+
+            function updateState(isInitial = false) {
+                if (favCheckbox.checked) {
+                    if (labelSpan) labelSpan.textContent = '⭐ Marcado como favorito';
+                    if (!isInitial) {
+                        window.announceToScreenReader?.('Marcado como favorito');
+                    }
+                } else {
+                    if (labelSpan) labelSpan.textContent = 'Marcar como favorito';
+                    if (!isInitial) {
+                        window.announceToScreenReader?.('Desmarcado como favorito');
+                    }
+                }
+            }
+
+            updateState(true);
+            favCheckbox.addEventListener('change', () => updateState(false));
+        }
+
+        setupFavoriteCheckbox();
 
         form.addEventListener('submit', async function (event) {
             if (!window.gameVault.supportsDirectUploads) return;
