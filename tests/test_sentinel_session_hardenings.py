@@ -82,7 +82,7 @@ def test_admin_edit_user_name_length_validation(client):
     from app.models import ensure_bootstrap_admin, crear_usuario, obtener_usuario_por_id
 
     # Setup admin
-    admin_email = "admin-val@gamevault"
+    admin_email = "admin-val@gamevault.app"
     admin_pw = "SecureAdmin123!"
     ensure_bootstrap_admin(admin_email, admin_pw)
 

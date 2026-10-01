@@ -1772,6 +1772,19 @@ def login():
         flash('Email o contraseña demasiado largos.', 'error')
         return redirect(url_for('main.login'))
 
+    if not validar_email(email):
+        crear_log_audit(
+            user_id=None,
+            action='FAILED_LOGIN',
+            resource='auth',
+            details={'email': email[:255], 'reason': 'invalid_email_format'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('Email o contraseña incorrectos.', 'error')
+        return redirect(url_for('main.login'))
+
     # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
     usuario = verificar_credenciales(email, password, format_dates=False)
 
@@ -2096,6 +2109,19 @@ def forgot_password():
         flash('Email demasiado largo.', 'error')
         return redirect(url_for('main.forgot_password'))
 
+    if not validar_email(email):
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email[:255], 'reason': 'invalid_email_format'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('El formato de email no es válido.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
     # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
     user = obtener_usuario_por_email(email, format_dates=False)
     flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
@@ -2188,6 +2214,19 @@ def forgot_password_manual():
             status='FAILED',
         )
         flash('Email o teléfono demasiado largos.', 'error')
+        return redirect(url_for('main.forgot_password'))
+
+    if not validar_email(email) or not validar_telefono(telefono):
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'email': email[:255], 'reason': 'invalid_credentials_format', 'channel': 'manual_token'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('Formato de correo o teléfono no válido.', 'error')
         return redirect(url_for('main.forgot_password'))
 
     # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
