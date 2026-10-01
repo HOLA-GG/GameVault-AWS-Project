@@ -1072,3 +1072,52 @@ def test_demo_form_title_clear_button_and_result_copy_rendered(client):
     assert 'btn-copy' in html_res
     assert 'data-copy="Chrono Trigger Demo"' in html_res
     assert 'aria-label="Copiar título Chrono Trigger Demo"' in html_res
+
+
+def test_palette_favorite_checkbox_and_image_remove_tooltips(client):
+    """Verify that index.html, edit_game.html, and demo_form.html render the favorite checkbox script and image removal tooltips."""
+    login_session(client)
+
+    # 1. Dashboard page
+    response_dash = client.get('/dashboard')
+    assert response_dash.status_code == 200
+    html_dash = response_dash.get_data(as_text=True)
+
+    assert 'id="favoritoLabel"' in html_dash
+    assert 'setupFavoriteCheckbox()' in html_dash
+    assert '⭐ Marcado como favorito' in html_dash
+    assert 'window.announceToScreenReader?.(\'Marcado como favorito\');' in html_dash
+    assert 'window.announceToScreenReader?.(\'Desmarcado como favorito\');' in html_dash
+    assert 'id="removeImageButton" class="btn btn-secondary btn-small" aria-label="Quitar imagen seleccionada" title="Quitar imagen seleccionada"' in html_dash
+
+    # 2. Demo form page
+    response_demo = client.get('/demo')
+    assert response_demo.status_code == 200
+    html_demo = response_demo.get_data(as_text=True)
+
+    assert 'id="demoRemoveImageButton" class="btn btn-secondary btn-small" aria-label="Quitar imagen seleccionada" title="Quitar imagen seleccionada"' in html_demo
+
+    # 3. Edit game page
+    client.post('/agregar', data={
+        'titulo': 'Test Favorite Game',
+        'descripcion': 'Test desc',
+        'plataforma': 'PC',
+        'estado': 'Nuevo',
+        'categoria': 'Biblioteca',
+        'prioridad': 'Media',
+        'es_favorito': 'on',
+    }, follow_redirects=True)
+
+    from app.models import obtener_juegos_por_usuario
+    juegos = obtener_juegos_por_usuario('user-1')
+    assert len(juegos) > 0
+    game_id = juegos[0]['game_id']
+
+    response_edit = client.get(f'/edit/{game_id}')
+    assert response_edit.status_code == 200
+    html_edit = response_edit.get_data(as_text=True)
+
+    assert 'id="favoritoLabel"' in html_edit
+    assert '⭐ Marcado como favorito' in html_edit
+    assert 'setupFavoriteCheckbox()' in html_edit
+    assert 'id="editRemoveImageButton" class="btn btn-secondary btn-small" aria-label="Quitar nueva imagen seleccionada" title="Quitar nueva imagen seleccionada"' in html_edit

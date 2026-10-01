@@ -160,3 +160,7 @@
 ## 2026-10-15 - Symmetrical Screen Reader Announcements for Disclosure Toggles
 **Learning:** Disclosure controls like accordions (`<details>/<summary>`) often trigger live region announcements when expanded (`Pregunta desplegada`), but omitting announcements on collapse leaves assistive technology users without confirmation that content was hidden. Providing symmetrical, localized announcements (`Pregunta contraída`) on toggle events ensures complete accessibility parity for open/closed state transitions.
 **Action:** Always pair expansion announcements with explicit collapse announcements in event listeners for interactive disclosure or accordion elements.
+
+## 2026-10-20 - Dynamic Checkbox Card Labels & Symmetrical Live Region Feedback
+**Learning:** Interactive checkbox cards (such as "Marcar como favorito") benefit from dynamic label updates (such as prepending a visual indicator '⭐ Marcado como favorito') when checked, reinforcing visual state alongside CSS container styles. Pairing this with symmetrical ARIA live region announcements ('Marcado como favorito' / 'Desmarcado como favorito') provides screen-reader users with immediate state confirmation without requiring focus shift.
+**Action:** Link stateful checkboxes in card wrappers with dynamic visual label updates on change, and pair toggle events with real-time ARIA live region announcements.
