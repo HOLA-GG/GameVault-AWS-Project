@@ -1805,15 +1805,22 @@ def eliminar_tokens_expirados() -> Dict[str, Any]:
     """Elimina tokens expirados (optimizado con batch delete)."""
     ensure_tables()
     session_factory = get_session_factory()
-    with session_factory() as session:
-        stmt = delete(PasswordResetToken).where(
-            PasswordResetToken.used.is_(False),
-            PasswordResetToken.expires_at < utcnow(),
-        )
-        result = session.execute(stmt)
-        deleted = result.rowcount
-        session.commit()
-        return {'deleted': deleted, 'error': None}
+    try:
+        with session_factory() as session:
+            stmt = delete(PasswordResetToken).where(
+                PasswordResetToken.used.is_(False),
+                PasswordResetToken.expires_at < utcnow(),
+            )
+            result = session.execute(stmt)
+            deleted = result.rowcount
+            session.commit()
+            return {'deleted': deleted, 'error': None}
+    except Exception as exc:
+        try:
+            current_app.logger.error('eliminar_tokens_expirados_failed error=%s', exc)
+        except RuntimeError:
+            pass
+        return {'deleted': 0, 'error': str(exc)}
 
 
 def redact_sensitive_details(data: Any, depth: int = 0) -> Any:
