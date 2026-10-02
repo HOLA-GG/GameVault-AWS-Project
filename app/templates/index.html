@@ -94,7 +94,10 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="titulo">Título <small id="title-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>N</kbd>)</small></label>
-                <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required maxlength="255" class="select-on-focus" aria-describedby="title-hint">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="text" id="titulo" name="titulo" placeholder="Ej: Chrono Trigger" required maxlength="255" class="select-on-focus" aria-describedby="title-hint" style="padding-right: 36px;">
+                    <button type="button" id="gameTitleClearBtn" class="search-clear-btn" aria-label="Borrar título" title="Borrar título" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="plataforma">Plataforma</label>
@@ -407,6 +410,23 @@
                     }
                     window.announceToScreenReader?.('Formulario de agregar nuevo juego enfocado');
                 }
+            });
+        }
+
+        const gameTitleInput = document.getElementById('titulo');
+        const gameTitleClearBtn = document.getElementById('gameTitleClearBtn');
+        if (gameTitleInput && gameTitleClearBtn) {
+            function updateGameTitleClearVisibility() {
+                gameTitleClearBtn.style.display = gameTitleInput.value.trim().length > 0 ? 'block' : 'none';
+            }
+            updateGameTitleClearVisibility();
+            gameTitleInput.addEventListener('input', updateGameTitleClearVisibility);
+            gameTitleClearBtn.addEventListener('click', function() {
+                gameTitleInput.value = '';
+                updateGameTitleClearVisibility();
+                gameTitleInput.dispatchEvent(new Event('input'));
+                gameTitleInput.focus();
+                window.announceToScreenReader?.('Título de juego borrado');
             });
         }
 
