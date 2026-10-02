@@ -1047,6 +1047,21 @@ def test_privacy_and_terms_navigation_landmarks(client):
     assert '← Volver al inicio' in html_terms
 
 
+def test_dashboard_game_title_clear_button_rendered(client):
+    """Verify that index.html renders the game title clear button and script handlers."""
+    login_session(client)
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="gameTitleClearBtn"' in html
+    assert 'aria-label="Borrar título"' in html
+    assert 'title="Borrar título"' in html
+    assert "const gameTitleInput = document.getElementById('titulo');" in html
+    assert "const gameTitleClearBtn = document.getElementById('gameTitleClearBtn');" in html
+    assert "window.announceToScreenReader?.('Título de juego borrado');" in html
+
+
 def test_demo_form_title_clear_button_and_result_copy_rendered(client):
     """Verify that demo_form.html renders title clear button and demo_result.html renders title copy trigger."""
     # 1. Demo form title clear button
