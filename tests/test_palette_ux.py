@@ -1136,3 +1136,33 @@ def test_palette_favorite_checkbox_and_image_remove_tooltips(client):
     assert '⭐ Marcado como favorito' in html_edit
     assert 'setupFavoriteCheckbox()' in html_edit
     assert 'id="editRemoveImageButton" class="btn btn-secondary btn-small" aria-label="Quitar nueva imagen seleccionada" title="Quitar nueva imagen seleccionada"' in html_edit
+
+
+def test_edit_game_title_clear_button_rendered(client):
+    """Verify that edit_game.html renders the game title clear button, ARIA attributes, and JS handlers."""
+    login_session(client)
+
+    client.post('/agregar', data={
+        'titulo': 'Test Edit Clear Button Game',
+        'descripcion': 'Test description',
+        'plataforma': 'PC',
+        'estado': 'Nuevo',
+        'categoria': 'Biblioteca',
+        'prioridad': 'Media',
+    }, follow_redirects=True)
+
+    from app.models import obtener_juegos_por_usuario
+    juegos = obtener_juegos_por_usuario('user-1')
+    assert len(juegos) > 0
+    game_id = juegos[0]['game_id']
+
+    response = client.get(f'/edit/{game_id}')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="editGameTitleClearBtn"' in html
+    assert 'aria-label="Borrar título"' in html
+    assert 'title="Borrar título"' in html
+    assert "const editTitleInput = document.getElementById('titulo');" in html
+    assert "const editTitleClearBtn = document.getElementById('editGameTitleClearBtn');" in html
+    assert "window.announceToScreenReader?.('Título de juego borrado');" in html
