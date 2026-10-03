@@ -206,7 +206,10 @@ def require_login(view):
         user_id = session.get('user_id')
         if not user_id:
             flash('Debes iniciar sesión para acceder a esta sección.', 'error')
-            return redirect(url_for('main.login', next=request.full_path.rstrip('?')))
+            # Bounding next target path length to prevent HTTP response header bloat / DoS (Security hardening)
+            raw_next = request.full_path.rstrip('?') if request.full_path else ''
+            safe_next = raw_next[:2048] if raw_next else None
+            return redirect(url_for('main.login', next=safe_next))
 
         # User-Agent session pinning (Security enhancement)
         # Verify that the current request's User-Agent matches the session's pinned User-Agent.

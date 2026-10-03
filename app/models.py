@@ -1887,10 +1887,12 @@ def crear_log_audit(
     ensure_tables()
     session_factory = get_session_factory()
 
-    # Harden and truncate strings to match DB schema constraints
-    safe_action = (action or 'UNKNOWN')[:80]
-    safe_resource = (resource or 'UNKNOWN')[:80]
-    derived_name = AUDIT_ACTIONS.get(action, safe_action)[:120]
+    # Harden and truncate strings to match DB schema constraints with defensive string coercion (Security hardening)
+    safe_action = str(action if action is not None else 'UNKNOWN')[:80]
+    safe_resource = str(resource if resource is not None else 'UNKNOWN')[:80]
+    derived_name = str(AUDIT_ACTIONS.get(action, safe_action) or safe_action)[:120]
+    safe_user_agent = str(user_agent if user_agent is not None else 'unknown')[:500]
+    safe_status = str(status if status is not None else 'SUCCESS')[:20]
 
     # Bolt Optimization: Redact sensitive details once to avoid redundant recursive calls in the retry block.
     # Traceability enhancement: Automatically inject request_id if within a request context.
@@ -1914,9 +1916,9 @@ def crear_log_audit(
         timestamp=utcnow(),
         # Ensure fields fit database constraints (Security hardening)
         ip_address=safe_ip,
-        user_agent=(user_agent or 'unknown')[:500],
+        user_agent=safe_user_agent,
         details=safe_details,
-        status=status[:20],
+        status=safe_status,
     )
     with session_factory() as session:
         session.add(item)
@@ -1936,9 +1938,9 @@ def crear_log_audit(
                 resource=safe_resource,
                 timestamp=utcnow(),
                 ip_address=safe_ip,
-                user_agent=(user_agent or 'unknown')[:500],
+                user_agent=safe_user_agent,
                 details=safe_details,
-                status=status[:20],
+                status=safe_status,
             )
             session.add(item)
             session.commit()
