@@ -32,3 +32,8 @@
 **Vulnerability:** Unhandled exceptions during administrative CSV audit log exports (`/admin/logs/export`) could trigger 500 server crashes and bypass audit log recording for failed administrative data exports.
 **Learning:** Administrative data export controllers that lack try-except error handling can crash on database or stream generation errors and create auditing blind spots when failure events go unrecorded.
 **Prevention:** Always wrap administrative data export routines in `try...except` blocks, recording `crear_log_audit` with `status='FAILED'` before redirecting with a sanitized error flash message.
+
+## 2026-10-25 - Defensive Type Coercion for Audit Logging Parameters
+**Vulnerability:** In `crear_log_audit`, slicing parameters (`action[:80]`, `resource[:80]`, `status[:20]`, `user_agent[:500]`) without string coercion caused `TypeError` crashes when non-string values (such as integer HTTP status codes) were passed.
+**Learning:** Slicing non-string types in logging helpers crashes audit record creation and can trigger cascading 500 errors in route error handlers.
+**Prevention:** Always perform explicit `str(...)` type coercion before applying length bounds to string parameters in audit logging functions.
