@@ -129,6 +129,19 @@ with app.app_context():
     print(f"  - WTF_CSRF_SSL_STRICT: {app.config.get('WTF_CSRF_SSL_STRICT')}")
     print()
 
+    # 6. Limits, Pagination, Monitoring & Retention Settings
+    print("[6] Limits, Pagination, Monitoring & Retention Settings:")
+    print(f"  - RATELIMIT_STORAGE_URI: {app.config.get('RATELIMIT_STORAGE_URI')}")
+    print(f"  - MAX_UPLOAD_MB: {app.config.get('MAX_UPLOAD_MB')}MB")
+    print(f"  - GAMES_PER_PAGE: {app.config.get('GAMES_PER_PAGE')}")
+    print(f"  - ADMIN_USERS_PER_PAGE: {app.config.get('ADMIN_USERS_PER_PAGE')}")
+    print(f"  - ADMIN_LOGS_PER_PAGE: {app.config.get('ADMIN_LOGS_PER_PAGE')}")
+    print(f"  - RESET_TOKEN_EXPIRY_MINUTES: {app.config.get('RESET_TOKEN_EXPIRY_MINUTES')} minutes")
+    print(f"  - AUDIT_LOG_RETENTION_DAYS: {app.config.get('AUDIT_LOG_RETENTION_DAYS')} days")
+    print(f"  - SENTRY_DSN: {'[SET]' if os.environ.get('SENTRY_DSN') else '[NOT SET]'}")
+    print(f"  - SENTRY_TRACES_SAMPLE_RATE: {os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.0')}")
+    print()
+
 print("=" * 60)
 print("INFRASTRUCTURE VERIFICATION COMPLETE")
 print("=" * 60)
