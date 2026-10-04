@@ -818,7 +818,7 @@ def test_forgot_password_email_clear_button_rendered(client):
 
 
 def test_login_and_register_email_clear_buttons_rendered(client):
-    """Verify that login.html and registro.html render accessible email clear buttons and script logic."""
+    """Verify that login.html and registro.html render accessible email and name clear buttons and script logic."""
     # 1. Login page
     response_login = client.get('/login')
     assert response_login.status_code == 200
@@ -834,10 +834,14 @@ def test_login_and_register_email_clear_buttons_rendered(client):
     assert response_reg.status_code == 200
     html_reg = response_reg.get_data(as_text=True)
 
+    assert 'id="registerNameClearBtn"' in html_reg
+    assert 'aria-label="Borrar nombre"' in html_reg
+    assert 'title="Borrar nombre"' in html_reg
     assert 'id="registerEmailClearBtn"' in html_reg
     assert 'aria-label="Borrar correo electrónico"' in html_reg
     assert 'title="Borrar correo electrónico"' in html_reg
-    assert "window.announceToScreenReader?.('Correo electrónico borrado');" in html_reg
+    assert "setupClearControl('nombre', 'registerNameClearBtn', 'Nombre borrado');" in html_reg
+    assert "setupClearControl('email', 'registerEmailClearBtn', 'Correo electrónico borrado');" in html_reg
 
 
 def test_validate_token_clear_button_rendered(client):
