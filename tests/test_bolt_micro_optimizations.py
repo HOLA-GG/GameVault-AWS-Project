@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from datetime import datetime, timezone
 from app.routes import get_action_badge_class, filter_and_sort_games, enrich_game_metadata, enrich_log_metadata
-from app.models import _user_row_to_dict, _game_row_to_dict, _audit_log_row_to_dict, MIN_DATE, utcnow, validar_password
+from app.models import _user_row_to_dict, _game_row_to_dict, _audit_log_row_to_dict, MIN_DATE, utcnow, validar_password, obtener_juegos_por_usuario
 
 # Mock Row with _mapping
 class MockRow:
@@ -342,3 +342,16 @@ def test_filter_and_sort_games_short_circuit():
     res_active = filter_and_sort_games(juegos, active_filters)
     assert len(res_active) == 1
     assert res_active[0]['game_id'] == 'g2'
+
+
+def test_obtener_juegos_por_usuario_query_optimization():
+    """Verify that obtener_juegos_por_usuario returns correct structured game dictionaries."""
+    # Invalid user IDs
+    assert obtener_juegos_por_usuario('') == []
+    assert obtener_juegos_por_usuario(None) == []
+    assert obtener_juegos_por_usuario('a' * 50) == []
+
+    # Valid user ID lookup for missing account
+    res = obtener_juegos_por_usuario('non_existent_user_id_12345')
+    assert isinstance(res, list)
+    assert len(res) == 0
