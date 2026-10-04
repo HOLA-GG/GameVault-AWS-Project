@@ -328,12 +328,17 @@ def get_engine():
     else:
         # Optimizaciones para Neon Postgres en Render
         # Si la URL contiene '-pooler' o se configura DB_USE_NULLPOOL=true, usamos NullPool para delegar el pooling a Neon (PgBouncer)
-        try:
-            config_use_nullpool = current_app.config.get('DB_USE_NULLPOOL', False)
-        except RuntimeError:
-            config_use_nullpool = False
+        env_val = os.environ.get('DB_USE_NULLPOOL')
+        if env_val is not None:
+            env_use_nullpool = env_val.strip().lower() in {'1', 'true', 'yes', 'on'}
+        else:
+            env_use_nullpool = True
 
-        env_use_nullpool = os.environ.get('DB_USE_NULLPOOL', 'false').strip().lower() in {'1', 'true', 'yes', 'on'}
+        try:
+            config_use_nullpool = current_app.config.get('DB_USE_NULLPOOL', env_use_nullpool)
+        except RuntimeError:
+            config_use_nullpool = env_use_nullpool
+
         use_nullpool = config_use_nullpool or env_use_nullpool or '-pooler' in db_url
         if use_nullpool:
             from sqlalchemy.pool import NullPool
