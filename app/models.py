@@ -1540,6 +1540,10 @@ def obtener_juego_por_id(user_id, game_id, format_dates: bool = True):
 
 def eliminar_juego(user_id, game_id):
     """Elimina un juego del usuario."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
+    if not game_id or not isinstance(game_id, str) or len(game_id) > 36:
+        return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
@@ -1556,6 +1560,12 @@ def eliminar_juego(user_id, game_id):
 
 def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
     """Actualiza un juego existente."""
+    if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
+        return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
+    if not game_id or not isinstance(game_id, str) or len(game_id) > 36:
+        return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
+    if not isinstance(nuevos_datos, dict):
+        return {'success': False, 'juego': None, 'error': 'Datos de juego inválidos'}
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
