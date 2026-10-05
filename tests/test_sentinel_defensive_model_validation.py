@@ -94,3 +94,25 @@ def test_additional_user_id_helpers_defensive():
         res = crear_reset_token(uid)
         assert res["success"] is False
         assert res["error"] == "Usuario no encontrado"
+
+
+def test_crear_usuario_defensive():
+    """Verify defensive parameter validation in crear_usuario."""
+    from app.models import crear_usuario
+
+    # Invalid nombre
+    assert crear_usuario(None, "", "user@example.com", "", "", "scrypt:hash") is None
+    assert crear_usuario(123, "", "user@example.com", "", "", "scrypt:hash") is None
+    assert crear_usuario("   ", "", "user@example.com", "", "", "scrypt:hash") is None
+    assert crear_usuario("a" * 121, "", "user@example.com", "", "", "scrypt:hash") is None
+
+    # Invalid email
+    assert crear_usuario("Valid Name", "", None, "", "", "scrypt:hash") is None
+    assert crear_usuario("Valid Name", "", 12345, "", "", "scrypt:hash") is None
+    assert crear_usuario("Valid Name", "", "   ", "", "", "scrypt:hash") is None
+    assert crear_usuario("Valid Name", "", "e" * 256, "", "", "scrypt:hash") is None
+
+    # Invalid password_hash
+    assert crear_usuario("Valid Name", "", "user@example.com", "", "", None) is None
+    assert crear_usuario("Valid Name", "", "user@example.com", "", "", 12345) is None
+    assert crear_usuario("Valid Name", "", "user@example.com", "", "", "h" * 256) is None

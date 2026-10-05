@@ -1606,32 +1606,43 @@ def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
 
 
 def crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash):
-    """Crea un usuario nuevo."""
-    ensure_tables()
-    session_factory = get_session_factory()
-    email_normalizado = email.lower().strip()
-    user = User(
-        user_id=str(uuid.uuid4()),
-        email=email_normalizado,
-        nombre=nombre.strip(),
-        apellido=(apellido or '').strip(),
-        prefijo_pais=(prefijo_pais or '').strip(),
-        telefono=(telefono or '').strip(),
-        password_hash=password_hash,
-        role='user',
-        status='active',
-        collection_visibility='private',
-        homepage_showcase_opt_in=False,
-        created_at=utcnow(),
-        updated_at=utcnow(),
-    )
+    """Crea un usuario nuevo con validación defensiva y manejo de excepciones."""
+    if not nombre or not isinstance(nombre, str) or not nombre.strip() or len(nombre.strip()) > 120:
+        return None
+    if not email or not isinstance(email, str) or not email.strip() or len(email.strip()) > 255:
+        return None
+    if not password_hash or not isinstance(password_hash, str) or len(password_hash) > 255:
+        return None
+
     try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        email_normalizado = email.lower().strip()
+        user = User(
+            user_id=str(uuid.uuid4()),
+            email=email_normalizado,
+            nombre=nombre.strip(),
+            apellido=str(apellido or '').strip()[:120],
+            prefijo_pais=str(prefijo_pais or '').strip()[:10],
+            telefono=str(telefono or '').strip()[:20],
+            password_hash=password_hash,
+            role='user',
+            status='active',
+            collection_visibility='private',
+            homepage_showcase_opt_in=False,
+            created_at=utcnow(),
+            updated_at=utcnow(),
+        )
         with session_factory() as session:
             session.add(user)
             session.commit()
             session.refresh(user)
             return user_to_dict(user)
-    except IntegrityError:
+    except Exception as exc:
+        try:
+            current_app.logger.error('crear_usuario_failed error=%s', exc)
+        except RuntimeError:
+            pass
         return None
 
 
