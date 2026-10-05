@@ -1170,3 +1170,17 @@ def test_edit_game_title_clear_button_rendered(client):
     assert "const editTitleInput = document.getElementById('titulo');" in html
     assert "const editTitleClearBtn = document.getElementById('editGameTitleClearBtn');" in html
     assert "window.announceToScreenReader?.('Título de juego borrado');" in html
+
+
+def test_profile_name_clear_button_rendered(client):
+    """Verify that profile.html renders the name clear button, ARIA attributes, and JS handlers."""
+    login_session(client)
+
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="profileNameClearBtn"' in html
+    assert 'aria-label="Borrar nombre"' in html
+    assert 'title="Borrar nombre"' in html
+    assert "setupClearControl('nombre', 'profileNameClearBtn', 'Nombre borrado');" in html
