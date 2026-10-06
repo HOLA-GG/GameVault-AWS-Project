@@ -422,6 +422,28 @@ def test_palette_game_card_copy_button(client):
     assert 'title="Copiar nombre de The Legend of Zelda"' in html
 
 
+def test_palette_game_card_title_copy_button(client):
+    """Verify that game card headings render a title-only copy button with data-copy, aria-label, and title attributes."""
+    login_session(client)
+
+    client.post('/agregar', data={
+        'titulo': 'Chrono Trigger Title Test',
+        'descripcion': 'SNES RPG masterpiece',
+        'plataforma': 'Nintendo',
+        'estado': 'Usado',
+        'categoria': 'Biblioteca',
+        'prioridad': 'Alta',
+    }, follow_redirects=True)
+
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'data-copy="Chrono Trigger Title Test"' in html
+    assert 'aria-label="Copiar título Chrono Trigger Title Test"' in html
+    assert 'title="Copiar título Chrono Trigger Title Test"' in html
+
+
 def test_password_match_validation_rendering(client):
     """Verify that password match validation, wrapper order, and screen reader announcements are rendered in base.html."""
     response = client.get('/registro')

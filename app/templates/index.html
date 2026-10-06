@@ -333,10 +333,11 @@
                     </div>
                     </div>
                     <div class="game-info">
-                        <h3 id="game-title-{{ juego.game_id }}">
-                            <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="info-link">
+                        <h3 id="game-title-{{ juego.game_id }}" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                            <a href="{{ url_for('main.editar_juego_ruta', game_id=juego.game_id) }}" class="info-link" style="min-width:0; overflow:hidden; text-overflow:ellipsis;">
                                 {{ juego.titulo }}{% if juego.es_favorito %} <span aria-hidden="true">⭐</span>{% endif %}
                             </a>
+                            <button type="button" class="btn-copy" data-copy="{{ juego.titulo }}" aria-label="Copiar título {{ juego.titulo }}" title="Copiar título {{ juego.titulo }}" style="flex-shrink:0; font-size:0.85rem; border-radius: var(--border-radius-sm);"></button>
                         </h3>
                         <p class="game-description">{{ juego.descripcion }}</p>
                         <div class="game-meta">

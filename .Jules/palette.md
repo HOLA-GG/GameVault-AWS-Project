@@ -25,6 +25,7 @@
 ## 2026-07-02 - Flash Message Scannability and Contrast
 **Learning:** Standard flash notifications can be visually monotonous, especially when using subtle gradients. Prepending semantic emojis (e.g., ✅, 🚫) significantly improves rapid scannability and categorization. However, these icons must be marked with `aria-hidden` to prevent redundant noise for screen reader users. Additionally, alerts using background gradients often require explicit, high-contrast text overrides (e.g., `#ffffff !important`) to ensure WCAG compliance across all alert types.
 **Action:** Use an idempotent "detect-and-inject" pattern to enhance alerts with visual icons. Always pair visual enhancements with a contrast audit, especially for status-colored components like "info" or "warning" alerts.
+
 ## 2026-07-02 - Actionable Real-Time Password Complexity Guidance
 **Learning:** Generic "Weak" or "Medium" password strength indicators fail to help users satisfy complex backend validation rules, leading to frustrating trial-and-error form submissions. Supplementing strength visualizers with real-time, localized descriptions of missing criteria (e.g., lowercase, uppercase, number, minimum characters) directly addresses user cognitive load and reduces form submission failures.
 **Action:** Always pair abstract metrics (like password strength percentages or color bars) with direct, human-readable instructions detailing what requirements are currently unmet, ensuring smooth progressive feedback before submission.
@@ -168,3 +169,7 @@
 ## 2026-10-25 - Game Title Clear Controls Across Edit Forms
 **Learning:** Adding interactive clear buttons (`×`) to pre-filled title inputs on edit forms (such as `edit_game.html`) ensures input control consistency with creation forms (`index.html`). Placing clear triggers inside relative flex wrappers (`position: relative; display: flex; align-items: center;`) with `padding-right: 36px` allows `base.html`'s character counter logic to correctly insert counter elements outside flex wrappers without breaking input layout or button positioning.
 **Action:** When adding clear buttons to form fields inside flex wrappers, ensure `base.html`'s flex-wrapper detection logic (`el.parentNode.style.display.includes('flex')`) is satisfied, and pair clearing with `input` event dispatching, focus restoration, and ARIA live region announcements (`announceToScreenReader`).
+
+## 2026-11-01 - Content Heading Inline Copy Affordance & Text Truncation
+**Learning:** Adding micro inline copy buttons directly to content headings (such as card titles) in flex layouts (`justify-content: space-between`) provides an immediate, low-friction copy affordance without navigating to edit views. To prevent text overflow bugs or awkward button wrapping, the heading text container must explicitly enforce flex text truncation (`min-width: 0; overflow: hidden; text-overflow: ellipsis;`).
+**Action:** When placing utility triggers inside flex heading containers, wrap title text elements in a container with `min-width: 0; overflow: hidden; text-overflow: ellipsis;` to preserve clean layout alignment across screen widths.
