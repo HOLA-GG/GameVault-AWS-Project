@@ -1697,31 +1697,38 @@ def crear_reset_token(user_id: str, ip_address: str = None) -> Dict[str, Any]:
     """Crea un token de recuperación de contraseña."""
     if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
         return {'success': False, 'token': None, 'expires_at': None, 'error': 'Usuario no encontrado'}
-    ensure_tables()
-    session_factory = get_session_factory()
-    now = utcnow()
-    expires_at = now + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
-    raw_token = secrets.token_urlsafe(32)
-    safe_ip = sanitize_and_validate_ip(ip_address)[:64]
-    item = PasswordResetToken(
-        token_id=str(uuid.uuid4()),
-        user_id=user_id,
-        reset_token=hash_token(raw_token),
-        created_at=now,
-        expires_at=expires_at,
-        used=False,
-        # Truncate IP to match DB schema (Security hardening)
-        ip_address=safe_ip,
-    )
-    with session_factory() as session:
-        session.add(item)
-        session.commit()
-        return {
-            'success': True,
-            'token': raw_token,
-            'expires_at': expires_at,
-            'error': None,
-        }
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        now = utcnow()
+        expires_at = now + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
+        raw_token = secrets.token_urlsafe(32)
+        safe_ip = sanitize_and_validate_ip(ip_address)[:64]
+        item = PasswordResetToken(
+            token_id=str(uuid.uuid4()),
+            user_id=user_id,
+            reset_token=hash_token(raw_token),
+            created_at=now,
+            expires_at=expires_at,
+            used=False,
+            # Truncate IP to match DB schema (Security hardening)
+            ip_address=safe_ip,
+        )
+        with session_factory() as session:
+            session.add(item)
+            session.commit()
+            return {
+                'success': True,
+                'token': raw_token,
+                'expires_at': expires_at,
+                'error': None,
+            }
+    except Exception as exc:
+        try:
+            current_app.logger.error('crear_reset_token_failed error=%s', exc)
+        except RuntimeError:
+            pass
+        return {'success': False, 'token': None, 'expires_at': None, 'error': 'Error al generar token de recuperación'}
 
 
 def obtener_token_por_valor(reset_token: str, only_active: bool = True) -> List[Dict[str, Any]]:
