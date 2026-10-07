@@ -2541,38 +2541,52 @@ def admin_collections():
     collection_filter = visibility if visibility in {'public', 'private'} else None
 
     per_page = current_app.config['ADMIN_USERS_PER_PAGE']
-    total_collections = contar_resumenes_colecciones(collection_filter)
-    # Bolt Optimization: Fast integer division replaces math.ceil float conversion.
-    total_pages = max(1, (total_collections + per_page - 1) // per_page) if per_page else 1
-
-    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
     try:
-        raw_page = request.args.get('page', 1, type=int)
-        page = max(1, min(raw_page, total_pages))
-    except (ValueError, TypeError, OverflowError):
-        page = 1
+        total_collections = contar_resumenes_colecciones(collection_filter)
+        # Bolt Optimization: Fast integer division replaces math.ceil float conversion.
+        total_pages = max(1, (total_collections + per_page - 1) // per_page) if per_page else 1
 
-    offset = (page - 1) * per_page
+        # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+        try:
+            raw_page = request.args.get('page', 1, type=int)
+            page = max(1, min(raw_page, total_pages))
+        except (ValueError, TypeError, OverflowError):
+            page = 1
 
-    collections = obtener_resumenes_colecciones(collection_filter, limit=per_page, offset=offset)
+        offset = (page - 1) * per_page
 
-    current_page = page
-    pagination = {
-        'page': current_page,
-        'total_pages': total_pages,
-        'has_prev': current_page > 1,
-        'has_next': current_page < total_pages,
-        'prev_page': current_page - 1,
-        'next_page': current_page + 1,
-    }
+        collections = obtener_resumenes_colecciones(collection_filter, limit=per_page, offset=offset)
 
-    return render_template(
-        'admin_collections.html',
-        collections=collections,
-        visibility=visibility,
-        pagination=pagination,
-        query_args_builder=build_query_args,
-    )
+        current_page = page
+        pagination = {
+            'page': current_page,
+            'total_pages': total_pages,
+            'has_prev': current_page > 1,
+            'has_next': current_page < total_pages,
+            'prev_page': current_page - 1,
+            'next_page': current_page + 1,
+        }
+
+        return render_template(
+            'admin_collections.html',
+            collections=collections,
+            visibility=visibility,
+            pagination=pagination,
+            query_args_builder=build_query_args,
+        )
+    except Exception as exc:
+        current_app.logger.error('admin_collections_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='collections',
+            details={'operation': 'view_collections', 'visibility': visibility, 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudieron obtener las colecciones.', 'error')
+        return redirect(url_for('main.admin_panel'))
 
 
 @main_bp.route('/admin/delete/<user_id>', methods=['POST'])
