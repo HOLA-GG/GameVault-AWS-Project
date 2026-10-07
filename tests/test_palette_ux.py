@@ -1206,3 +1206,27 @@ def test_profile_name_clear_button_rendered(client):
     assert 'aria-label="Borrar nombre"' in html
     assert 'title="Borrar nombre"' in html
     assert "setupClearControl('nombre', 'profileNameClearBtn', 'Nombre borrado');" in html
+
+
+def test_login_and_register_password_clear_buttons_rendered(client):
+    """Verify that login.html and registro.html render accessible password clear controls and script logic."""
+    # 1. Login page
+    response_login = client.get('/login')
+    assert response_login.status_code == 200
+    html_login = response_login.get_data(as_text=True)
+
+    assert 'setupPasswordClearControl' in html_login
+    assert "'loginPasswordClearBtn'" in html_login
+    assert "'Borrar contraseña'" in html_login
+    assert "'Contraseña borrada'" in html_login
+
+    # 2. Registration page
+    response_reg = client.get('/registro')
+    assert response_reg.status_code == 200
+    html_reg = response_reg.get_data(as_text=True)
+
+    assert 'setupPasswordClearControl' in html_reg
+    assert "'registerPasswordClearBtn'" in html_reg
+    assert "'registerConfirmPasswordClearBtn'" in html_reg
+    assert "'Borrar contraseña'" in html_reg
+    assert "'Borrar confirmación de contraseña'" in html_reg
