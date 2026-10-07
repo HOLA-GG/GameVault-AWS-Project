@@ -37,3 +37,8 @@
 **Vulnerability:** In `crear_log_audit`, slicing parameters (`action[:80]`, `resource[:80]`, `status[:20]`, `user_agent[:500]`) without string coercion caused `TypeError` crashes when non-string values (such as integer HTTP status codes) were passed.
 **Learning:** Slicing non-string types in logging helpers crashes audit record creation and can trigger cascading 500 errors in route error handlers.
 **Prevention:** Always perform explicit `str(...)` type coercion before applying length bounds to string parameters in audit logging functions.
+
+## 2026-11-02 - Defensive Exception Handling and Audit Trail Logging for Admin Collection Views
+**Vulnerability:** Unhandled database exceptions in administrative collection management (`/admin/collections`) could trigger 500 server crashes and bypass audit trail logging for failed administrative collection operations.
+**Learning:** Administrative collection listing endpoints that lack try-except error handling can crash on database or query execution errors, exposing 500 internal server errors and creating auditing blind spots when failure events go unrecorded.
+**Prevention:** Wrap administrative data querying routines in `try...except` blocks, logging the error, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash message.
