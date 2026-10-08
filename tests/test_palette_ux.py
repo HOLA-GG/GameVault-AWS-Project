@@ -204,10 +204,19 @@ def test_search_input_escape_key_clears_or_blurs(client):
     # Check that base.html defines the universal Escape key logic for active search fields
     assert "const activeEl = document.activeElement;" in html
     assert "activeEl.tagName === 'INPUT'" in html
-    assert "activeEl.type === 'search' || activeEl.id === 'user_id'" in html
-    assert "activeEl.parentNode?.querySelector('.search-clear-btn');" in html
+    assert "clearBtn || activeEl.type === 'search' || activeEl.id === 'user_id'" in html
     assert "clearBtn.click();" in html
     assert "activeEl.blur();" in html
+
+
+def test_escape_key_clears_any_clearable_input(client):
+    """Verify that the base template script searches for clear buttons across form group wrappers on Escape keydown."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "activeEl.closest('.form-group, .pw-field-wrapper, div')?.querySelector('.search-clear-btn')" in html
+    assert "announceToScreenReader('Texto borrado');" in html
 
 
 def test_palette_new_select_on_focus_and_placeholders(client):

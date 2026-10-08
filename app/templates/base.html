@@ -799,21 +799,23 @@
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
                     const activeEl = document.activeElement;
-                    if (activeEl && activeEl.tagName === 'INPUT' && (activeEl.type === 'search' || activeEl.id === 'user_id')) {
-                        event.preventDefault();
-                        if (activeEl.value) {
-                            const clearBtn = activeEl.parentNode?.querySelector('.search-clear-btn');
-                            if (clearBtn) {
-                                clearBtn.click();
+                    if (activeEl && activeEl.tagName === 'INPUT') {
+                        const clearBtn = activeEl.parentNode?.querySelector('.search-clear-btn') || activeEl.closest('.form-group, .pw-field-wrapper, div')?.querySelector('.search-clear-btn');
+                        if (clearBtn || activeEl.type === 'search' || activeEl.id === 'user_id') {
+                            event.preventDefault();
+                            if (activeEl.value) {
+                                if (clearBtn) {
+                                    clearBtn.click();
+                                } else {
+                                    activeEl.value = '';
+                                    activeEl.dispatchEvent(new Event('input'));
+                                    announceToScreenReader('Texto borrado');
+                                }
                             } else {
-                                activeEl.value = '';
-                                activeEl.dispatchEvent(new Event('input'));
-                                announceToScreenReader('Búsqueda borrada');
+                                activeEl.blur();
                             }
-                        } else {
-                            activeEl.blur();
+                            return;
                         }
-                        return;
                     }
                     toggleAccessibilityPanel(false);
                 }
