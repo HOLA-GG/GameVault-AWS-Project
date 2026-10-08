@@ -173,3 +173,7 @@
 ## 2026-11-01 - Content Heading Inline Copy Affordance & Text Truncation
 **Learning:** Adding micro inline copy buttons directly to content headings (such as card titles) in flex layouts (`justify-content: space-between`) provides an immediate, low-friction copy affordance without navigating to edit views. To prevent text overflow bugs or awkward button wrapping, the heading text container must explicitly enforce flex text truncation (`min-width: 0; overflow: hidden; text-overflow: ellipsis;`).
 **Action:** When placing utility triggers inside flex heading containers, wrap title text elements in a container with `min-width: 0; overflow: hidden; text-overflow: ellipsis;` to preserve clean layout alignment across screen widths.
+
+## 2026-11-05 - Universal Input Escape Clearing Across Form Containers
+**Learning:** Restricting Escape key clearing logic to `input[type="search"]` or specific element IDs leaves clearable form fields (such as email, password, or token inputs wrapped in `.form-group` or `.pw-field-wrapper`) unable to be cleared via the keyboard. Querying for an adjacent `.search-clear-btn` via `activeEl.closest(...)` allows any clearable input field to handle Escape key press uniformly, clearing the value or blurring focus if already empty.
+**Action:** When implementing Escape key handling for form controls, query for adjacent clear buttons across parent wrapper elements (`.closest('.form-group, .pw-field-wrapper, div')`) to provide universal keyboard clearing parity.
