@@ -2760,79 +2760,93 @@ def admin_logs():
         'start_date': request.args.get('start_date', '').strip()[:50],
         'end_date': request.args.get('end_date', '').strip()[:50],
     }
-    # Bolt Optimization: Fetch raw logs with selective projection to avoid expensive ISO conversions in the hot path.
-    logs = obtener_todos_logs(
-        filters,
-        limit=500,
-        format_dates=False,
-        fields=['audit_id', 'user_id', 'action', 'action_name', 'resource', 'timestamp', 'ip_address', 'details', 'status']
-    )
-    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
     try:
-        raw_page = request.args.get('page', 1, type=int)
-        page = max(1, raw_page if raw_page is not None else 1)
-    except (ValueError, TypeError, OverflowError):
-        page = 1
-    stats = obtener_estadisticas_logs()
-    grouped_logs = build_admin_log_groups(logs)
-    pagination = paginate_items(grouped_logs, page, current_app.config['ADMIN_USERS_PER_PAGE'])
-
-    # Bolt Optimization: Enrich only groups and logs belonging to the current page view.
-    page_groups = pagination['items']
-    page_user_ids = {g['user_id'] for g in page_groups if g['user_id'] != 'system'}
-    # Bolt Optimization: Fetch only required fields (user_id, email, nombre) to reduce DB load.
-    user_map = {
-        u['user_id']: u for u in obtener_usuarios_por_ids(
-            list(page_user_ids),
+        # Bolt Optimization: Fetch raw logs with selective projection to avoid expensive ISO conversions in the hot path.
+        logs = obtener_todos_logs(
+            filters,
+            limit=500,
             format_dates=False,
-            fields=['user_id', 'email', 'nombre']
+            fields=['audit_id', 'user_id', 'action', 'action_name', 'resource', 'timestamp', 'ip_address', 'details', 'status']
         )
-    } if page_user_ids else {}
+        # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+        try:
+            raw_page = request.args.get('page', 1, type=int)
+            page = max(1, raw_page if raw_page is not None else 1)
+        except (ValueError, TypeError, OverflowError):
+            page = 1
+        stats = obtener_estadisticas_logs()
+        grouped_logs = build_admin_log_groups(logs)
+        pagination = paginate_items(grouped_logs, page, current_app.config['ADMIN_USERS_PER_PAGE'])
 
-    for group in page_groups:
-        uid = group['user_id']
-        if uid != 'system' and uid in user_map:
-            u = user_map[uid]
-            group['email'] = u.get('email', '')
-            group['nombre'] = u.get('nombre', '')
-
-        # Enrich the first log of each group for the sidebar (latest_action, latest_timestamp)
-        if group['items']:
-            enrich_log_metadata(group['items'][0])
-            # Update the ISO string for the template
-            group['latest_timestamp'] = group['items'][0]['timestamp']
-
-    selected_user_id = request.args.get('selected_user_id', '').strip()[:36]
-    if selected_user_id and selected_user_id != 'system' and not is_valid_id(selected_user_id):
-        selected_user_id = ''
-
-    # Bolt Optimization: Short-circuit selected group resolution when selected_user_id is empty
-    # to avoid generator allocation and full list scanning on default page loads (~6.5x speedup).
-    selected_group = None
-    if pagination['items']:
-        if selected_user_id:
-            selected_group = next(
-                (group for group in pagination['items'] if group['user_id'] == selected_user_id),
-                pagination['items'][0],
+        # Bolt Optimization: Enrich only groups and logs belonging to the current page view.
+        page_groups = pagination['items']
+        page_user_ids = {g['user_id'] for g in page_groups if g['user_id'] != 'system'}
+        # Bolt Optimization: Fetch only required fields (user_id, email, nombre) to reduce DB load.
+        user_map = {
+            u['user_id']: u for u in obtener_usuarios_por_ids(
+                list(page_user_ids),
+                format_dates=False,
+                fields=['user_id', 'email', 'nombre']
             )
-        else:
-            selected_group = pagination['items'][0]
+        } if page_user_ids else {}
 
-    if selected_group:
-        # Bolt Optimization: Enrich all logs in the selected group being rendered in the main panel.
-        for log in selected_group['items']:
-            enrich_log_metadata(log)
+        for group in page_groups:
+            uid = group['user_id']
+            if uid != 'system' and uid in user_map:
+                u = user_map[uid]
+                group['email'] = u.get('email', '')
+                group['nombre'] = u.get('nombre', '')
 
-    return render_template(
-        'admin_logs.html',
-        grouped_logs=pagination['items'],
-        selected_group=selected_group,
-        stats=stats,
-        filters=filters,
-        AUDIT_ACTIONS=AUDIT_ACTIONS,
-        pagination=pagination,
-        query_args_builder=build_query_args,
-    )
+            # Enrich the first log of each group for the sidebar (latest_action, latest_timestamp)
+            if group['items']:
+                enrich_log_metadata(group['items'][0])
+                # Update the ISO string for the template
+                group['latest_timestamp'] = group['items'][0]['timestamp']
+
+        selected_user_id = request.args.get('selected_user_id', '').strip()[:36]
+        if selected_user_id and selected_user_id != 'system' and not is_valid_id(selected_user_id):
+            selected_user_id = ''
+
+        # Bolt Optimization: Short-circuit selected group resolution when selected_user_id is empty
+        # to avoid generator allocation and full list scanning on default page loads (~6.5x speedup).
+        selected_group = None
+        if pagination['items']:
+            if selected_user_id:
+                selected_group = next(
+                    (group for group in pagination['items'] if group['user_id'] == selected_user_id),
+                    pagination['items'][0],
+                )
+            else:
+                selected_group = pagination['items'][0]
+
+        if selected_group:
+            # Bolt Optimization: Enrich all logs in the selected group being rendered in the main panel.
+            for log in selected_group['items']:
+                enrich_log_metadata(log)
+
+        return render_template(
+            'admin_logs.html',
+            grouped_logs=pagination['items'],
+            selected_group=selected_group,
+            stats=stats,
+            filters=filters,
+            AUDIT_ACTIONS=AUDIT_ACTIONS,
+            pagination=pagination,
+            query_args_builder=build_query_args,
+        )
+    except Exception as exc:
+        current_app.logger.error('admin_logs_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='audit_logs',
+            details={'operation': 'view_logs', 'filters': filters, 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudieron obtener los logs de auditoría.', 'error')
+        return redirect(url_for('main.admin_panel'))
 
 
 @main_bp.route('/admin/logs/export')
