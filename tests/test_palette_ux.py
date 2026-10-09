@@ -1204,7 +1204,7 @@ def test_edit_game_title_clear_button_rendered(client):
 
 
 def test_profile_name_clear_button_rendered(client):
-    """Verify that profile.html renders the name clear button, ARIA attributes, and JS handlers."""
+    """Verify that profile.html renders the name, last name, and phone clear buttons, ARIA attributes, and JS handlers."""
     login_session(client)
 
     response = client.get('/perfil')
@@ -1214,7 +1214,18 @@ def test_profile_name_clear_button_rendered(client):
     assert 'id="profileNameClearBtn"' in html
     assert 'aria-label="Borrar nombre"' in html
     assert 'title="Borrar nombre"' in html
+
+    assert 'id="profileLastNameClearBtn"' in html
+    assert 'aria-label="Borrar apellidos"' in html
+    assert 'title="Borrar apellidos"' in html
+
+    assert 'id="profilePhoneClearBtn"' in html
+    assert 'aria-label="Borrar teléfono"' in html
+    assert 'title="Borrar teléfono"' in html
+
     assert "setupClearControl('nombre', 'profileNameClearBtn', 'Nombre borrado');" in html
+    assert "setupClearControl('apellido', 'profileLastNameClearBtn', 'Apellidos borrados');" in html
+    assert "setupClearControl('telefono', 'profilePhoneClearBtn', 'Teléfono borrado');" in html
 
 
 def test_login_and_register_password_clear_buttons_rendered(client):

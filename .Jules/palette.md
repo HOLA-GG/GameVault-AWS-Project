@@ -177,3 +177,7 @@
 ## 2026-11-05 - Universal Input Escape Clearing Across Form Containers
 **Learning:** Restricting Escape key clearing logic to `input[type="search"]` or specific element IDs leaves clearable form fields (such as email, password, or token inputs wrapped in `.form-group` or `.pw-field-wrapper`) unable to be cleared via the keyboard. Querying for an adjacent `.search-clear-btn` via `activeEl.closest(...)` allows any clearable input field to handle Escape key press uniformly, clearing the value or blurring focus if already empty.
 **Action:** When implementing Escape key handling for form controls, query for adjacent clear buttons across parent wrapper elements (`.closest('.form-group, .pw-field-wrapper, div')`) to provide universal keyboard clearing parity.
+
+## 2026-11-10 - Full Form Field Clear Parity Across Profile Views
+**Learning:** Partially providing interactive clear controls on form views (e.g. having a clear button on `nombre` but leaving `apellido` and `telefono` as bare inputs) creates an inconsistent interaction model and frustrates users attempting to edit optional personal profile details. Extending relative flex wrappers (`padding-right: 36px`) and interactive clear buttons (`&times;`) across all editable text fields ensures complete interaction consistency and clear feedback across input types.
+**Action:** When adding interactive clear triggers to form fields, perform a holistic audit of the entire form to ensure every editable text/tel input features clear controls and live screen-reader feedback upon clearing.
