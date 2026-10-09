@@ -1171,15 +1171,17 @@ def demo():
 
 @main_bp.route('/healthz')
 def healthz():
-    """Healthcheck apto para monitoreo."""
+    """Healthcheck apto para monitoreo con código de estado según salud de BD (Security/Availability hardening)."""
+    db_ok = database_healthcheck()
+    status_code = 200 if db_ok else 503
     return {
-        'status': 'ok',
+        'status': 'ok' if db_ok else 'unhealthy',
         'app': 'GameVault',
         'env': current_app.config['APP_ENV'],
         'database': current_app.config['DATABASE_BACKEND'],
-        'database_ok': database_healthcheck(),
+        'database_ok': db_ok,
         'storage': current_app.config['STORAGE_BACKEND'],
-    }
+    }, status_code
 
 
 @main_bp.route('/salud')
