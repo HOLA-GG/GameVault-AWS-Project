@@ -42,3 +42,8 @@
 **Vulnerability:** Unhandled database exceptions in administrative collection management (`/admin/collections`) could trigger 500 server crashes and bypass audit trail logging for failed administrative collection operations.
 **Learning:** Administrative collection listing endpoints that lack try-except error handling can crash on database or query execution errors, exposing 500 internal server errors and creating auditing blind spots when failure events go unrecorded.
 **Prevention:** Wrap administrative data querying routines in `try...except` blocks, logging the error, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash message.
+
+## 2026-11-09 - Exception Handling and Audit Trail Logging for Administrative User Panel
+**Vulnerability:** Unhandled database exceptions in administrative user management (`/admin`) could trigger 500 server crashes and bypass audit trail logging for failed administrative user panel loads.
+**Learning:** Administrative user management endpoints that lack try-except error handling can crash on database or query execution errors, exposing 500 internal server errors and creating auditing blind spots when failure events go unrecorded.
+**Prevention:** Wrap administrative user panel data querying routines in `try...except` blocks, logging the error, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash message.
