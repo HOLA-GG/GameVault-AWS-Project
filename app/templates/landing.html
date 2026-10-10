@@ -244,6 +244,9 @@
                 }
                 feedbackLabel.textContent = message || '';
                 feedbackLabel.dataset.tone = tone || '';
+                if (message) {
+                    window.announceToScreenReader?.(message);
+                }
             }
 
             function setVotesCount(votes) {
