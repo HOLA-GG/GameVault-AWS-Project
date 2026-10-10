@@ -2493,46 +2493,60 @@ def reset_password_with_email(token):
 @require_admin
 def admin_panel():
     """Panel simple de administración con paginación (Optimizado: paginación en DB)."""
-    per_page = current_app.config['ADMIN_USERS_PER_PAGE']
-    total_usuarios = contar_usuarios()
-    # Bolt Optimization: Fast integer division replaces math.ceil float conversion.
-    total_pages = max(1, (total_usuarios + per_page - 1) // per_page) if per_page else 1
-
-    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
     try:
-        raw_page = request.args.get('page', 1, type=int)
-        page = max(1, min(raw_page, total_pages))
-    except (ValueError, TypeError, OverflowError):
-        page = 1
+        per_page = current_app.config['ADMIN_USERS_PER_PAGE']
+        total_usuarios = contar_usuarios()
+        # Bolt Optimization: Fast integer division replaces math.ceil float conversion.
+        total_pages = max(1, (total_usuarios + per_page - 1) // per_page) if per_page else 1
 
-    offset = (page - 1) * per_page
+        # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+        try:
+            raw_page = request.args.get('page', 1, type=int)
+            page = max(1, min(raw_page, total_pages))
+        except (ValueError, TypeError, OverflowError):
+            page = 1
 
-    # Bolt Optimization: Fetch users with raw datetimes and selective projection as they are not rendered in admin.html.
-    usuarios = obtener_todos_usuarios(
-        limit=per_page,
-        offset=offset,
-        format_dates=False,
-        fields=['user_id', 'email', 'nombre', 'prefijo_pais', 'telefono', 'role']
-    )
+        offset = (page - 1) * per_page
 
-    # Construcción manual de metadatos de paginación para mantener compatibilidad con la plantilla
-    current_page = page
-    pagination = {
-        'page': current_page,
-        'total_pages': total_pages,
-        'has_prev': current_page > 1,
-        'has_next': current_page < total_pages,
-        'prev_page': current_page - 1,
-        'next_page': current_page + 1,
-    }
+        # Bolt Optimization: Fetch users with raw datetimes and selective projection as they are not rendered in admin.html.
+        usuarios = obtener_todos_usuarios(
+            limit=per_page,
+            offset=offset,
+            format_dates=False,
+            fields=['user_id', 'email', 'nombre', 'prefijo_pais', 'telefono', 'role']
+        )
 
-    return render_template(
-        'admin.html',
-        usuarios=usuarios,
-        pagination=pagination,
-        total_usuarios=total_usuarios,
-        query_args_builder=build_query_args,
-    )
+        # Construcción manual de metadatos de paginación para mantener compatibilidad con la plantilla
+        current_page = page
+        pagination = {
+            'page': current_page,
+            'total_pages': total_pages,
+            'has_prev': current_page > 1,
+            'has_next': current_page < total_pages,
+            'prev_page': current_page - 1,
+            'next_page': current_page + 1,
+        }
+
+        return render_template(
+            'admin.html',
+            usuarios=usuarios,
+            pagination=pagination,
+            total_usuarios=total_usuarios,
+            query_args_builder=build_query_args,
+        )
+    except Exception as exc:
+        current_app.logger.error('admin_panel_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'operation': 'view_admin_panel', 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudo cargar el panel de administración.', 'error')
+        return redirect(url_for('main.landing'))
 
 
 @main_bp.route('/admin/collections')
