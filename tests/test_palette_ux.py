@@ -1250,3 +1250,13 @@ def test_login_and_register_password_clear_buttons_rendered(client):
     assert "'registerConfirmPasswordClearBtn'" in html_reg
     assert "'Borrar contraseña'" in html_reg
     assert "'Borrar confirmación de contraseña'" in html_reg
+
+
+def test_palette_showcase_rating_announcements(client):
+    """Verify that setFeedback in landing.html calls announceToScreenReader for showcase rating feedback."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'function setFeedback(message, tone)' in html
+    assert 'window.announceToScreenReader?.(message);' in html
