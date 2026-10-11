@@ -1587,10 +1587,23 @@ kbd {
     cursor: pointer;
     list-style: none;
     user-select: none;
+    padding: 4px 6px;
+    margin: -4px -6px;
+    border-radius: var(--border-radius-sm);
+    transition: background var(--transition-fast);
 }
 
 .faq-summary::-webkit-details-marker {
     display: none;
+}
+
+.faq-summary:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.faq-summary:hover {
+    background: rgba(var(--primary-color-rgb), 0.08);
 }
 
 .faq-summary h4 {
@@ -1601,6 +1614,10 @@ kbd {
     font-size: 1.2rem;
     color: var(--primary-color);
     transition: transform var(--transition-fast);
+}
+
+.faq-summary:hover .faq-icon {
+    transform: scale(1.15);
 }
 
 .faq-card[open] .faq-icon {
