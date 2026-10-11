@@ -1665,19 +1665,26 @@ def eliminar_usuario(user_id):
     """Elimina un usuario y sus relaciones."""
     if not user_id or not isinstance(user_id, str) or len(user_id) > 36:
         return {'success': False, 'error': 'Usuario no encontrado'}
-    ensure_tables()
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        user = session.get(User, user_id)
-        if user is None:
-            return {'success': False, 'error': 'Usuario no encontrado'}
-        for game in user.games:
-            if game.imagen_url:
-                eliminar_imagen_s3(game.imagen_url)
-        session.delete(user)
-        session.commit()
-        clear_public_collections_cache()
-        return {'success': True, 'error': None}
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            user = session.get(User, user_id)
+            if user is None:
+                return {'success': False, 'error': 'Usuario no encontrado'}
+            for game in user.games:
+                if game.imagen_url:
+                    eliminar_imagen_s3(game.imagen_url)
+            session.delete(user)
+            session.commit()
+            clear_public_collections_cache()
+            return {'success': True, 'error': None}
+    except Exception as exc:
+        try:
+            current_app.logger.error('user_deletion_unexpected_error user_id=%s error=%s', user_id, exc)
+        except RuntimeError:
+            pass
+        return {'success': False, 'error': 'Error al eliminar usuario'}
 
 
 def actualizar_usuario_nombre(user_id, nombre):
