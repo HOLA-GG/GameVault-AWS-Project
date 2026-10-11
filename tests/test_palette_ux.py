@@ -1260,3 +1260,15 @@ def test_palette_showcase_rating_announcements(client):
 
     assert 'function setFeedback(message, tone)' in html
     assert 'window.announceToScreenReader?.(message);' in html
+
+
+def test_palette_faq_summary_focus_visible_css(client):
+    """Verify that styles.css defines :focus-visible outline and hover styles for .faq-summary."""
+    response = client.get('/static/css/styles.css')
+    assert response.status_code == 200
+    css = response.get_data(as_text=True)
+
+    assert '.faq-summary:focus-visible' in css
+    assert 'outline: 2px solid var(--primary-color);' in css
+    assert 'outline-offset: 2px;' in css
+    assert '.faq-summary:hover' in css
