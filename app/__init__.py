@@ -115,11 +115,24 @@ def build_config() -> dict:
 
     session_secure_default = app_env == 'production'
     max_upload_mb = env_int('MAX_UPLOAD_MB', 5)
-    database_url = os.environ.get('DATABASE_URL', '')
+    raw_db_url = os.environ.get('DATABASE_URL', '')
     if app_env == 'testing':
-        database_url = database_url or 'sqlite+pysqlite:///gamevault_test.db'
-    elif not database_url:
-        database_url = 'sqlite+pysqlite:///gamevault_dev.db'
+        raw_db_url = raw_db_url or 'sqlite+pysqlite:///gamevault_test.db'
+    elif not raw_db_url:
+        raw_db_url = 'sqlite+pysqlite:///gamevault_dev.db'
+
+    from app.models import normalize_database_url
+    database_url = normalize_database_url(raw_db_url)
+
+    neon_project_id = os.environ.get('NEON_PROJECT_ID', '')
+    if database_url.startswith(('postgres', 'postgresql')) or 'neon' in database_url or bool(neon_project_id):
+        database_backend = 'neon'
+    elif database_url.startswith('sqlite'):
+        database_backend = 'sqlite'
+    else:
+        database_backend = 'postgres'
+
+    web_concurrency = env_int('WEB_CONCURRENCY', 2 if app_env == 'production' else 1)
 
     storage_backend = os.environ.get('STORAGE_BACKEND', 'none').strip().lower() or 'none'
     local_upload_dir = os.environ.get('LOCAL_UPLOAD_DIR') or os.path.join(app_root, 'static', 'uploads')
@@ -135,12 +148,6 @@ def build_config() -> dict:
         'BOOTSTRAP_ADMIN_PASSWORD',
         '12345678' if app_env == 'development' else '',
     )
-    if database_url.startswith('postgresql'):
-        database_backend = 'neon'
-    elif database_url.startswith('sqlite'):
-        database_backend = 'sqlite'
-    else:
-        database_backend = 'postgres'
 
     session_cookie_secure = env_bool('SESSION_COOKIE_SECURE', session_secure_default)
     session_cookie_name = '__Host-session' if session_cookie_secure else 'session'
@@ -184,7 +191,8 @@ def build_config() -> dict:
         'R2_ENDPOINT_URL': os.environ.get('R2_ENDPOINT_URL'),
         'RESET_TOKEN_EXPIRY_MINUTES': env_int('RESET_TOKEN_EXPIRY_MINUTES', 30),
         'AUDIT_LOG_RETENTION_DAYS': env_int('AUDIT_LOG_RETENTION_DAYS', 90),
-        'NEON_PROJECT_ID': os.environ.get('NEON_PROJECT_ID', ''),
+        'WEB_CONCURRENCY': web_concurrency,
+        'NEON_PROJECT_ID': neon_project_id,
         'NEON_SSLMODE': os.environ.get('NEON_SSLMODE', 'require'),
         'DB_USE_NULLPOOL': env_bool('DB_USE_NULLPOOL', True),
         'DB_POOL_SIZE': env_int('DB_POOL_SIZE', 5),

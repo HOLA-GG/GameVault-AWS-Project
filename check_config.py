@@ -26,7 +26,7 @@ with app.app_context():
     print("[1] Environment Settings:")
     print(f"  - APP_ENV: {app.config.get('APP_ENV')}")
     print(f"  - LOG_LEVEL: {os.environ.get('LOG_LEVEL', 'INFO')}")
-    print(f"  - WEB_CONCURRENCY: {os.environ.get('WEB_CONCURRENCY', '1')}")
+    print(f"  - WEB_CONCURRENCY: {app.config.get('WEB_CONCURRENCY')}")
     print(f"  - PREFERRED_URL_SCHEME: {app.config.get('PREFERRED_URL_SCHEME')}")
     print(f"  - SHOW_RESET_DEBUG_TOKEN: {app.config.get('SHOW_RESET_DEBUG_TOKEN')}")
     print(f"  - SECRET_KEY: {'[SET]' if app.config.get('SECRET_KEY') else '[MISSING]'}")
