@@ -1272,3 +1272,23 @@ def test_palette_faq_summary_focus_visible_css(client):
     assert 'outline: 2px solid var(--primary-color);' in css
     assert 'outline-offset: 2px;' in css
     assert '.faq-summary:hover' in css
+
+
+def test_palette_admin_logs_date_presets_rendered(client):
+    """Verify that admin_logs.html renders quick date range preset buttons with accessible labels and script handlers."""
+    login_session(client, role='admin')
+    response = client.get('/admin/logs')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'Rango rápido:' in html
+    assert 'class="btn btn-secondary btn-small log-date-preset"' in html
+    assert 'data-days="0"' in html
+    assert 'data-days="7"' in html
+    assert 'data-days="30"' in html
+    assert 'aria-label="Filtrar fecha de hoy"' in html
+    assert 'aria-label="Filtrar últimos 7 días"' in html
+    assert 'aria-label="Filtrar últimos 30 días"' in html
+    assert "formatLocalDate(d)" in html
+    assert "document.querySelectorAll('.log-date-preset').forEach" in html
+    assert "window.announceToScreenReader?.(`Rango de fechas seleccionado: ${label}`);" in html
