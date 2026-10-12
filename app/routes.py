@@ -2610,72 +2610,86 @@ def admin_collections():
 @limiter.limit('10 per minute')
 def admin_eliminar_usuario(user_id):
     """Elimina un usuario salvo al propio admin actual y otros administradores."""
-    if not is_valid_id(user_id):
-        crear_log_audit(
-            user_id=session.get('user_id'),
-            action='ADMIN_ACTION',
-            resource='users',
-            details={'target_user_id': user_id[:36] if user_id else None, 'operation': 'delete_user', 'error': 'invalid_user_id'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Usuario no encontrado.', 'error')
-        return redirect(url_for('main.admin_panel'))
+    try:
+        if not is_valid_id(user_id):
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id[:36] if user_id else None, 'operation': 'delete_user', 'error': 'invalid_user_id'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Usuario no encontrado.', 'error')
+            return redirect(url_for('main.admin_panel'))
 
-    if session.get('user_id') == user_id:
-        crear_log_audit(
-            user_id=session.get('user_id'),
-            action='ADMIN_ACTION',
-            resource='users',
-            details={'target_user_id': user_id, 'operation': 'delete_user', 'error': 'cannot_delete_self'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('No puedes eliminar tu propia cuenta desde el panel.', 'error')
-        return redirect(url_for('main.admin_panel'))
+        if session.get('user_id') == user_id:
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id, 'operation': 'delete_user', 'error': 'cannot_delete_self'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No puedes eliminar tu propia cuenta desde el panel.', 'error')
+            return redirect(url_for('main.admin_panel'))
 
-    # Prevent administrators from deleting other admins to avoid lockout and privilege abuse
-    target_user = obtener_usuario_por_id(user_id, format_dates=False)
-    if target_user and target_user.get('role') == 'admin':
-        crear_log_audit(
-            user_id=session.get('user_id'),
-            action='ADMIN_ACTION',
-            resource='users',
-            details={'target_user_id': user_id, 'operation': 'delete_user', 'error': 'cannot_delete_another_admin'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('No está permitido eliminar a otro administrador por seguridad.', 'error')
-        return redirect(url_for('main.admin_panel'))
+        # Prevent administrators from deleting other admins to avoid lockout and privilege abuse
+        target_user = obtener_usuario_por_id(user_id, format_dates=False)
+        if target_user and target_user.get('role') == 'admin':
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id, 'operation': 'delete_user', 'error': 'cannot_delete_another_admin'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No está permitido eliminar a otro administrador por seguridad.', 'error')
+            return redirect(url_for('main.admin_panel'))
 
-    resultado = eliminar_usuario(user_id)
-    if not resultado['success']:
-        flash(f'No se pudo eliminar el usuario: {resultado["error"]}', 'error')
+        resultado = eliminar_usuario(user_id)
+        if not resultado['success']:
+            flash(f'No se pudo eliminar el usuario: {resultado["error"]}', 'error')
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id, 'operation': 'delete_user', 'error': resultado.get('error')},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return redirect(url_for('main.admin_panel'))
+
         crear_log_audit(
             user_id=session['user_id'],
             action='ADMIN_ACTION',
             resource='users',
-            details={'target_user_id': user_id, 'operation': 'delete_user', 'error': resultado.get('error')},
+            details={'target_user_id': user_id, 'operation': 'delete_user'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        flash('Usuario eliminado.', 'success')
+        return redirect(url_for('main.admin_panel'))
+    except Exception as exc:
+        current_app.logger.error('admin_eliminar_usuario_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'operation': 'delete_user', 'target_user_id': user_id[:36] if user_id else None, 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
+        flash('No se pudo eliminar el usuario.', 'error')
         return redirect(url_for('main.admin_panel'))
-
-    crear_log_audit(
-        user_id=session['user_id'],
-        action='ADMIN_ACTION',
-        resource='users',
-        details={'target_user_id': user_id, 'operation': 'delete_user'},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash('Usuario eliminado.', 'success')
-    return redirect(url_for('main.admin_panel'))
 
 
 @main_bp.route('/admin/edit/<user_id>', methods=['POST'])
@@ -2683,86 +2697,100 @@ def admin_eliminar_usuario(user_id):
 @limiter.limit('10 per minute')
 def admin_editar_usuario(user_id):
     """Edita el nombre principal de un usuario."""
-    if not is_valid_id(user_id):
-        crear_log_audit(
-            user_id=session.get('user_id'),
-            action='ADMIN_ACTION',
-            resource='users',
-            details={'target_user_id': user_id[:36] if user_id else None, 'operation': 'rename_user', 'error': 'invalid_user_id'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Usuario no encontrado.', 'error')
-        return redirect(url_for('main.admin_panel'))
+    try:
+        if not is_valid_id(user_id):
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id[:36] if user_id else None, 'operation': 'rename_user', 'error': 'invalid_user_id'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Usuario no encontrado.', 'error')
+            return redirect(url_for('main.admin_panel'))
 
-    # Prevent administrators from editing other admins to avoid privilege abuse and impersonation (Security hardening)
-    target_user = obtener_usuario_por_id(user_id, format_dates=False)
-    if target_user and target_user.get('role') == 'admin' and user_id != session.get('user_id'):
-        crear_log_audit(
-            user_id=session.get('user_id'),
-            action='ADMIN_ACTION',
-            resource='users',
-            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'cannot_edit_another_admin'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('No está permitido editar a otro administrador por seguridad.', 'error')
-        return redirect(url_for('main.admin_panel'))
+        # Prevent administrators from editing other admins to avoid privilege abuse and impersonation (Security hardening)
+        target_user = obtener_usuario_por_id(user_id, format_dates=False)
+        if target_user and target_user.get('role') == 'admin' and user_id != session.get('user_id'):
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'cannot_edit_another_admin'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No está permitido editar a otro administrador por seguridad.', 'error')
+            return redirect(url_for('main.admin_panel'))
 
-    nuevo_nombre = request.form.get('nombre', '').strip()
-    if not nuevo_nombre:
-        crear_log_audit(
-            user_id=session.get('user_id'),
-            action='ADMIN_ACTION',
-            resource='users',
-            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'empty_name'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('El nombre no puede estar vacío.', 'error')
-        return redirect(url_for('main.admin_panel'))
+        nuevo_nombre = request.form.get('nombre', '').strip()
+        if not nuevo_nombre:
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'empty_name'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('El nombre no puede estar vacío.', 'error')
+            return redirect(url_for('main.admin_panel'))
 
-    if len(nuevo_nombre) > 120:
-        crear_log_audit(
-            user_id=session.get('user_id'),
-            action='ADMIN_ACTION',
-            resource='users',
-            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'name_too_long'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('El nombre es demasiado largo (máximo 120 caracteres).', 'error')
-        return redirect(url_for('main.admin_panel'))
+        if len(nuevo_nombre) > 120:
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id, 'operation': 'rename_user', 'error': 'name_too_long'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('El nombre es demasiado largo (máximo 120 caracteres).', 'error')
+            return redirect(url_for('main.admin_panel'))
 
-    resultado = actualizar_usuario_nombre(user_id, nuevo_nombre)
-    if not resultado['success']:
-        flash(f'No se pudo actualizar el usuario: {resultado["error"]}', 'error')
+        resultado = actualizar_usuario_nombre(user_id, nuevo_nombre)
+        if not resultado['success']:
+            flash(f'No se pudo actualizar el usuario: {resultado["error"]}', 'error')
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='ADMIN_ACTION',
+                resource='users',
+                details={'target_user_id': user_id, 'operation': 'rename_user', 'error': resultado.get('error')},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return redirect(url_for('main.admin_panel'))
+
         crear_log_audit(
             user_id=session['user_id'],
             action='ADMIN_ACTION',
             resource='users',
-            details={'target_user_id': user_id, 'operation': 'rename_user', 'error': resultado.get('error')},
+            details={'target_user_id': user_id, 'operation': 'rename_user'},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        flash('Nombre actualizado.', 'success')
+        return redirect(url_for('main.admin_panel'))
+    except Exception as exc:
+        current_app.logger.error('admin_editar_usuario_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='ADMIN_ACTION',
+            resource='users',
+            details={'operation': 'rename_user', 'target_user_id': user_id[:36] if user_id else None, 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
+        flash('No se pudo editar el usuario.', 'error')
         return redirect(url_for('main.admin_panel'))
-
-    crear_log_audit(
-        user_id=session['user_id'],
-        action='ADMIN_ACTION',
-        resource='users',
-        details={'target_user_id': user_id, 'operation': 'rename_user'},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash('Nombre actualizado.', 'success')
-    return redirect(url_for('main.admin_panel'))
 
 
 @main_bp.route('/admin/logs')
@@ -2914,32 +2942,46 @@ def admin_logs_export():
 def admin_logs_clear():
     """Limpia logs antiguos de manera manual."""
     try:
-        raw_dias = request.form.get('dias', 7, type=int)
-        dias = max(1, min(raw_dias, 36500))
-    except (ValueError, TypeError, OverflowError):
-        dias = 7
-    resultado = limpiar_logs_antiguos(dias)
-    if resultado.get('error'):
+        try:
+            raw_dias = request.form.get('dias', 7, type=int)
+            dias = max(1, min(raw_dias, 36500))
+        except (ValueError, TypeError, OverflowError):
+            dias = 7
+        resultado = limpiar_logs_antiguos(dias)
+        if resultado.get('error'):
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='audit_logs',
+                details={'operation': 'clear_logs', 'days': dias, 'error': str(resultado['error'])[:100]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No se pudieron eliminar los logs antiguos.', 'error')
+            return redirect(url_for('main.admin_logs'))
+
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='ADMIN_ACTION',
+            resource='audit_logs',
+            details={'operation': 'clear_logs', 'deleted': resultado.get('deleted', 0), 'days': dias},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        flash(f'Se eliminaron {resultado.get("deleted", 0)} logs antiguos.', 'success')
+        return redirect(url_for('main.admin_logs'))
+    except Exception as exc:
+        current_app.logger.error('admin_logs_clear_failed error=%s', exc)
         crear_log_audit(
             user_id=session.get('user_id'),
             action='ADMIN_ACTION',
             resource='audit_logs',
-            details={'operation': 'clear_logs', 'days': dias, 'error': str(resultado['error'])[:100]},
+            details={'operation': 'clear_logs', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
         flash('No se pudieron eliminar los logs antiguos.', 'error')
         return redirect(url_for('main.admin_logs'))
-
-    crear_log_audit(
-        user_id=session['user_id'],
-        action='ADMIN_ACTION',
-        resource='audit_logs',
-        details={'operation': 'clear_logs', 'deleted': resultado.get('deleted', 0), 'days': dias},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash(f'Se eliminaron {resultado.get("deleted", 0)} logs antiguos.', 'success')
-    return redirect(url_for('main.admin_logs'))
