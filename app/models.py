@@ -1106,7 +1106,8 @@ def validar_telefono(telefono):
     """Valida que el teléfono contenga solo dígitos y tenga longitud válida (7-20)."""
     if not telefono or not isinstance(telefono, str):
         return False
-    return telefono.isdigit() and 7 <= len(telefono) <= 20
+    clean_tel = telefono.strip()
+    return clean_tel.isdigit() and 7 <= len(clean_tel) <= 20
 
 
 def is_valid_image_file(file_storage) -> tuple[bool, str | None]:
