@@ -705,7 +705,7 @@ def test_character_counter_threshold_announcements(client):
 
 
 def test_palette_admin_user_live_filter_rendered(client):
-    """Verify that admin.html renders the client-side live user search input, clear button, empty state creation, and screen reader announcements."""
+    """Verify that admin.html renders the client-side live user search input, clear button, empty state creation, shortcut hints, and screen reader announcements."""
     login_session(client, role='admin')
     response = client.get('/admin')
     assert response.status_code == 200
@@ -716,15 +716,20 @@ def test_palette_admin_user_live_filter_rendered(client):
     assert 'id="adminUserSearchClearBtn"' in html
     assert 'aria-label="Borrar filtro de usuarios"' in html
     assert 'title="Borrar filtro de usuarios (Esc)"' in html
+    assert 'id="admin-user-search-hint"' in html
+    assert '(Presiona <kbd>/</kbd>)' in html
+    assert 'aria-describedby="admin-user-search-hint"' in html
+    assert 'aria-keyshortcuts="/"' in html
     assert 'function filterUsers()' in html
     assert "emptyRow.id = 'adminUserSearchEmptyRow';" in html
     assert 'Sin coincidencia de usuarios' in html
     assert 'id="adminUserSearchResetBtn"' in html
     assert "window.announceToScreenReader?.('Filtro de usuarios borrado');" in html
+    assert "window.announceToScreenReader?.('Búsqueda de usuarios enfocada');" in html
 
 
 def test_palette_admin_collection_live_filter_rendered(client):
-    """Verify that admin_collections.html renders the client-side live collection search input, clear button, empty state creation, and screen reader announcements."""
+    """Verify that admin_collections.html renders the client-side live collection search input, clear button, empty state creation, shortcut hints, and screen reader announcements."""
     login_session(client, role='admin')
     response = client.get('/admin/collections')
     assert response.status_code == 200
@@ -735,11 +740,16 @@ def test_palette_admin_collection_live_filter_rendered(client):
     assert 'id="adminCollectionSearchClearBtn"' in html
     assert 'aria-label="Borrar filtro de colecciones"' in html
     assert 'title="Borrar filtro de colecciones (Esc)"' in html
+    assert 'id="admin-coll-search-hint"' in html
+    assert '(Presiona <kbd>/</kbd>)' in html
+    assert 'aria-describedby="admin-coll-search-hint"' in html
+    assert 'aria-keyshortcuts="/"' in html
     assert 'function filterCollections()' in html
     assert "emptyRow.id = 'adminCollectionSearchEmptyRow';" in html
     assert 'Sin coincidencia de colecciones' in html
     assert 'id="adminCollectionSearchResetBtn"' in html
     assert "window.announceToScreenReader?.('Filtro de colecciones borrado');" in html
+    assert "window.announceToScreenReader?.('Búsqueda de colecciones enfocada');" in html
 
 
 def test_form_submit_aria_disabled_rendered(client):

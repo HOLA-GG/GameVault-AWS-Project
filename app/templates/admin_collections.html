@@ -56,9 +56,9 @@
 
     {% if collections %}
         <div class="form-group" style="margin-bottom:20px;">
-            <label for="adminCollectionSearch" class="sr-only">Filtrar colecciones en esta página</label>
-            <div style="position: relative; display: flex; align-items: center; max-width: 400px;">
-                <input type="search" id="adminCollectionSearch" placeholder="Filtrar por propietario o plataforma..." class="select-on-focus" style="padding-right: 36px;">
+            <label for="adminCollectionSearch">Filtrar colecciones en esta página <small id="admin-coll-search-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
+            <div style="position: relative; display: flex; align-items: center; max-width: 400px; margin-top: 6px;">
+                <input type="search" id="adminCollectionSearch" placeholder="Filtrar por propietario o plataforma..." class="select-on-focus" aria-describedby="admin-coll-search-hint" aria-keyshortcuts="/" style="padding-right: 36px;">
                 <button type="button" id="adminCollectionSearchClearBtn" class="search-clear-btn" aria-label="Borrar filtro de colecciones" title="Borrar filtro de colecciones (Esc)" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
             </div>
         </div>
@@ -161,6 +161,15 @@
                 }
 
                 searchInput.addEventListener('input', filterCollections);
+
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) && !document.activeElement.isContentEditable) {
+                        e.preventDefault();
+                        searchInput.focus();
+                        searchInput.select();
+                        window.announceToScreenReader?.('Búsqueda de colecciones enfocada');
+                    }
+                });
                 if (clearBtn) {
                     clearBtn.addEventListener('click', function () {
                         searchInput.value = '';
