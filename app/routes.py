@@ -1082,7 +1082,25 @@ def rate_showcase():
             )
             return jsonify({'error': 'Colección pública no disponible para portada.'}), 404
 
-    result = registrar_rating_showcase(subject_type, subject_id, rating, get_request_ip())
+    try:
+        result = registrar_rating_showcase(subject_type, subject_id, rating, get_request_ip())
+    except Exception as exc:
+        current_app.logger.error('rate_showcase failed error=%s', exc)
+        crear_log_audit(
+            user_id=None,
+            action='RATE_SHOWCASE',
+            resource='showcase_ratings',
+            details={
+                'subject_type': subject_type,
+                'subject_id': subject_id[:200],
+                'rating': rating,
+                'reason': 'database_error',
+            },
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        return jsonify({'error': 'Error al procesar la valoración.'}), 500
 
     # Bolt Performance Optimization: Safely invalidate the in-memory processed sample
     # collections cache upon a successful rating write to guarantee real-time visual correctness.
