@@ -61,7 +61,10 @@
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" placeholder="Ej: 5551234567" autocomplete="tel-national" maxlength="20" class="select-on-focus">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="tel" id="telefono" name="telefono" placeholder="Ej: 5551234567" autocomplete="tel-national" maxlength="20" class="select-on-focus" style="padding-right: 36px;">
+                    <button type="button" id="registerPhoneClearBtn" class="search-clear-btn" aria-label="Borrar teléfono" title="Borrar teléfono" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+                </div>
             </div>
         </div>
         <div class="form-row">
@@ -117,6 +120,7 @@
 
         setupClearControl('nombre', 'registerNameClearBtn', 'Nombre borrado');
         setupClearControl('email', 'registerEmailClearBtn', 'Correo electrónico borrado');
+        setupClearControl('telefono', 'registerPhoneClearBtn', 'Teléfono borrado');
 
         setTimeout(function () {
             function setupPasswordClearControl(inputId, clearBtnId, clearLabel, clearMessage) {
