@@ -1699,8 +1699,8 @@ def registro():
         errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
     if password != confirm_password:
         errores.append('Las contraseñas no coinciden.')
-    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
-    if obtener_usuario_por_email(email, format_dates=False):
+    # Bolt Optimization: Fetch user with format_dates=False and fields=['user_id'] to reduce SQL payload during existence check.
+    if obtener_usuario_por_email(email, format_dates=False, fields=['user_id']):
         errores.append('Ese correo ya está registrado.')
 
     if errores:
