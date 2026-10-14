@@ -130,3 +130,40 @@ def test_presign_upload_malformed_json(client, app):
     # No debería dar 500 (Internal Server Error / AttributeError)
     assert response.status_code == 400
     assert b'filename y content_type son obligatorios' in response.data
+
+
+def test_rate_showcase_exception_handling_and_audit(client, app, monkeypatch):
+    """
+    Verifica que si la función registrar_rating_showcase lanza una excepción inesperada,
+    el endpoint /api/showcase/rate capture la excepción, devuelva HTTP 500 y registre
+    un log de auditoría con status='FAILED'.
+    """
+    def mock_registrar(*args, **kwargs):
+        raise RuntimeError("Error simulado de base de datos")
+
+    monkeypatch.setattr('app.routes.registrar_rating_showcase', mock_registrar)
+
+    response = client.post(
+        '/api/showcase/rate',
+        json={
+            'subject_type': 'sample',
+            'subject_id': 'demo-nintendo-reliquias',
+            'rating': 5,
+        },
+    )
+
+    assert response.status_code == 500
+    json_data = response.get_json()
+    assert json_data == {'error': 'Error al procesar la valoración.'}
+
+    with app.app_context():
+        from app.models import obtener_todos_logs
+        logs = obtener_todos_logs({'action': 'RATE_SHOWCASE', 'status': 'FAILED'})
+        assert len(logs) > 0
+        db_error_log = next(
+            (l for l in logs if l.get('details', {}).get('reason') == 'database_error'),
+            None,
+        )
+        assert db_error_log is not None
+        assert db_error_log['details']['subject_type'] == 'sample'
+        assert db_error_log['details']['subject_id'] == 'demo-nintendo-reliquias'
