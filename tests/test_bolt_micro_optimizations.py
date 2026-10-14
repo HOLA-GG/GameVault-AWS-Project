@@ -355,3 +355,36 @@ def test_obtener_juegos_por_usuario_query_optimization():
     res = obtener_juegos_por_usuario('non_existent_user_id_12345')
     assert isinstance(res, list)
     assert len(res) == 0
+
+
+def test_obtener_usuario_por_email_selective_projection():
+    """Verify that obtener_usuario_por_email works correctly with fields parameter for selective column projection."""
+    from app import create_app
+    from app.models import init_database, crear_usuario, obtener_usuario_por_email
+
+    app = create_app()
+    with app.app_context():
+        init_database()
+        email = "selective_test@example.com"
+        created = crear_usuario("Selective", "User", email, "+1", "12345678", "hash123")
+        assert created is not None
+
+        # Full query (default, fields=None)
+        full_user = obtener_usuario_por_email(email, format_dates=False)
+        assert full_user is not None
+        assert full_user["user_id"] == created["user_id"]
+        assert full_user["email"] == email
+        assert full_user["nombre"] == "Selective"
+        assert full_user["password_hash"] == "hash123"
+
+        # Selective query (fields=['user_id'])
+        proj_user = obtener_usuario_por_email(email, format_dates=False, fields=["user_id"])
+        assert proj_user is not None
+        assert proj_user["user_id"] == created["user_id"]
+        # Excluded columns in partial mapping fall back to safe default empty strings
+        assert proj_user["email"] == ""
+        assert proj_user["nombre"] == ""
+
+        # Non-existent email
+        missing = obtener_usuario_por_email("non_existent@example.com", fields=["user_id"])
+        assert missing is None

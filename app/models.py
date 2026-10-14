@@ -1652,16 +1652,18 @@ def crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash
         return None
 
 
-def obtener_usuario_por_email(email, format_dates: bool = True):
+def obtener_usuario_por_email(email, format_dates: bool = True, fields: Iterable[str] | None = None):
     """Obtiene un usuario por email (Optimización Bolt: bypass ORM hydration)."""
     if not email or not isinstance(email, str) or len(email) > 255:
         return None
     ensure_tables()
     session_factory = get_session_factory()
     with session_factory() as session:
-        row = session.execute(
-            select(User.__table__).where(User.email == email.lower().strip())
-        ).first()
+        if fields:
+            query = select(*_get_model_columns(User, fields)).where(User.email == email.lower().strip())
+        else:
+            query = select(User.__table__).where(User.email == email.lower().strip())
+        row = session.execute(query).first()
         return _user_row_to_dict(row, format_dates=format_dates) if row else None
 
 
