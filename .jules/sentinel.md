@@ -52,3 +52,8 @@
 **Vulnerability:** Uncaught database or runtime exceptions during administrative user deletion (`/admin/delete/<user_id>`), user editing (`/admin/edit/<user_id>`), or log clearing (`/admin/logs/clear`) could trigger 500 internal server errors and bypass audit trail logging for failed administrative actions.
 **Learning:** Administrative action controllers that modify state or clean audit records must catch unexpected runtime or database errors at the route handler layer to prevent unhandled 500 crashes and record `FAILED` audit trail entries.
 **Prevention:** Always wrap administrative action handlers in `try...except` blocks, logging the error with `current_app.logger.error`, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash message.
+
+## 2026-11-23 - Strict Input Parameter Validation and Audit Trail Coverage on Administrative Log Cleanup
+**Vulnerability:** In `/admin/logs/clear`, missing, non-numeric, or out-of-bounds `dias` parameters fell back to default values, allowing malformed administrative log cleanup requests to execute and evade failure audit logging.
+**Learning:** Destructive administrative operations that fall back to default input parameters when supplied with invalid form inputs can result in unintentional data deletion and create auditing blind spots.
+**Prevention:** Strictly validate integer bounds on administrative parameters before executing state-altering tasks, recording `crear_log_audit` with `status='FAILED'` and an explicit reason on validation rejection.

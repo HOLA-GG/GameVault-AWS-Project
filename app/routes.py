@@ -2960,11 +2960,30 @@ def admin_logs_export():
 def admin_logs_clear():
     """Limpia logs antiguos de manera manual."""
     try:
+        raw_dias_val = request.form.get('dias')
         try:
-            raw_dias = request.form.get('dias', 7, type=int)
-            dias = max(1, min(raw_dias, 36500))
+            if raw_dias_val is None or str(raw_dias_val).strip() == '':
+                raise ValueError("Missing dias parameter")
+            dias = int(raw_dias_val)
+            if dias < 1 or dias > 36500:
+                raise ValueError("dias out of bounds")
         except (ValueError, TypeError, OverflowError):
-            dias = 7
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='ADMIN_ACTION',
+                resource='audit_logs',
+                details={
+                    'operation': 'clear_logs',
+                    'raw_dias': str(raw_dias_val)[:50] if raw_dias_val is not None else None,
+                    'reason': 'invalid_dias_parameter',
+                },
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Número de días inválido para la limpieza de logs.', 'error')
+            return redirect(url_for('main.admin_logs'))
+
         resultado = limpiar_logs_antiguos(dias)
         if resultado.get('error'):
             crear_log_audit(

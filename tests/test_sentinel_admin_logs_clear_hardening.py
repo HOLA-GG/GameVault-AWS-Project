@@ -72,26 +72,33 @@ def test_admin_logs_clear_boundary_inputs(client, app):
         sess['role'] = 'admin'
         sess['_pw_hash'] = hashlib.sha256(admin_pw.encode('utf-8')).hexdigest()
 
-    test_cases = [
-        ("0", 1),
-        ("-10", 1),
-        ("9" * 100, 36500),
-        ("abc", 7),
-    ]
+    invalid_test_cases = ["0", "-10", "9" * 100, "abc", ""]
 
-    for input_dias, expected_dias in test_cases:
+    for input_dias in invalid_test_cases:
         response = client.post('/admin/logs/clear', data={'dias': input_dias})
         assert response.status_code == 302
 
         with session_factory() as session:
             log = session.scalar(
                 select(AuditLog)
-                .where(AuditLog.user_id == admin_user['user_id'], AuditLog.action == 'ADMIN_ACTION')
+                .where(AuditLog.user_id == admin_user['user_id'], AuditLog.action == 'ADMIN_ACTION', AuditLog.status == 'FAILED')
                 .order_by(AuditLog.timestamp.desc())
             )
             assert log is not None
             assert log.details.get('operation') == 'clear_logs'
-            assert log.details.get('days') == expected_dias
+            assert log.details.get('reason') == 'invalid_dias_parameter'
+
+    valid_response = client.post('/admin/logs/clear', data={'dias': '30'})
+    assert valid_response.status_code == 302
+    with session_factory() as session:
+        log = session.scalar(
+            select(AuditLog)
+            .where(AuditLog.user_id == admin_user['user_id'], AuditLog.action == 'ADMIN_ACTION', AuditLog.status == 'SUCCESS')
+            .order_by(AuditLog.timestamp.desc())
+        )
+        assert log is not None
+        assert log.details.get('operation') == 'clear_logs'
+        assert log.details.get('days') == 30
 
 
 def test_admin_logs_clear_error_handling(client, app, monkeypatch):
