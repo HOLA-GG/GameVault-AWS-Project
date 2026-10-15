@@ -26,7 +26,7 @@ class MockRow:
 
 
 def test_user_row_to_dict_selective_projections_direct():
-    """Verifica que _user_row_to_dict maneje rápida y correctamente proyecciones de 13, 6 y 3 campos."""
+    """Verifica que _user_row_to_dict maneje rápida y correctamente proyecciones de 13, 6, 3 y 1 campos."""
     now_dt = utcnow()
 
     # Full row (len 13)
@@ -79,6 +79,15 @@ def test_user_row_to_dict_selective_projections_direct():
     assert u3['user_id'] == 'u_3'
     assert u3['email'] == 'three@test.com'
     assert u3['nombre'] == 'Three User'
+
+    # 1-field projection (registration existence check)
+    mapping_1 = {
+        'user_id': 'u_1',
+    }
+    u1 = _user_row_to_dict(MockRow(mapping_1), format_dates=False)
+    assert u1['user_id'] == 'u_1'
+    assert u1['email'] == ''
+    assert u1['status'] == 'active'
 
 
 def test_audit_log_row_to_dict_selective_projections_direct():
