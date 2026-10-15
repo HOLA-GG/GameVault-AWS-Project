@@ -1306,3 +1306,43 @@ def test_palette_admin_logs_date_presets_rendered(client):
     assert "formatLocalDate(d)" in html
     assert "document.querySelectorAll('.log-date-preset').forEach" in html
     assert "window.announceToScreenReader?.(`Rango de fechas seleccionado: ${label}`);" in html
+
+
+def test_palette_admin_account_shortcut_hint_rendered(monkeypatch, client):
+    """Verify that admin_logs.html renders the account search shortcut hint, ARIA attributes, and keydown listener."""
+    import app.routes as routes
+
+    monkeypatch.setattr(
+        routes,
+        'obtener_todos_logs',
+        lambda _filters, limit=300, **kwargs: [
+            {
+                'audit_id': 'a1',
+                'user_id': 'user-1',
+                'action': 'LOGIN',
+                'action_name': 'Inicio de sesión',
+                'resource': 'auth',
+                'timestamp': '2026-03-18T10:00:00+00:00',
+                'status': 'SUCCESS',
+                'ip_address': '127.0.0.1',
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        routes,
+        'obtener_usuarios_por_ids',
+        lambda user_ids, **kwargs: [
+            {'user_id': 'user-1', 'nombre': 'Tester', 'email': 'user@example.com'}
+        ],
+    )
+
+    login_session(client, role='admin')
+    response = client.get('/admin/logs')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="admin-account-search-hint"' in html
+    assert '(Presiona <kbd>/</kbd>)' in html
+    assert 'aria-describedby="admin-account-search-hint"' in html
+    assert 'aria-keyshortcuts="/"' in html
+    assert "window.announceToScreenReader?.('Búsqueda de cuentas enfocada');" in html
