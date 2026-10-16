@@ -2750,8 +2750,8 @@ def aplicar_ratings_showcase(
         # Bolt Optimization: Short-circuit calling combinar_rating_showcase when default_rating_key is None or base_avg is None.
         # This completely avoids dictionary allocations and function overhead for standard public collection batches (~1.97x speedup).
         if base_avg is None:
-            item['showcase_rating_average'] = actual_rating.get('average')
-            item['showcase_votes_count'] = int(actual_rating.get('votes_count') or 0)
+            item['showcase_rating_average'] = actual_rating['average']
+            item['showcase_votes_count'] = actual_rating['votes_count']
         else:
             base_votes = item.get(default_votes_key, 0) if default_votes_key else 0
             rating_summary = combinar_rating_showcase(
