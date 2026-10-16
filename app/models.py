@@ -1568,18 +1568,25 @@ def eliminar_juego(user_id, game_id):
         return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
     if not game_id or not isinstance(game_id, str) or len(game_id) > 36:
         return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
-    ensure_tables()
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        game = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
-        if game is None:
-            return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
-        juego_dict = game_to_dict(game)
-        eliminar_imagen_s3(game.imagen_url)
-        session.delete(game)
-        session.commit()
-        clear_public_collections_cache()
-        return {'success': True, 'juego': juego_dict, 's3_eliminada': True}
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            game = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
+            if game is None:
+                return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
+            juego_dict = game_to_dict(game)
+            eliminar_imagen_s3(game.imagen_url)
+            session.delete(game)
+            session.commit()
+            clear_public_collections_cache()
+            return {'success': True, 'juego': juego_dict, 's3_eliminada': True}
+    except Exception as exc:
+        try:
+            current_app.logger.error('eliminar_juego_failed user_id=%s game_id=%s error=%s', user_id, game_id, exc)
+        except RuntimeError:
+            pass
+        return {'success': False, 'juego': None, 'error': 'Error al eliminar juego'}
 
 
 def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
@@ -1590,46 +1597,53 @@ def actualizar_juego(user_id, game_id, nuevos_datos, nueva_imagen=None):
         return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
     if not isinstance(nuevos_datos, dict):
         return {'success': False, 'juego': None, 'error': 'Datos de juego inválidos'}
-    ensure_tables()
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        game = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
-        if game is None:
-            return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            game = session.scalar(select(Game).where(Game.user_id == user_id, Game.game_id == game_id))
+            if game is None:
+                return {'success': False, 'juego': None, 'error': 'Juego no encontrado'}
 
-        if nuevos_datos.get('titulo'):
-            game.titulo = nuevos_datos['titulo'].strip()
-        if nuevos_datos.get('descripcion'):
-            game.descripcion = nuevos_datos['descripcion'].strip()
-        if 'plataforma' in nuevos_datos:
-            game.plataforma = nuevos_datos['plataforma']
-        if 'estado' in nuevos_datos:
-            game.estado = nuevos_datos['estado']
-        if 'categoria' in nuevos_datos:
-            game.categoria = nuevos_datos['categoria']
-        if 'prioridad' in nuevos_datos:
-            game.prioridad = nuevos_datos['prioridad']
-        if 'calificacion' in nuevos_datos:
-            game.calificacion = nuevos_datos['calificacion']
-        if 'es_favorito' in nuevos_datos:
-            game.es_favorito = bool(nuevos_datos['es_favorito'])
+            if nuevos_datos.get('titulo'):
+                game.titulo = nuevos_datos['titulo'].strip()
+            if nuevos_datos.get('descripcion'):
+                game.descripcion = nuevos_datos['descripcion'].strip()
+            if 'plataforma' in nuevos_datos:
+                game.plataforma = nuevos_datos['plataforma']
+            if 'estado' in nuevos_datos:
+                game.estado = nuevos_datos['estado']
+            if 'categoria' in nuevos_datos:
+                game.categoria = nuevos_datos['categoria']
+            if 'prioridad' in nuevos_datos:
+                game.prioridad = nuevos_datos['prioridad']
+            if 'calificacion' in nuevos_datos:
+                game.calificacion = nuevos_datos['calificacion']
+            if 'es_favorito' in nuevos_datos:
+                game.es_favorito = bool(nuevos_datos['es_favorito'])
 
-        if isinstance(nueva_imagen, str):
-            if game.imagen_url and game.imagen_url != nueva_imagen:
+            if isinstance(nueva_imagen, str):
+                if game.imagen_url and game.imagen_url != nueva_imagen:
+                    eliminar_imagen_s3(game.imagen_url)
+                game.imagen_url = nueva_imagen.strip() or None
+            elif nueva_imagen:
+                uploaded_url = subir_imagen_a_s3(nueva_imagen)
+                if uploaded_url is None:
+                    return {'success': False, 'juego': None, 'error': 'Error al subir nueva imagen'}
                 eliminar_imagen_s3(game.imagen_url)
-            game.imagen_url = nueva_imagen.strip() or None
-        elif nueva_imagen:
-            uploaded_url = subir_imagen_a_s3(nueva_imagen)
-            if uploaded_url is None:
-                return {'success': False, 'juego': None, 'error': 'Error al subir nueva imagen'}
-            eliminar_imagen_s3(game.imagen_url)
-            game.imagen_url = uploaded_url
+                game.imagen_url = uploaded_url
 
-        game.updated_at = utcnow()
-        session.commit()
-        session.refresh(game)
-        clear_public_collections_cache()
-        return {'success': True, 'juego': game_to_dict(game), 'error': None}
+            game.updated_at = utcnow()
+            session.commit()
+            session.refresh(game)
+            clear_public_collections_cache()
+            return {'success': True, 'juego': game_to_dict(game), 'error': None}
+    except Exception as exc:
+        try:
+            current_app.logger.error('actualizar_juego_failed user_id=%s game_id=%s error=%s', user_id, game_id, exc)
+        except RuntimeError:
+            pass
+        return {'success': False, 'juego': None, 'error': 'Error al actualizar juego'}
 
 
 def crear_usuario(nombre, apellido, email, prefijo_pais, telefono, password_hash):
