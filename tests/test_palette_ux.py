@@ -859,7 +859,7 @@ def test_forgot_password_email_clear_button_rendered(client):
 
 
 def test_login_and_register_email_clear_buttons_rendered(client):
-    """Verify that login.html and registro.html render accessible email, name, and phone clear buttons and script logic."""
+    """Verify that login.html and registro.html render accessible email, name, prefix, and phone clear buttons and script logic."""
     # 1. Login page
     response_login = client.get('/login')
     assert response_login.status_code == 200
@@ -881,11 +881,15 @@ def test_login_and_register_email_clear_buttons_rendered(client):
     assert 'id="registerEmailClearBtn"' in html_reg
     assert 'aria-label="Borrar correo electrónico"' in html_reg
     assert 'title="Borrar correo electrónico"' in html_reg
+    assert 'id="registerPrefixClearBtn"' in html_reg
+    assert 'aria-label="Borrar prefijo de país"' in html_reg
+    assert 'title="Borrar prefijo de país"' in html_reg
     assert 'id="registerPhoneClearBtn"' in html_reg
     assert 'aria-label="Borrar teléfono"' in html_reg
     assert 'title="Borrar teléfono"' in html_reg
     assert "setupClearControl('nombre', 'registerNameClearBtn', 'Nombre borrado');" in html_reg
     assert "setupClearControl('email', 'registerEmailClearBtn', 'Correo electrónico borrado');" in html_reg
+    assert "setupClearControl('prefijo_pais', 'registerPrefixClearBtn', 'Prefijo de país borrado');" in html_reg
     assert "setupClearControl('telefono', 'registerPhoneClearBtn', 'Teléfono borrado');" in html_reg
 
 
@@ -1218,7 +1222,7 @@ def test_edit_game_title_clear_button_rendered(client):
 
 
 def test_profile_name_clear_button_rendered(client):
-    """Verify that profile.html renders the name, last name, and phone clear buttons, ARIA attributes, and JS handlers."""
+    """Verify that profile.html renders the name, last name, country prefix, and phone clear buttons, ARIA attributes, and JS handlers."""
     login_session(client)
 
     response = client.get('/perfil')
@@ -1233,12 +1237,17 @@ def test_profile_name_clear_button_rendered(client):
     assert 'aria-label="Borrar apellidos"' in html
     assert 'title="Borrar apellidos"' in html
 
+    assert 'id="profilePrefixClearBtn"' in html
+    assert 'aria-label="Borrar prefijo de país"' in html
+    assert 'title="Borrar prefijo de país"' in html
+
     assert 'id="profilePhoneClearBtn"' in html
     assert 'aria-label="Borrar teléfono"' in html
     assert 'title="Borrar teléfono"' in html
 
     assert "setupClearControl('nombre', 'profileNameClearBtn', 'Nombre borrado');" in html
     assert "setupClearControl('apellido', 'profileLastNameClearBtn', 'Apellidos borrados');" in html
+    assert "setupClearControl('prefijo_pais', 'profilePrefixClearBtn', 'Prefijo de país borrado');" in html
     assert "setupClearControl('telefono', 'profilePhoneClearBtn', 'Teléfono borrado');" in html
 
 

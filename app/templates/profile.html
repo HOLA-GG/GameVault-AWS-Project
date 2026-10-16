@@ -78,7 +78,10 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="prefijo_pais">Prefijo país</label>
-                <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10" class="select-on-focus" list="prefijos_lista">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="text" id="prefijo_pais" name="prefijo_pais" value="{{ user.prefijo_pais or '' }}" placeholder="+57" maxlength="10" class="select-on-focus" list="prefijos_lista" style="padding-right: 36px;">
+                    <button type="button" id="profilePrefixClearBtn" class="search-clear-btn" aria-label="Borrar prefijo de país" title="Borrar prefijo de país" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 2px 6px; border-radius: 50%; display: none;">&times;</button>
+                </div>
                 <datalist id="prefijos_lista">
                     <option value="+34">España (+34)</option>
                     <option value="+52">México (+52)</option>
@@ -287,6 +290,7 @@
 
         setupClearControl('nombre', 'profileNameClearBtn', 'Nombre borrado');
         setupClearControl('apellido', 'profileLastNameClearBtn', 'Apellidos borrados');
+        setupClearControl('prefijo_pais', 'profilePrefixClearBtn', 'Prefijo de país borrado');
         setupClearControl('telefono', 'profilePhoneClearBtn', 'Teléfono borrado');
 
         setTimeout(function () {
