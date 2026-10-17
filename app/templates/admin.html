@@ -45,7 +45,7 @@
                     {% for usuario in usuarios %}
                         <tr>
                             <td>
-                                <button type="button" class="btn-copy" data-copy="{{ usuario.email }}" aria-label="Copiar correo {{ usuario.email }}">
+                                <button type="button" class="btn-copy" data-copy="{{ usuario.email }}" aria-label="Copiar correo {{ usuario.email }}" title="Copiar correo {{ usuario.email }}">
                                     {{ usuario.email }}
                                 </button>
                             </td>
