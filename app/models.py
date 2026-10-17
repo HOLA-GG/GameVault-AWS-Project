@@ -2343,20 +2343,27 @@ def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, A
         return {'success': False, 'error': 'Usuario no encontrado'}
     if not password_hash or not isinstance(password_hash, str) or len(password_hash) > 255:
         return {'success': False, 'error': 'Hash de contraseña inválido'}
-    ensure_tables()
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        user = session.get(User, user_id)
-        if user is None:
-            return {'success': False, 'error': 'Usuario no encontrado'}
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            user = session.get(User, user_id)
+            if user is None:
+                return {'success': False, 'error': 'Usuario no encontrado'}
 
-        # Invalidate all active reset tokens for this user after a password change (Security enhancement)
-        session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
+            # Invalidate all active reset tokens for this user after a password change (Security enhancement)
+            session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
 
-        user.password_hash = password_hash
-        user.updated_at = utcnow()
-        session.commit()
-        return {'success': True, 'error': None}
+            user.password_hash = password_hash
+            user.updated_at = utcnow()
+            session.commit()
+            return {'success': True, 'error': None}
+    except Exception as exc:
+        try:
+            current_app.logger.error('actualizar_password_usuario_failed user_id=%s error=%s', user_id, exc)
+        except RuntimeError:
+            pass
+        return {'success': False, 'error': 'Error al actualizar contraseña'}
 
 
 def obtener_resumenes_colecciones(
