@@ -623,7 +623,7 @@ def test_faq_accordion_rendered(client):
     assert 'class="faq-icon"' in html
 
     # Verify script handles toggle events and screen reader announcements for both expand and collapse states
-    assert "document.querySelectorAll('details.faq-card').forEach" in html
+    assert "faqCards.forEach" in html
     assert "window.announceToScreenReader?.(`Pregunta desplegada: ${questionText}`);" in html
     assert "window.announceToScreenReader?.(`Pregunta contraída: ${questionText}`);" in html
 
@@ -1355,3 +1355,18 @@ def test_palette_admin_account_shortcut_hint_rendered(monkeypatch, client):
     assert 'aria-describedby="admin-account-search-hint"' in html
     assert 'aria-keyshortcuts="/"' in html
     assert "window.announceToScreenReader?.('Búsqueda de cuentas enfocada');" in html
+
+
+def test_palette_faq_toggle_all_rendered(client):
+    """Verify that landing.html renders the FAQ expand-all/collapse-all toggle button, ARIA attributes, and JS handlers."""
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'id="faqToggleAllBtn"' in html
+    assert 'aria-expanded="false"' in html
+    assert 'aria-label="Desplegar todas las preguntas frecuentes"' in html
+    assert 'title="Desplegar todas las preguntas frecuentes"' in html
+    assert 'Desplegar todas' in html
+    assert 'updateFaqToggleBtnState' in html
+    assert "window.announceToScreenReader?.(shouldExpand ? 'Todas las preguntas frecuentes desplegadas' : 'Todas las preguntas frecuentes plegadas');" in html
