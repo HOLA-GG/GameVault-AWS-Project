@@ -1856,33 +1856,47 @@ def validar_reset_token(reset_token: str) -> Dict[str, Any]:
     """Valida un token de recuperación."""
     if not reset_token or not isinstance(reset_token, str):
         return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
-    items = obtener_token_por_valor(reset_token, only_active=True)
-    if not items:
-        return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
+    try:
+        items = obtener_token_por_valor(reset_token, only_active=True)
+        if not items:
+            return {'valid': False, 'user_id': None, 'error': 'Token no encontrado o ya utilizado'}
 
-    item = items[0]
-    expires_at = datetime.fromisoformat(item['expires_at'])
-    if expires_at < utcnow():
-        return {'valid': False, 'user_id': None, 'error': 'Token expirado'}
+        item = items[0]
+        expires_at = datetime.fromisoformat(item['expires_at'])
+        if expires_at < utcnow():
+            return {'valid': False, 'user_id': None, 'error': 'Token expirado'}
 
-    return {'valid': True, 'user_id': item['user_id'], 'error': None}
+        return {'valid': True, 'user_id': item['user_id'], 'error': None}
+    except Exception as exc:
+        try:
+            current_app.logger.error('validar_reset_token_failed error=%s', exc)
+        except RuntimeError:
+            pass
+        return {'valid': False, 'user_id': None, 'error': 'Error al validar token de recuperación'}
 
 
 def usar_token(reset_token: str) -> Dict[str, Any]:
     """Marca un token como usado."""
     if not reset_token or not isinstance(reset_token, str):
         return {'success': False, 'error': 'Token no encontrado'}
-    ensure_tables()
-    session_factory = get_session_factory()
-    hashed = hash_token(reset_token)
-    with session_factory() as session:
-        item = session.scalar(select(PasswordResetToken).where(PasswordResetToken.reset_token == hashed))
-        if item is None:
-            return {'success': False, 'error': 'Token no encontrado'}
-        item.used = True
-        item.used_at = utcnow()
-        session.commit()
-        return {'success': True, 'error': None}
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        hashed = hash_token(reset_token)
+        with session_factory() as session:
+            item = session.scalar(select(PasswordResetToken).where(PasswordResetToken.reset_token == hashed))
+            if item is None:
+                return {'success': False, 'error': 'Token no encontrado'}
+            item.used = True
+            item.used_at = utcnow()
+            session.commit()
+            return {'success': True, 'error': None}
+    except Exception as exc:
+        try:
+            current_app.logger.error('usar_token_failed error=%s', exc)
+        except RuntimeError:
+            pass
+        return {'success': False, 'error': 'Error al procesar el token'}
 
 
 def obtener_token_por_user_id(user_id: str) -> Optional[Dict[str, Any]]:
