@@ -186,7 +186,12 @@
 </section>
 
 <section class="section">
-    <h2 style="text-align:center;margin-bottom:30px;">Preguntas frecuentes</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+        <h2 style="margin:0;">Preguntas frecuentes</h2>
+        <button type="button" class="btn btn-secondary btn-small" id="faqToggleAllBtn" aria-expanded="false" aria-label="Desplegar todas las preguntas frecuentes" title="Desplegar todas las preguntas frecuentes">
+            Desplegar todas
+        </button>
+    </div>
     <div class="features-grid">
         <details class="feature-card faq-card">
             <summary class="faq-summary">
@@ -382,8 +387,31 @@
 
         });
 
-        document.querySelectorAll('details.faq-card').forEach(function (detail) {
+        const faqToggleBtn = document.getElementById('faqToggleAllBtn');
+        const faqCards = document.querySelectorAll('details.faq-card');
+
+        function updateFaqToggleBtnState() {
+            if (!faqToggleBtn || !faqCards.length) return;
+            const allOpen = Array.from(faqCards).every(d => d.open);
+            faqToggleBtn.setAttribute('aria-expanded', allOpen ? 'true' : 'false');
+            faqToggleBtn.textContent = allOpen ? 'Plegar todas' : 'Desplegar todas';
+            const label = allOpen ? 'Plegar todas las preguntas frecuentes' : 'Desplegar todas las preguntas frecuentes';
+            faqToggleBtn.setAttribute('aria-label', label);
+            faqToggleBtn.setAttribute('title', label);
+        }
+
+        if (faqToggleBtn && faqCards.length) {
+            faqToggleBtn.addEventListener('click', function () {
+                const shouldExpand = this.getAttribute('aria-expanded') !== 'true';
+                faqCards.forEach(d => d.open = shouldExpand);
+                updateFaqToggleBtnState();
+                window.announceToScreenReader?.(shouldExpand ? 'Todas las preguntas frecuentes desplegadas' : 'Todas las preguntas frecuentes plegadas');
+            });
+        }
+
+        faqCards.forEach(function (detail) {
             detail.addEventListener('toggle', function () {
+                updateFaqToggleBtnState();
                 const questionText = this.querySelector('h4')?.textContent.trim() || '';
                 if (this.open) {
                     window.announceToScreenReader?.(`Pregunta desplegada: ${questionText}`);
