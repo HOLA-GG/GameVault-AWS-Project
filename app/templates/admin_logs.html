@@ -97,9 +97,10 @@
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
             <span style="color: var(--text-secondary); font-size: 0.85rem;">Rango rápido:</span>
-            <button type="button" class="btn btn-secondary btn-small log-date-preset" data-days="0" aria-label="Filtrar fecha de hoy" title="Filtrar fecha de hoy" style="padding: 2px 8px; font-size: 0.8em;">Hoy</button>
-            <button type="button" class="btn btn-secondary btn-small log-date-preset" data-days="7" aria-label="Filtrar últimos 7 días" title="Filtrar últimos 7 días" style="padding: 2px 8px; font-size: 0.8em;">7 días</button>
-            <button type="button" class="btn btn-secondary btn-small log-date-preset" data-days="30" aria-label="Filtrar últimos 30 días" title="Filtrar últimos 30 días" style="padding: 2px 8px; font-size: 0.8em;">30 días</button>
+            <button type="button" class="btn btn-secondary btn-small log-date-preset" data-days="0" aria-label="Filtrar fecha de hoy" title="Filtrar fecha de hoy" aria-pressed="false" style="padding: 2px 8px; font-size: 0.8em;">Hoy</button>
+            <button type="button" class="btn btn-secondary btn-small log-date-preset" data-days="7" aria-label="Filtrar últimos 7 días" title="Filtrar últimos 7 días" aria-pressed="false" style="padding: 2px 8px; font-size: 0.8em;">7 días</button>
+            <button type="button" class="btn btn-secondary btn-small log-date-preset" data-days="30" aria-label="Filtrar últimos 30 días" title="Filtrar últimos 30 días" aria-pressed="false" style="padding: 2px 8px; font-size: 0.8em;">30 días</button>
+            <button type="button" class="btn btn-secondary btn-small" id="logDateClearBtn" aria-label="Limpiar rango de fechas" title="Limpiar rango de fechas" style="padding: 2px 8px; font-size: 0.8em; display: none;">Limpiar fechas</button>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
             <button type="submit" class="btn btn-primary">Filtrar</button>
@@ -400,10 +401,55 @@
             return `${year}-${month}-${day}`;
         }
 
-        document.querySelectorAll('.log-date-preset').forEach(function(btn) {
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+        const dateClearBtn = document.getElementById('logDateClearBtn');
+        const presetBtns = document.querySelectorAll('.log-date-preset');
+
+        function updateDatePresetState() {
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (dateClearBtn) {
+                dateClearBtn.style.display = (startVal || endVal) ? 'inline-block' : 'none';
+            }
+
+            const today = new Date();
+            const todayStr = formatLocalDate(today);
+
+            presetBtns.forEach(function(btn) {
+                const days = parseInt(btn.dataset.days, 10);
+                const expectedStart = new Date();
+                expectedStart.setDate(today.getDate() - days);
+                const expectedStartStr = formatLocalDate(expectedStart);
+
+                const isActive = (startVal === expectedStartStr && endVal === todayStr);
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        }
+
+        if (startDateInput && endDateInput) {
+            startDateInput.addEventListener('change', updateDatePresetState);
+            endDateInput.addEventListener('change', updateDatePresetState);
+            startDateInput.addEventListener('input', updateDatePresetState);
+            endDateInput.addEventListener('input', updateDatePresetState);
+            updateDatePresetState();
+        }
+
+        if (dateClearBtn) {
+            dateClearBtn.addEventListener('click', function() {
+                if (startDateInput) startDateInput.value = '';
+                if (endDateInput) endDateInput.value = '';
+                if (startDateInput) startDateInput.dispatchEvent(new Event('change'));
+                if (endDateInput) endDateInput.dispatchEvent(new Event('change'));
+                updateDatePresetState();
+                window.announceToScreenReader?.('Filtro de fechas borrado');
+            });
+        }
+
+        presetBtns.forEach(function(btn) {
             btn.addEventListener('click', function() {
-                const startDateInput = document.getElementById('start_date');
-                const endDateInput = document.getElementById('end_date');
                 if (!startDateInput || !endDateInput) return;
 
                 const days = parseInt(this.dataset.days, 10);
@@ -419,6 +465,8 @@
 
                 startDateInput.dispatchEvent(new Event('change'));
                 endDateInput.dispatchEvent(new Event('change'));
+
+                updateDatePresetState();
 
                 const label = days === 0 ? 'Hoy' : `últimos ${days} días`;
                 window.announceToScreenReader?.(`Rango de fechas seleccionado: ${label}`);
