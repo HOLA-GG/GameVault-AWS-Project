@@ -1312,8 +1312,13 @@ def test_palette_admin_logs_date_presets_rendered(client):
     assert 'aria-label="Filtrar fecha de hoy"' in html
     assert 'aria-label="Filtrar últimos 7 días"' in html
     assert 'aria-label="Filtrar últimos 30 días"' in html
+    assert 'id="logDateClearBtn"' in html
+    assert 'aria-label="Limpiar rango de fechas"' in html
+    assert 'title="Limpiar rango de fechas"' in html
+    assert 'aria-pressed="false"' in html
+    assert 'updateDatePresetState' in html
+    assert "window.announceToScreenReader?.('Filtro de fechas borrado');" in html
     assert "formatLocalDate(d)" in html
-    assert "document.querySelectorAll('.log-date-preset').forEach" in html
     assert "window.announceToScreenReader?.(`Rango de fechas seleccionado: ${label}`);" in html
 
 
