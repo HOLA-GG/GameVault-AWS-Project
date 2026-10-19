@@ -2373,34 +2373,41 @@ def actualizar_usuario_perfil(user_id: str, cambios: Dict[str, str]) -> Dict[str
         return {'success': False, 'error': 'Usuario no encontrado'}
     if not isinstance(cambios, dict):
         return {'success': False, 'error': 'Datos de perfil inválidos'}
-    ensure_tables()
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        user = session.get(User, user_id)
-        if user is None:
-            return {'success': False, 'error': 'Usuario no encontrado'}
+    try:
+        ensure_tables()
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            user = session.get(User, user_id)
+            if user is None:
+                return {'success': False, 'error': 'Usuario no encontrado'}
 
-        field_limits = {
-            'nombre': 120,
-            'apellido': 120,
-            'prefijo_pais': 10,
-            'telefono': 20,
-        }
-        for field, max_len in field_limits.items():
-            if field in cambios:
-                raw_val = cambios.get(field)
-                val_str = str(raw_val if raw_val is not None else '').strip()[:max_len]
-                setattr(user, field, val_str)
-        if 'collection_visibility' in cambios:
-            raw_vis = cambios.get('collection_visibility')
-            visibility = str(raw_vis if raw_vis is not None else 'private').strip().lower()[:20]
-            user.collection_visibility = visibility if visibility in {'private', 'public'} else 'private'
-        if 'homepage_showcase_opt_in' in cambios:
-            user.homepage_showcase_opt_in = bool(cambios.get('homepage_showcase_opt_in'))
-        user.updated_at = utcnow()
-        session.commit()
-        clear_public_collections_cache()
-        return {'success': True, 'error': None}
+            field_limits = {
+                'nombre': 120,
+                'apellido': 120,
+                'prefijo_pais': 10,
+                'telefono': 20,
+            }
+            for field, max_len in field_limits.items():
+                if field in cambios:
+                    raw_val = cambios.get(field)
+                    val_str = str(raw_val if raw_val is not None else '').strip()[:max_len]
+                    setattr(user, field, val_str)
+            if 'collection_visibility' in cambios:
+                raw_vis = cambios.get('collection_visibility')
+                visibility = str(raw_vis if raw_vis is not None else 'private').strip().lower()[:20]
+                user.collection_visibility = visibility if visibility in {'private', 'public'} else 'private'
+            if 'homepage_showcase_opt_in' in cambios:
+                user.homepage_showcase_opt_in = bool(cambios.get('homepage_showcase_opt_in'))
+            user.updated_at = utcnow()
+            session.commit()
+            clear_public_collections_cache()
+            return {'success': True, 'error': None}
+    except Exception as exc:
+        try:
+            current_app.logger.error('actualizar_usuario_perfil_failed user_id=%s error=%s', user_id, exc)
+        except RuntimeError:
+            pass
+        return {'success': False, 'error': 'Error al actualizar perfil'}
 
 
 def actualizar_password_usuario(user_id: str, password_hash: str) -> Dict[str, Any]:
