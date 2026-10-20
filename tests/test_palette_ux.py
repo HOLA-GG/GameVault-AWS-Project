@@ -1375,3 +1375,13 @@ def test_palette_faq_toggle_all_rendered(client):
     assert 'Desplegar todas' in html
     assert 'updateFaqToggleBtnState' in html
     assert "window.announceToScreenReader?.(shouldExpand ? 'Todas las preguntas frecuentes desplegadas' : 'Todas las preguntas frecuentes plegadas');" in html
+
+
+def test_palette_password_strength_aria_valuetext(client):
+    """Verify that setupPasswordStrength dynamically sets aria-valuetext on progressbars in base.html."""
+    response = client.get('/login')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "meter.setAttribute('aria-valuetext', text.textContent);" in html
+    assert "meter.removeAttribute('aria-valuetext');" in html

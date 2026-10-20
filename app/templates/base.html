@@ -486,6 +486,7 @@
                     if (!val) {
                         meter.style.display = 'none';
                         meter.setAttribute('aria-valuenow', '0');
+                        meter.removeAttribute('aria-valuetext');
                         text.textContent = '';
                         return;
                     }
@@ -547,6 +548,7 @@
                     } else {
                         text.textContent = statusText;
                     }
+                    meter.setAttribute('aria-valuetext', text.textContent);
                 };
                 input.addEventListener('input', update);
                 update();
