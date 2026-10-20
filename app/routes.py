@@ -1349,90 +1349,122 @@ def presign_upload():
 @limiter.limit('10 per minute')
 def agregar_juego():
     """Crea un juego nuevo para el usuario autenticado."""
-    titulo = request.form.get('titulo', '').strip()
-    descripcion = request.form.get('descripcion', '').strip()
-    plataforma_raw = request.form.get('plataforma', 'PC').strip()
-    estado_raw = request.form.get('estado', 'N/A').strip()
-    metadata = normalize_game_metadata(request.form)
-    imagen = request.files.get('imagen')
-    imagen_url = request.form.get('imagen_url', '').strip()
+    try:
+        titulo = request.form.get('titulo', '').strip()
+        descripcion = request.form.get('descripcion', '').strip()
+        plataforma_raw = request.form.get('plataforma', 'PC').strip()
+        estado_raw = request.form.get('estado', 'N/A').strip()
+        metadata = normalize_game_metadata(request.form)
+        imagen = request.files.get('imagen')
+        imagen_url = request.form.get('imagen_url', '').strip()
 
-    errores = []
-    if not titulo:
-        errores.append('El título es requerido.')
-    elif len(titulo) > 255:
-        errores.append('El título es demasiado largo (máximo 255 caracteres).')
-    if not descripcion:
-        errores.append('La descripción es requerida.')
-    elif len(descripcion) > 5000:
-        errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
+        errores = []
+        if not titulo:
+            errores.append('El título es requerido.')
+        elif len(titulo) > 255:
+            errores.append('El título es demasiado largo (máximo 255 caracteres).')
+        if not descripcion:
+            errores.append('La descripción es requerida.')
+        elif len(descripcion) > 5000:
+            errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
 
-    # Basic length checks for metadata (Security hardening)
-    if len(plataforma_raw) > 80:
-        errores.append('El nombre de la plataforma es demasiado largo.')
-    if len(estado_raw) > 80:
-        errores.append('El estado es demasiado largo.')
+        # Basic length checks for metadata (Security hardening)
+        if len(plataforma_raw) > 80:
+            errores.append('El nombre de la plataforma es demasiado largo.')
+        if len(estado_raw) > 80:
+            errores.append('El estado es demasiado largo.')
 
-    if imagen_url:
-        if not is_valid_presigned_image_url(imagen_url):
-            errores.append('La portada generada no pertenece al bucket configurado.')
-    elif imagen and imagen.filename:
-        valid, error = is_valid_image_file(imagen)
-        if not valid:
-            errores.append(error)
-        elif current_app.config.get('STORAGE_BACKEND') == 'none':
-            errores.append('Las portadas aun no estan configuradas. Guarda el juego sin imagen por ahora.')
+        if imagen_url:
+            if not is_valid_presigned_image_url(imagen_url):
+                errores.append('La portada generada no pertenece al bucket configurado.')
+        elif imagen and imagen.filename:
+            valid, error = is_valid_image_file(imagen)
+            if not valid:
+                errores.append(error)
+            elif current_app.config.get('STORAGE_BACKEND') == 'none':
+                errores.append('Las portadas aun no estan configuradas. Guarda el juego sin imagen por ahora.')
 
-    if errores:
-        for error in errores:
-            flash(error, 'error')
+        if errores:
+            for error in errores:
+                flash(error, 'error')
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='CREATE_GAME',
+                resource='games',
+                details={'errors': errores, 'attempted_title': (titulo or '')[:100]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return redirect(url_for('main.dashboard'))
+
+        if not imagen_url and imagen and imagen.filename:
+            imagen_url = subir_imagen_a_s3(imagen)
+
+        if imagen and imagen.filename and not imagen_url:
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='CREATE_GAME',
+                resource='games',
+                details={'reason': 'image_upload_failed', 'title': (titulo or '')[:100]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No se pudo subir la portada.', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        game_id = str(uuid.uuid4())
+        resultado = crear_juego(
+            session['user_id'],
+            game_id,
+            titulo,
+            descripcion,
+            imagen_url,
+            metadata['plataforma'],
+            metadata['estado'],
+            metadata['categoria'],
+            metadata['prioridad'],
+            metadata['calificacion'],
+            metadata['es_favorito'],
+        )
+        if not resultado:
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='CREATE_GAME',
+                resource='games',
+                details={'reason': 'db_save_failed', 'title': (titulo or '')[:100]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Error al guardar el juego.', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        crear_log_audit(
+            user_id=session['user_id'],
+            action='CREATE_GAME',
+            resource='games',
+            details={
+                'game_id': game_id,
+                'title': titulo,
+                'categoria': metadata['categoria'],
+                'prioridad': metadata['prioridad'],
+                'es_favorito': metadata['es_favorito'],
+            },
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        flash(f'Juego "{titulo}" agregado exitosamente.', 'success')
+        return redirect(url_for('main.dashboard'))
+    except Exception as exc:
+        current_app.logger.error('agregar_juego_failed error=%s', exc)
         crear_log_audit(
             user_id=session.get('user_id'),
             action='CREATE_GAME',
             resource='games',
-            details={'errors': errores, 'attempted_title': (titulo or '')[:100]},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        return redirect(url_for('main.dashboard'))
-
-    if not imagen_url and imagen and imagen.filename:
-        imagen_url = subir_imagen_a_s3(imagen)
-
-    if imagen and imagen.filename and not imagen_url:
-        crear_log_audit(
-            user_id=session['user_id'],
-            action='CREATE_GAME',
-            resource='games',
-            details={'reason': 'image_upload_failed', 'title': (titulo or '')[:100]},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('No se pudo subir la portada.', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    game_id = str(uuid.uuid4())
-    resultado = crear_juego(
-        session['user_id'],
-        game_id,
-        titulo,
-        descripcion,
-        imagen_url,
-        metadata['plataforma'],
-        metadata['estado'],
-        metadata['categoria'],
-        metadata['prioridad'],
-        metadata['calificacion'],
-        metadata['es_favorito'],
-    )
-    if not resultado:
-        crear_log_audit(
-            user_id=session['user_id'],
-            action='CREATE_GAME',
-            resource='games',
-            details={'reason': 'db_save_failed', 'title': (titulo or '')[:100]},
+            details={'reason': 'exception_raised', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
@@ -1440,84 +1472,80 @@ def agregar_juego():
         flash('Error al guardar el juego.', 'error')
         return redirect(url_for('main.dashboard'))
 
-    crear_log_audit(
-        user_id=session['user_id'],
-        action='CREATE_GAME',
-        resource='games',
-        details={
-            'game_id': game_id,
-            'title': titulo,
-            'categoria': metadata['categoria'],
-            'prioridad': metadata['prioridad'],
-            'es_favorito': metadata['es_favorito'],
-        },
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash(f'Juego "{titulo}" agregado exitosamente.', 'success')
-    return redirect(url_for('main.dashboard'))
-
 
 @main_bp.route('/delete/<game_id>', methods=['POST'])
 @require_login
 @limiter.limit('10 per minute')
 def eliminar_juego_ruta(game_id):
     """Elimina un juego del usuario autenticado."""
-    if not is_valid_id(game_id):
-        # Audit trail logging on early validation failure branch to prevent auditing blind spots (Security hardening)
+    try:
+        if not is_valid_id(game_id):
+            # Audit trail logging on early validation failure branch to prevent auditing blind spots (Security hardening)
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='DELETE_GAME',
+                resource='games',
+                details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'invalid_game_id'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Juego no encontrado o sin permisos.', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        user_id = session['user_id']
+        juego = obtener_juego_por_id(user_id, game_id)
+        if juego is None:
+            crear_log_audit(
+                user_id=user_id,
+                action='UNAUTHORIZED_ACCESS',
+                resource='games',
+                details={'game_id': game_id, 'operation': 'delete_game'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Juego no encontrado o sin permisos.', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        resultado = eliminar_juego(user_id, game_id)
+        if not resultado['success']:
+            crear_log_audit(
+                user_id=user_id,
+                action='DELETE_GAME',
+                resource='games',
+                details={'game_id': game_id, 'title': juego.get('titulo'), 'reason': 'db_delete_failed', 'error': str(resultado.get('error'))[:200]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash(f'No se pudo eliminar el juego: {resultado.get("error", "desconocido")}', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        crear_log_audit(
+            user_id=user_id,
+            action='DELETE_GAME',
+            resource='games',
+            details={'game_id': game_id, 'title': juego.get('titulo')},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        flash(f'Juego "{juego.get("titulo", "sin título")}" eliminado.', 'success')
+        return redirect(url_for('main.dashboard'))
+    except Exception as exc:
+        current_app.logger.error('eliminar_juego_failed error=%s', exc)
         crear_log_audit(
             user_id=session.get('user_id'),
             action='DELETE_GAME',
             resource='games',
-            details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'invalid_game_id'},
+            details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'exception_raised', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
-        flash('Juego no encontrado o sin permisos.', 'error')
+        flash('No se pudo eliminar el juego.', 'error')
         return redirect(url_for('main.dashboard'))
-
-    user_id = session['user_id']
-    juego = obtener_juego_por_id(user_id, game_id)
-    if juego is None:
-        crear_log_audit(
-            user_id=user_id,
-            action='UNAUTHORIZED_ACCESS',
-            resource='games',
-            details={'game_id': game_id, 'operation': 'delete_game'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Juego no encontrado o sin permisos.', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    resultado = eliminar_juego(user_id, game_id)
-    if not resultado['success']:
-        crear_log_audit(
-            user_id=user_id,
-            action='DELETE_GAME',
-            resource='games',
-            details={'game_id': game_id, 'title': juego.get('titulo'), 'reason': 'db_delete_failed', 'error': str(resultado.get('error'))[:200]},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash(f'No se pudo eliminar el juego: {resultado.get("error", "desconocido")}', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    crear_log_audit(
-        user_id=user_id,
-        action='DELETE_GAME',
-        resource='games',
-        details={'game_id': game_id, 'title': juego.get('titulo')},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash(f'Juego "{juego.get("titulo", "sin título")}" eliminado.', 'success')
-    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/edit/<game_id>', methods=['GET', 'POST'])
@@ -1525,139 +1553,153 @@ def eliminar_juego_ruta(game_id):
 @limiter.limit('10 per minute', methods=['POST'])
 def editar_juego_ruta(game_id):
     """Edita un juego existente."""
-    if not is_valid_id(game_id):
-        # Audit trail logging on early validation failure branch to prevent auditing blind spots (Security hardening)
+    try:
+        if not is_valid_id(game_id):
+            # Audit trail logging on early validation failure branch to prevent auditing blind spots (Security hardening)
+            crear_log_audit(
+                user_id=session.get('user_id'),
+                action='UPDATE_GAME',
+                resource='games',
+                details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'invalid_game_id'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Juego no encontrado o sin permisos.', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        user_id = session['user_id']
+        juego = obtener_juego_por_id(user_id, game_id)
+        if juego is None:
+            crear_log_audit(
+                user_id=user_id,
+                action='UNAUTHORIZED_ACCESS',
+                resource='games',
+                details={'game_id': game_id, 'operation': 'edit_game'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Juego no encontrado o sin permisos.', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        if request.method == 'GET':
+            return render_template(
+                'edit_game.html',
+                juego=enrich_game_metadata(juego),
+                GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
+                GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
+                GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
+                GAME_PRIORITY_OPTIONS=GAME_PRIORITY_OPTIONS,
+                GAME_RATING_OPTIONS=GAME_RATING_OPTIONS,
+            )
+
+        titulo = request.form.get('titulo', '').strip()
+        descripcion = request.form.get('descripcion', '').strip()
+        plataforma_raw = request.form.get('plataforma', 'PC').strip()
+        estado_raw = request.form.get('estado', 'N/A').strip()
+        metadata = normalize_game_metadata(request.form)
+        nueva_imagen = request.files.get('nueva_imagen')
+        nueva_imagen_url = request.form.get('nueva_imagen_url', '').strip()
+
+        errores = []
+        if not titulo:
+            errores.append('El título es requerido.')
+        elif len(titulo) > 255:
+            errores.append('El título es demasiado largo (máximo 255 caracteres).')
+        if not descripcion:
+            errores.append('La descripción es requerida.')
+        elif len(descripcion) > 5000:
+            errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
+
+        # Basic length checks for metadata (Security hardening)
+        if len(plataforma_raw) > 80:
+            errores.append('El nombre de la plataforma es demasiado largo.')
+        if len(estado_raw) > 80:
+            errores.append('El estado es demasiado largo.')
+
+        if nueva_imagen_url and not is_valid_presigned_image_url(nueva_imagen_url):
+            errores.append('La nueva portada generada no es válida.')
+        elif nueva_imagen and nueva_imagen.filename:
+            valid, error = is_valid_image_file(nueva_imagen)
+            if not valid:
+                errores.append(error)
+            elif current_app.config.get('STORAGE_BACKEND') == 'none':
+                errores.append('Las portadas aun no estan configuradas. Guarda los cambios sin imagen por ahora.')
+
+        if errores:
+            for error in errores:
+                flash(error, 'error')
+            crear_log_audit(
+                user_id=user_id,
+                action='UPDATE_GAME',
+                resource='games',
+                details={'game_id': game_id, 'errors': errores, 'attempted_title': (titulo or '')[:100]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return redirect(url_for('main.editar_juego_ruta', game_id=game_id))
+
+        resultado = actualizar_juego(
+            user_id,
+            game_id,
+            {
+                'titulo': titulo,
+                'descripcion': descripcion,
+                'plataforma': metadata['plataforma'],
+                'estado': metadata['estado'],
+                'categoria': metadata['categoria'],
+                'prioridad': metadata['prioridad'],
+                'calificacion': metadata['calificacion'],
+                'es_favorito': metadata['es_favorito'],
+            },
+            nueva_imagen_url or (nueva_imagen if nueva_imagen and nueva_imagen.filename else None),
+        )
+
+        if not resultado['success']:
+            crear_log_audit(
+                user_id=user_id,
+                action='UPDATE_GAME',
+                resource='games',
+                details={'game_id': game_id, 'reason': 'db_update_failed', 'error': str(resultado.get('error'))[:200]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash(f'No se pudo actualizar el juego: {resultado.get("error", "desconocido")}', 'error')
+            return redirect(url_for('main.editar_juego_ruta', game_id=game_id))
+
+        crear_log_audit(
+            user_id=user_id,
+            action='UPDATE_GAME',
+            resource='games',
+            details={
+                'game_id': game_id,
+                'title': titulo,
+                'categoria': metadata['categoria'],
+                'prioridad': metadata['prioridad'],
+                'es_favorito': metadata['es_favorito'],
+            },
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        flash(f'Juego "{titulo}" actualizado.', 'success')
+        return redirect(url_for('main.dashboard'))
+    except Exception as exc:
+        current_app.logger.error('editar_juego_failed error=%s', exc)
         crear_log_audit(
             user_id=session.get('user_id'),
             action='UPDATE_GAME',
             resource='games',
-            details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'invalid_game_id'},
+            details={'game_id': str(game_id)[:36] if game_id else None, 'reason': 'exception_raised', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
-        flash('Juego no encontrado o sin permisos.', 'error')
+        flash('No se pudo actualizar el juego.', 'error')
         return redirect(url_for('main.dashboard'))
-
-    user_id = session['user_id']
-    juego = obtener_juego_por_id(user_id, game_id)
-    if juego is None:
-        crear_log_audit(
-            user_id=user_id,
-            action='UNAUTHORIZED_ACCESS',
-            resource='games',
-            details={'game_id': game_id, 'operation': 'edit_game'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Juego no encontrado o sin permisos.', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    if request.method == 'GET':
-        return render_template(
-            'edit_game.html',
-            juego=enrich_game_metadata(juego),
-            GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
-            GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
-            GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
-            GAME_PRIORITY_OPTIONS=GAME_PRIORITY_OPTIONS,
-            GAME_RATING_OPTIONS=GAME_RATING_OPTIONS,
-        )
-
-    titulo = request.form.get('titulo', '').strip()
-    descripcion = request.form.get('descripcion', '').strip()
-    plataforma_raw = request.form.get('plataforma', 'PC').strip()
-    estado_raw = request.form.get('estado', 'N/A').strip()
-    metadata = normalize_game_metadata(request.form)
-    nueva_imagen = request.files.get('nueva_imagen')
-    nueva_imagen_url = request.form.get('nueva_imagen_url', '').strip()
-
-    errores = []
-    if not titulo:
-        errores.append('El título es requerido.')
-    elif len(titulo) > 255:
-        errores.append('El título es demasiado largo (máximo 255 caracteres).')
-    if not descripcion:
-        errores.append('La descripción es requerida.')
-    elif len(descripcion) > 5000:
-        errores.append('La descripción es demasiado larga (máximo 5000 caracteres).')
-
-    # Basic length checks for metadata (Security hardening)
-    if len(plataforma_raw) > 80:
-        errores.append('El nombre de la plataforma es demasiado largo.')
-    if len(estado_raw) > 80:
-        errores.append('El estado es demasiado largo.')
-
-    if nueva_imagen_url and not is_valid_presigned_image_url(nueva_imagen_url):
-        errores.append('La nueva portada generada no es válida.')
-    elif nueva_imagen and nueva_imagen.filename:
-        valid, error = is_valid_image_file(nueva_imagen)
-        if not valid:
-            errores.append(error)
-        elif current_app.config.get('STORAGE_BACKEND') == 'none':
-            errores.append('Las portadas aun no estan configuradas. Guarda los cambios sin imagen por ahora.')
-
-    if errores:
-        for error in errores:
-            flash(error, 'error')
-        crear_log_audit(
-            user_id=user_id,
-            action='UPDATE_GAME',
-            resource='games',
-            details={'game_id': game_id, 'errors': errores, 'attempted_title': (titulo or '')[:100]},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        return redirect(url_for('main.editar_juego_ruta', game_id=game_id))
-
-    resultado = actualizar_juego(
-        user_id,
-        game_id,
-        {
-            'titulo': titulo,
-            'descripcion': descripcion,
-            'plataforma': metadata['plataforma'],
-            'estado': metadata['estado'],
-            'categoria': metadata['categoria'],
-            'prioridad': metadata['prioridad'],
-            'calificacion': metadata['calificacion'],
-            'es_favorito': metadata['es_favorito'],
-        },
-        nueva_imagen_url or (nueva_imagen if nueva_imagen and nueva_imagen.filename else None),
-    )
-
-    if not resultado['success']:
-        crear_log_audit(
-            user_id=user_id,
-            action='UPDATE_GAME',
-            resource='games',
-            details={'game_id': game_id, 'reason': 'db_update_failed', 'error': str(resultado.get('error'))[:200]},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash(f'No se pudo actualizar el juego: {resultado.get("error", "desconocido")}', 'error')
-        return redirect(url_for('main.editar_juego_ruta', game_id=game_id))
-
-    crear_log_audit(
-        user_id=user_id,
-        action='UPDATE_GAME',
-        resource='games',
-        details={
-            'game_id': game_id,
-            'title': titulo,
-            'categoria': metadata['categoria'],
-            'prioridad': metadata['prioridad'],
-            'es_favorito': metadata['es_favorito'],
-        },
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash(f'Juego "{titulo}" actualizado.', 'success')
-    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/registro', methods=['GET', 'POST'])

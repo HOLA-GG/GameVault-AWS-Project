@@ -57,3 +57,8 @@
 **Vulnerability:** In `/admin/logs/clear`, missing, non-numeric, or out-of-bounds `dias` parameters fell back to default values, allowing malformed administrative log cleanup requests to execute and evade failure audit logging.
 **Learning:** Destructive administrative operations that fall back to default input parameters when supplied with invalid form inputs can result in unintentional data deletion and create auditing blind spots.
 **Prevention:** Strictly validate integer bounds on administrative parameters before executing state-altering tasks, recording `crear_log_audit` with `status='FAILED'` and an explicit reason on validation rejection.
+
+## 2026-11-30 - Defensive Exception Handling and Failure Audit Logging for User Game Routes
+**Vulnerability:** Unhandled runtime or database exceptions in user game management routes (`/agregar`, `/delete/<game_id>`, `/edit/<game_id>`) could trigger 500 internal server error crashes and bypass audit trail logging for failed game creation, deletion, or editing operations.
+**Learning:** State-altering user route handlers that lack top-level try-except error handling can crash on unexpected backend or database exceptions, exposing 500 internal server errors and creating auditing blind spots when failure events go unrecorded.
+**Prevention:** Always wrap state-altering route handlers in top-level `try...except` blocks, logging exceptions via `current_app.logger.error`, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash error message.
