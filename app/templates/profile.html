@@ -215,7 +215,11 @@
                         <small>{{ log.details.title }}</small>
                     {% endif %}
                 {% elif log.details and log.details.email %}
-                    <small>{{ log.details.email }}</small>
+                    <small>
+                        <button type="button" class="btn-copy" data-copy="{{ log.details.email }}" aria-label="Copiar email {{ log.details.email }}" title="Copiar email {{ log.details.email }}">
+                            {{ log.details.email }}
+                        </button>
+                    </small>
                 {% endif %}
             </article>
         {% endfor %}
