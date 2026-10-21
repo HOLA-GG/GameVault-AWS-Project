@@ -1953,97 +1953,168 @@ def logout():
 @limiter.limit('10 per minute', methods=['POST'])
 def profile():
     """Permite editar perfil y contraseña."""
-    if session.get('role') == 'admin':
-        return redirect(url_for('main.admin_panel'))
-    # Use g.current_user cached by @require_login to avoid redundant DB query
-    user = g.current_user
-    user_id = session['user_id']
+    try:
+        if session.get('role') == 'admin':
+            return redirect(url_for('main.admin_panel'))
+        # Use g.current_user cached by @require_login to avoid redundant DB query
+        user = g.current_user
+        user_id = session['user_id']
 
-    # Bolt optimization: Calculate profile insights using SQL aggregations instead of loading all games.
-    # We use full=False to skip expensive dominant metrics and specific game lookups not rendered in profile.html.
-    # This reduces database roundtrips from 10 to 1 for this route.
-    profile_insights = obtener_metricas_coleccion(user_id, full=False)
-    # Bolt Optimization: Fetch only required fields for activity feed in profile.html.
-    recent_activity_logs = obtener_logs_por_usuario(
-        user_id,
-        limit=8,
-        fields=['timestamp', 'action', 'action_name', 'resource', 'status', 'details']
-    )
-    for log in recent_activity_logs:
-        enrich_log_metadata(log)
-
-    if request.method == 'GET':
-        return render_template(
-            'profile.html',
-            user=user,
-            profile_insights=profile_insights,
-            recent_activity_logs=recent_activity_logs,
+        # Bolt optimization: Calculate profile insights using SQL aggregations instead of loading all games.
+        # We use full=False to skip expensive dominant metrics and specific game lookups not rendered in profile.html.
+        # This reduces database roundtrips from 10 to 1 for this route.
+        profile_insights = obtener_metricas_coleccion(user_id, full=False)
+        # Bolt Optimization: Fetch only required fields for activity feed in profile.html.
+        recent_activity_logs = obtener_logs_por_usuario(
+            user_id,
+            limit=8,
+            fields=['timestamp', 'action', 'action_name', 'resource', 'status', 'details']
         )
+        for log in recent_activity_logs:
+            enrich_log_metadata(log)
 
-    form_name = request.form.get('form_name', 'profile')
-
-    if form_name == 'password':
-        current_password = request.form.get('current_password', '').strip()
-        password = request.form.get('password', '').strip()
-        confirm_password = request.form.get('confirm_password', '').strip()
-
-        errores = []
-        # Protect against hashing DoS for extremely long input password
-        if len(current_password) > 128:
-            errores.append('La contraseña actual es demasiado larga (máximo 128 caracteres).')
-        elif len(password) > 128:
-            errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
-        elif not check_password_hash(user['password_hash'], current_password):
-            crear_log_audit(
-                user_id=session['user_id'],
-                action='CHANGE_PASSWORD',
-                resource='users',
-                details={'email': session.get('email'), 'reason': 'incorrect_current_password'},
-                ip_address=get_request_ip(),
-                user_agent=request.headers.get('User-Agent', 'unknown'),
-                status='FAILED',
+        if request.method == 'GET':
+            return render_template(
+                'profile.html',
+                user=user,
+                profile_insights=profile_insights,
+                recent_activity_logs=recent_activity_logs,
             )
-            errores.append('La contraseña actual no es correcta.')
-        elif check_password_hash(user['password_hash'], password):
-            crear_log_audit(
-                user_id=session['user_id'],
-                action='CHANGE_PASSWORD',
-                resource='users',
-                details={'email': session.get('email'), 'reason': 'reuse_current_password'},
-                ip_address=get_request_ip(),
-                user_agent=request.headers.get('User-Agent', 'unknown'),
-                status='FAILED',
-            )
-            errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
-        if not validar_password(password, email=user.get('email'), nombre=user.get('nombre'), apellido=user.get('apellido'), telefono=user.get('telefono')):
-            errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
-        if len(confirm_password) > 128:
-            errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
-        if password != confirm_password:
-            errores.append('Las contraseñas no coinciden.')
 
-        if errores:
-            for error in errores:
-                flash(error, 'error')
-            # Record audit log for password validation failures if not already audited by early checks
-            if 'La contraseña actual no es correcta.' not in errores and 'La nueva contraseña no puede ser igual a la contraseña actual.' not in errores:
+        form_name = request.form.get('form_name', 'profile')
+
+        if form_name == 'password':
+            current_password = request.form.get('current_password', '').strip()
+            password = request.form.get('password', '').strip()
+            confirm_password = request.form.get('confirm_password', '').strip()
+
+            errores = []
+            # Protect against hashing DoS for extremely long input password
+            if len(current_password) > 128:
+                errores.append('La contraseña actual es demasiado larga (máximo 128 caracteres).')
+            elif len(password) > 128:
+                errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
+            elif not check_password_hash(user['password_hash'], current_password):
                 crear_log_audit(
                     user_id=session['user_id'],
                     action='CHANGE_PASSWORD',
                     resource='users',
-                    details={'email': session.get('email'), 'errors': errores, 'reason': 'validation_failed'},
+                    details={'email': session.get('email'), 'reason': 'incorrect_current_password'},
                     ip_address=get_request_ip(),
                     user_agent=request.headers.get('User-Agent', 'unknown'),
                     status='FAILED',
                 )
-            return redirect(url_for('main.profile'))
+                errores.append('La contraseña actual no es correcta.')
+            elif check_password_hash(user['password_hash'], password):
+                crear_log_audit(
+                    user_id=session['user_id'],
+                    action='CHANGE_PASSWORD',
+                    resource='users',
+                    details={'email': session.get('email'), 'reason': 'reuse_current_password'},
+                    ip_address=get_request_ip(),
+                    user_agent=request.headers.get('User-Agent', 'unknown'),
+                    status='FAILED',
+                )
+                errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
+            if not validar_password(password, email=user.get('email'), nombre=user.get('nombre'), apellido=user.get('apellido'), telefono=user.get('telefono')):
+                errores.append('La nueva contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
+            if len(confirm_password) > 128:
+                errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
+            if password != confirm_password:
+                errores.append('Las contraseñas no coinciden.')
 
-        resultado = actualizar_password_usuario(session['user_id'], generate_password_hash(password))
-        if not resultado['success']:
-            flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
+            if errores:
+                for error in errores:
+                    flash(error, 'error')
+                # Record audit log for password validation failures if not already audited by early checks
+                if 'La contraseña actual no es correcta.' not in errores and 'La nueva contraseña no puede ser igual a la contraseña actual.' not in errores:
+                    crear_log_audit(
+                        user_id=session['user_id'],
+                        action='CHANGE_PASSWORD',
+                        resource='users',
+                        details={'email': session.get('email'), 'errors': errores, 'reason': 'validation_failed'},
+                        ip_address=get_request_ip(),
+                        user_agent=request.headers.get('User-Agent', 'unknown'),
+                        status='FAILED',
+                    )
+                return redirect(url_for('main.profile'))
+
+            resultado = actualizar_password_usuario(session['user_id'], generate_password_hash(password))
+            if not resultado['success']:
+                flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
+                crear_log_audit(
+                    user_id=session['user_id'],
+                    action='CHANGE_PASSWORD',
+                    resource='users',
+                    details={'email': session.get('email'), 'reason': 'db_update_failed'},
+                    ip_address=get_request_ip(),
+                    user_agent=request.headers.get('User-Agent', 'unknown'),
+                    status='FAILED',
+                )
+                return redirect(url_for('main.profile'))
+
             crear_log_audit(
                 user_id=session['user_id'],
                 action='CHANGE_PASSWORD',
+                resource='users',
+                details={'email': session.get('email')},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='SUCCESS',
+            )
+            session.clear()
+            flash('Tu contraseña fue actualizada. Por favor inicia sesión de nuevo.', 'success')
+            return redirect(url_for('main.login'))
+
+        nombre = request.form.get('nombre', '').strip()
+        apellido = request.form.get('apellido', '').strip()
+        prefijo_pais = request.form.get('prefijo_pais', '').strip()
+        telefono = request.form.get('telefono', '').strip()
+        collection_visibility = request.form.get('collection_visibility', 'private').strip().lower()
+        homepage_showcase_opt_in = request.form.get('homepage_showcase_opt_in') == 'on'
+
+        errores = []
+        if not nombre:
+            errores.append('El nombre es requerido.')
+        elif len(nombre) > 120:
+            errores.append('El nombre es demasiado largo (máximo 120 caracteres).')
+        if len(apellido) > 120:
+            errores.append('El apellido es demasiado largo (máximo 120 caracteres).')
+        if len(prefijo_pais) > 10:
+            errores.append('El prefijo de país es demasiado largo.')
+        if telefono and not validar_telefono(telefono):
+            errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
+
+        if errores:
+            for error in errores:
+                flash(error, 'error')
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='UPDATE_PROFILE',
+                resource='users',
+                details={'email': session.get('email'), 'errors': errores},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return redirect(url_for('main.profile'))
+
+        resultado = actualizar_usuario_perfil(
+            session['user_id'],
+            {
+                'nombre': nombre,
+                'apellido': apellido,
+                'prefijo_pais': prefijo_pais,
+                'telefono': telefono,
+                'collection_visibility': collection_visibility,
+                'homepage_showcase_opt_in': homepage_showcase_opt_in and collection_visibility == 'public',
+            },
+        )
+        if not resultado['success']:
+            flash(f'No se pudo actualizar el perfil: {resultado["error"]}', 'error')
+            crear_log_audit(
+                user_id=session['user_id'],
+                action='UPDATE_PROFILE',
                 resource='users',
                 details={'email': session.get('email'), 'reason': 'db_update_failed'},
                 ip_address=get_request_ip(),
@@ -2052,88 +2123,31 @@ def profile():
             )
             return redirect(url_for('main.profile'))
 
+        session['nombre'] = nombre
         crear_log_audit(
             user_id=session['user_id'],
-            action='CHANGE_PASSWORD',
+            action='UPDATE_PROFILE',
             resource='users',
             details={'email': session.get('email')},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='SUCCESS',
         )
-        session.clear()
-        flash('Tu contraseña fue actualizada. Por favor inicia sesión de nuevo.', 'success')
-        return redirect(url_for('main.login'))
-
-    nombre = request.form.get('nombre', '').strip()
-    apellido = request.form.get('apellido', '').strip()
-    prefijo_pais = request.form.get('prefijo_pais', '').strip()
-    telefono = request.form.get('telefono', '').strip()
-    collection_visibility = request.form.get('collection_visibility', 'private').strip().lower()
-    homepage_showcase_opt_in = request.form.get('homepage_showcase_opt_in') == 'on'
-
-    errores = []
-    if not nombre:
-        errores.append('El nombre es requerido.')
-    elif len(nombre) > 120:
-        errores.append('El nombre es demasiado largo (máximo 120 caracteres).')
-    if len(apellido) > 120:
-        errores.append('El apellido es demasiado largo (máximo 120 caracteres).')
-    if len(prefijo_pais) > 10:
-        errores.append('El prefijo de país es demasiado largo.')
-    if telefono and not validar_telefono(telefono):
-        errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
-
-    if errores:
-        for error in errores:
-            flash(error, 'error')
+        flash('Perfil actualizado correctamente.', 'success')
+        return redirect(url_for('main.profile'))
+    except Exception as exc:
+        current_app.logger.error('profile_failed error=%s', exc)
         crear_log_audit(
-            user_id=session['user_id'],
+            user_id=session.get('user_id'),
             action='UPDATE_PROFILE',
             resource='users',
-            details={'email': session.get('email'), 'errors': errores},
+            details={'email': session.get('email'), 'reason': 'exception_raised', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
-        return redirect(url_for('main.profile'))
-
-    resultado = actualizar_usuario_perfil(
-        session['user_id'],
-        {
-            'nombre': nombre,
-            'apellido': apellido,
-            'prefijo_pais': prefijo_pais,
-            'telefono': telefono,
-            'collection_visibility': collection_visibility,
-            'homepage_showcase_opt_in': homepage_showcase_opt_in and collection_visibility == 'public',
-        },
-    )
-    if not resultado['success']:
-        flash(f'No se pudo actualizar el perfil: {resultado["error"]}', 'error')
-        crear_log_audit(
-            user_id=session['user_id'],
-            action='UPDATE_PROFILE',
-            resource='users',
-            details={'email': session.get('email'), 'reason': 'db_update_failed'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        return redirect(url_for('main.profile'))
-
-    session['nombre'] = nombre
-    crear_log_audit(
-        user_id=session['user_id'],
-        action='UPDATE_PROFILE',
-        resource='users',
-        details={'email': session.get('email')},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash('Perfil actualizado correctamente.', 'success')
-    return redirect(url_for('main.profile'))
+        flash('No se pudo procesar la solicitud de perfil.', 'error')
+        return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/forgot-password', methods=['GET', 'POST'])
