@@ -201,3 +201,7 @@
 ## 2026-12-05 - Dynamic `aria-valuetext` on Password Strength Progressbars
 **Learning:** HTML5 progressbar elements with `role="progressbar"` expose numeric values via `aria-valuenow` (e.g., "40"), but raw numbers fail to communicate human-readable form validation rules or missing password criteria to screen-reader users. Dynamically updating `aria-valuetext` with localized, descriptive text status (e.g. "Contraseña débil (falta: una mayúscula, un número)") alongside `aria-valuenow` delivers full accessibility parity for password complexity indicators across all modalities.
 **Action:** Always complement numeric `aria-valuenow` updates on custom or native progressbars with descriptive `aria-valuetext` status strings, and remove `aria-valuetext` when the input value is cleared.
+
+## 2026-12-10 - Activity Feed Inline Copy Affordance
+**Learning:** Plain text identifiers (such as user email addresses) in activity feed streams create interaction gaps when users need to reference or share them. Providing interactive, accessible copy buttons (`btn-copy`) with explicit `data-copy`, `aria-label`, and `title` tooltips brings activity feed cards into full interaction parity with administrative log explorers.
+**Action:** When displaying account identifiers or email strings in feed/log cards, wrap them in interactive `btn-copy` buttons with contextual ARIA labels and tooltips.

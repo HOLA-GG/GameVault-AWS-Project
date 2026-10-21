@@ -1385,3 +1385,36 @@ def test_palette_password_strength_aria_valuetext(client):
 
     assert "meter.setAttribute('aria-valuetext', text.textContent);" in html
     assert "meter.removeAttribute('aria-valuetext');" in html
+
+
+def test_palette_profile_activity_feed_copy_button(monkeypatch, client):
+    """Verify that profile.html renders interactive copy buttons for activity feed email details."""
+    import app.routes as routes
+
+    monkeypatch.setattr(
+        routes,
+        'obtener_logs_por_usuario',
+        lambda uid, limit=10, **kwargs: [
+            {
+                'audit_id': 'a100',
+                'user_id': uid,
+                'action': 'PASSWORD_RESET_REQUEST',
+                'action_name': 'Recuperación de contraseña',
+                'resource': 'users',
+                'timestamp': '2026-03-18T12:00:00+00:00',
+                'status': 'SUCCESS',
+                'action_badge_class': 'badge-log-info',
+                'status_badge_class': 'badge-log-success',
+                'details': {'email': 'activity@example.com'},
+            }
+        ],
+    )
+
+    login_session(client)
+    response = client.get('/perfil')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'data-copy="activity@example.com"' in html
+    assert 'aria-label="Copiar email activity@example.com"' in html
+    assert 'title="Copiar email activity@example.com"' in html
