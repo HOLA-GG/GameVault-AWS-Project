@@ -502,13 +502,15 @@ def ensure_tables() -> None:
     init_database()
 
 
-def as_iso(value: datetime | None) -> str | None:
-    # Bolt Optimization: Short-circuit default sentinel MIN_DATE to return pre-computed _MIN_DATE_ISO constant directly.
-    # Avoids tzinfo inspection, timezone replacement, and dynamic .isoformat() string allocations (~9.5x speedup).
+def as_iso(value: datetime | str | None) -> str | None:
+    # Bolt Optimization: Short-circuit default sentinel MIN_DATE and pre-formatted strings to return immediately (~9.5x speedup).
+    # Avoids tzinfo inspection, timezone replacement, and dynamic .isoformat() string allocations.
     if value is None:
         return None
     if value is MIN_DATE:
         return _MIN_DATE_ISO
+    if isinstance(value, str):
+        return value
     if value.tzinfo is not None:
         return value.isoformat()
     return value.replace(tzinfo=timezone.utc).isoformat()
@@ -615,6 +617,27 @@ def _user_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any]:
                     'user_id': m['user_id'],
                     'email': m['email'] or '',
                     'nombre': m['nombre'] or '',
+                    'apellido': '',
+                    'prefijo_pais': '',
+                    'telefono': '',
+                    'password_hash': '',
+                    'role': 'user',
+                    'status': 'active',
+                    'collection_visibility': 'private',
+                    'homepage_showcase_opt_in': False,
+                    'created_at': cre_iso,
+                    'updated_at': cre_iso,
+                }
+            except KeyError:
+                pass
+        elif l == 2:
+            try:
+                # Bolt Optimization: Direct bracket indexing for 2-column user_id and email SQL projections.
+                cre_iso = _MIN_DATE_ISO if format_dates else _MIN_DATE
+                return {
+                    'user_id': m['user_id'],
+                    'email': m['email'] or '',
+                    'nombre': '',
                     'apellido': '',
                     'prefijo_pais': '',
                     'telefono': '',
