@@ -64,6 +64,16 @@ def test_user_row_to_dict_partial_projections():
     assert res_3['user_id'] == 'usr_3'
     assert res_3['created_at'] == _MIN_DATE_ISO
 
+    # 2 columns projection
+    dict_2 = {
+        'user_id': 'usr_2',
+        'email': 'user2@example.com',
+    }
+    res_2 = _user_row_to_dict(MockMappingRow(dict_2), format_dates=True)
+    assert res_2['user_id'] == 'usr_2'
+    assert res_2['email'] == 'user2@example.com'
+    assert res_2['created_at'] == _MIN_DATE_ISO
+
 
 def test_user_row_to_dict_fallback_and_orm():
     now = datetime(2026, 9, 20, 15, 30, 0, tzinfo=timezone.utc)

@@ -18,3 +18,8 @@ def test_as_iso_aware_datetime():
 def test_as_iso_naive_datetime():
     dt = datetime(2026, 3, 15, 12, 30, 45)
     assert as_iso(dt) == "2026-03-15T12:30:45+00:00"
+
+
+def test_as_iso_string_input():
+    iso_str = "2026-03-15T12:30:45+00:00"
+    assert as_iso(iso_str) == iso_str
