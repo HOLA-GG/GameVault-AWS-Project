@@ -2155,106 +2155,120 @@ def profile():
 @limiter.limit('3 per hour', methods=['POST'])
 def forgot_password():
     """Solicita recuperación de contraseña sin revelar existencia del usuario."""
-    if session.get('user_id'):
-        return redirect(url_for('main.dashboard'))
+    try:
+        if session.get('user_id'):
+            return redirect(url_for('main.dashboard'))
 
-    if request.method == 'GET':
-        return render_template('forgot_password.html')
+        if request.method == 'GET':
+            return render_template('forgot_password.html')
 
-    email = request.form.get('email', '').strip().lower()
-    if not email:
-        crear_log_audit(
-            user_id=None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'reason': 'empty_email'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('El email es requerido.', 'error')
-        return redirect(url_for('main.forgot_password'))
-
-    if len(email) > 255:
-        crear_log_audit(
-            user_id=None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'email': email[:255], 'reason': 'email_too_long'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Email demasiado largo.', 'error')
-        return redirect(url_for('main.forgot_password'))
-
-    if not validar_email(email):
-        crear_log_audit(
-            user_id=None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'email': email[:255], 'reason': 'invalid_email_format'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('El formato de email no es válido.', 'error')
-        return redirect(url_for('main.forgot_password'))
-
-    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
-    user = obtener_usuario_por_email(email, format_dates=False)
-    flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
-
-    if not user or user.get('status') != 'active':
-        crear_log_audit(
-            user_id=user['user_id'] if user else None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'email': email, 'reason': 'user_not_found_or_inactive'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        return redirect(url_for('main.forgot_password'))
-
-    if user and user.get('status') == 'active':
-        request_ip = get_request_ip()
-        result = crear_reset_token(user['user_id'], request_ip)
-        if result['success']:
-            email_sent = enviar_email_reset_password(email, result['token'], ip_address=request_ip)
+        email = request.form.get('email', '').strip().lower()
+        if not email:
             crear_log_audit(
-                user_id=user['user_id'],
+                user_id=None,
                 action='PASSWORD_RESET_REQUEST',
                 resource='auth',
-                details={'email': email},
+                details={'reason': 'empty_email'},
                 ip_address=get_request_ip(),
-                user_agent=request.headers.get('User-Agent', 'unknown'),
-                status='SUCCESS',
-            )
-            # Strictly respect the debug token flag to prevent exposure in production (Security hardening)
-            if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
-                if email_sent:
-                    flash('Entorno de prueba: se muestra el acceso de recuperación para validar el flujo end-to-end.', 'warning')
-                else:
-                    flash('No se pudo enviar el correo automático. Usa este token temporal para continuar la recuperación.', 'warning')
-                return render_template(
-                    'forgot_password.html',
-                    debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
-                    email_sent=email_sent,
-                )
-        else:
-            current_app.logger.error('password_reset_token_creation_failed user_id=%s', user['user_id'])
-            crear_log_audit(
-                user_id=user['user_id'],
-                action='PASSWORD_RESET_REQUEST',
-                resource='auth',
-                details={'email': email, 'reason': 'token_creation_failed'},
-                ip_address=request_ip,
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
             )
+            flash('El email es requerido.', 'error')
+            return redirect(url_for('main.forgot_password'))
 
-    return redirect(url_for('main.forgot_password'))
+        if len(email) > 255:
+            crear_log_audit(
+                user_id=None,
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email[:255], 'reason': 'email_too_long'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Email demasiado largo.', 'error')
+            return redirect(url_for('main.forgot_password'))
+
+        if not validar_email(email):
+            crear_log_audit(
+                user_id=None,
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email[:255], 'reason': 'invalid_email_format'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('El formato de email no es válido.', 'error')
+            return redirect(url_for('main.forgot_password'))
+
+        # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+        user = obtener_usuario_por_email(email, format_dates=False)
+        flash('Si el correo está registrado, recibirás un enlace para recuperar tu contraseña.', 'success')
+
+        if not user or user.get('status') != 'active':
+            crear_log_audit(
+                user_id=user['user_id'] if user else None,
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email, 'reason': 'user_not_found_or_inactive'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return redirect(url_for('main.forgot_password'))
+
+        if user and user.get('status') == 'active':
+            request_ip = get_request_ip()
+            result = crear_reset_token(user['user_id'], request_ip)
+            if result['success']:
+                email_sent = enviar_email_reset_password(email, result['token'], ip_address=request_ip)
+                crear_log_audit(
+                    user_id=user['user_id'],
+                    action='PASSWORD_RESET_REQUEST',
+                    resource='auth',
+                    details={'email': email},
+                    ip_address=get_request_ip(),
+                    user_agent=request.headers.get('User-Agent', 'unknown'),
+                    status='SUCCESS',
+                )
+                # Strictly respect the debug token flag to prevent exposure in production (Security hardening)
+                if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
+                    if email_sent:
+                        flash('Entorno de prueba: se muestra el acceso de recuperación para validar el flujo end-to-end.', 'warning')
+                    else:
+                        flash('No se pudo enviar el correo automático. Usa este token temporal para continuar la recuperación.', 'warning')
+                    return render_template(
+                        'forgot_password.html',
+                        debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
+                        email_sent=email_sent,
+                    )
+            else:
+                current_app.logger.error('password_reset_token_creation_failed user_id=%s', user['user_id'])
+                crear_log_audit(
+                    user_id=user['user_id'],
+                    action='PASSWORD_RESET_REQUEST',
+                    resource='auth',
+                    details={'email': email, 'reason': 'token_creation_failed'},
+                    ip_address=request_ip,
+                    user_agent=request.headers.get('User-Agent', 'unknown'),
+                    status='FAILED',
+                )
+
+        return redirect(url_for('main.forgot_password'))
+    except Exception as exc:
+        current_app.logger.error('forgot_password_failed error=%s', exc)
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'reason': 'exception_raised', 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudo procesar la solicitud de recuperación.', 'error')
+        return redirect(url_for('main.forgot_password'))
 
 
 @main_bp.route("/forgot-password/manual", methods=["GET", "POST"])
@@ -2262,110 +2276,124 @@ def forgot_password():
 @limiter.limit('3 per hour', methods=['POST'])
 def forgot_password_manual():
     """Permite recuperar token desde la web validando email + teléfono registrado."""
-    if session.get("user_id"):
-        return redirect(url_for("main.dashboard"))
+    try:
+        if session.get("user_id"):
+            return redirect(url_for("main.dashboard"))
 
-    if request.method == "GET":
-        return render_template("forgot_password_manual.html")
-    email = request.form.get('email', '').strip().lower()
-    telefono = request.form.get('telefono', '').strip()
-    if not email or not telefono:
-        crear_log_audit(
-            user_id=None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'email': email[:255] if email else None, 'reason': 'empty_credentials', 'channel': 'manual_token'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Para la opción 2 debes indicar correo y teléfono.', 'error')
-        return redirect(url_for('main.forgot_password'))
-
-    if len(email) > 255 or len(telefono) > 20:
-        crear_log_audit(
-            user_id=None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'email': email[:255], 'reason': 'credentials_too_long', 'channel': 'manual_token'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Email o teléfono demasiado largos.', 'error')
-        return redirect(url_for('main.forgot_password'))
-
-    if not validar_email(email) or not validar_telefono(telefono):
-        crear_log_audit(
-            user_id=None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'email': email[:255], 'reason': 'invalid_credentials_format', 'channel': 'manual_token'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Formato de correo o teléfono no válido.', 'error')
-        return redirect(url_for('main.forgot_password'))
-
-    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
-    user = obtener_usuario_por_email(email, format_dates=False)
-    # Validar si el usuario existe y el teléfono coincide
-    if not user or str(user.get('telefono', '')).strip() != telefono or user.get('status') != 'active':
-        crear_log_audit(
-            user_id=user['user_id'] if user else None,
-            action='PASSWORD_RESET_REQUEST',
-            resource='auth',
-            details={'email': email, 'reason': 'manual_token_validation_failed'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        # En producción no revelamos si los datos son incorrectos para evitar enumeración.
-        if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
-            flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
+        if request.method == "GET":
+            return render_template("forgot_password_manual.html")
+        email = request.form.get('email', '').strip().lower()
+        telefono = request.form.get('telefono', '').strip()
+        if not email or not telefono:
+            crear_log_audit(
+                user_id=None,
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email[:255] if email else None, 'reason': 'empty_credentials', 'channel': 'manual_token'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Para la opción 2 debes indicar correo y teléfono.', 'error')
             return redirect(url_for('main.forgot_password'))
 
-        flash('No se pudo validar los datos de recuperación.', 'error')
-        return redirect(url_for('main.forgot_password'))
+        if len(email) > 255 or len(telefono) > 20:
+            crear_log_audit(
+                user_id=None,
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email[:255], 'reason': 'credentials_too_long', 'channel': 'manual_token'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Email o teléfono demasiado largos.', 'error')
+            return redirect(url_for('main.forgot_password'))
 
-    request_ip = get_request_ip()
-    result = crear_reset_token(user['user_id'], request_ip)
-    if not result.get('success'):
+        if not validar_email(email) or not validar_telefono(telefono):
+            crear_log_audit(
+                user_id=None,
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email[:255], 'reason': 'invalid_credentials_format', 'channel': 'manual_token'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Formato de correo o teléfono no válido.', 'error')
+            return redirect(url_for('main.forgot_password'))
+
+        # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+        user = obtener_usuario_por_email(email, format_dates=False)
+        # Validar si el usuario existe y el teléfono coincide
+        if not user or str(user.get('telefono', '')).strip() != telefono or user.get('status') != 'active':
+            crear_log_audit(
+                user_id=user['user_id'] if user else None,
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email, 'reason': 'manual_token_validation_failed'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            # En producción no revelamos si los datos son incorrectos para evitar enumeración.
+            if not current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
+                flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
+                return redirect(url_for('main.forgot_password'))
+
+            flash('No se pudo validar los datos de recuperación.', 'error')
+            return redirect(url_for('main.forgot_password'))
+
+        request_ip = get_request_ip()
+        result = crear_reset_token(user['user_id'], request_ip)
+        if not result.get('success'):
+            crear_log_audit(
+                user_id=user['user_id'],
+                action='PASSWORD_RESET_REQUEST',
+                resource='auth',
+                details={'email': email, 'channel': 'manual_token', 'reason': 'token_creation_failed'},
+                ip_address=request_ip,
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No se pudo generar el token de recuperación. Intenta de nuevo.', 'error')
+            return redirect(url_for('main.forgot_password'))
+
         crear_log_audit(
             user_id=user['user_id'],
             action='PASSWORD_RESET_REQUEST',
             resource='auth',
-            details={'email': email, 'channel': 'manual_token', 'reason': 'token_creation_failed'},
+            details={'email': email, 'channel': 'manual_token'},
             ip_address=request_ip,
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+
+        # Para la opción manual, solo mostramos el token si el flag de debug está activo.
+        # En producción, esta vía debe ser gestionada por soporte o flujos alternativos seguros.
+        if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
+            flash('Token generado exitosamente. Guárdalo y úsalo en la opción de validación manual.', 'success')
+            return render_template(
+                'forgot_password.html',
+                debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
+                email_sent=False,
+            )
+
+        flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
+        return redirect(url_for('main.forgot_password'))
+    except Exception as exc:
+        current_app.logger.error('forgot_password_manual_failed error=%s', exc)
+        crear_log_audit(
+            user_id=None,
+            action='PASSWORD_RESET_REQUEST',
+            resource='auth',
+            details={'reason': 'exception_raised', 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
-        flash('No se pudo generar el token de recuperación. Intenta de nuevo.', 'error')
+        flash('No se pudo procesar la solicitud de recuperación.', 'error')
         return redirect(url_for('main.forgot_password'))
-
-    crear_log_audit(
-        user_id=user['user_id'],
-        action='PASSWORD_RESET_REQUEST',
-        resource='auth',
-        details={'email': email, 'channel': 'manual_token'},
-        ip_address=request_ip,
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-
-    # Para la opción manual, solo mostramos el token si el flag de debug está activo.
-    # En producción, esta vía debe ser gestionada por soporte o flujos alternativos seguros.
-    if current_app.config.get('SHOW_RESET_DEBUG_TOKEN'):
-        flash('Token generado exitosamente. Guárdalo y úsalo en la opción de validación manual.', 'success')
-        return render_template(
-            'forgot_password.html',
-            debug_reset=build_reset_debug_context(email, result['token'], result['expires_at']),
-            email_sent=False,
-        )
-
-    flash('Si tus datos coinciden, se ha procesado la solicitud. Contacta a soporte si necesitas ayuda adicional.', 'success')
-    return redirect(url_for('main.forgot_password'))
 
 
 @main_bp.route('/validate-token')

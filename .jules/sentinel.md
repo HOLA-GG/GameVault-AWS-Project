@@ -62,3 +62,8 @@
 **Vulnerability:** Unhandled runtime or database exceptions in user game management routes (`/agregar`, `/delete/<game_id>`, `/edit/<game_id>`) could trigger 500 internal server error crashes and bypass audit trail logging for failed game creation, deletion, or editing operations.
 **Learning:** State-altering user route handlers that lack top-level try-except error handling can crash on unexpected backend or database exceptions, exposing 500 internal server errors and creating auditing blind spots when failure events go unrecorded.
 **Prevention:** Always wrap state-altering route handlers in top-level `try...except` blocks, logging exceptions via `current_app.logger.error`, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash error message.
+
+## 2026-12-07 - Defensive Exception Handling and Failure Audit Logging for Password Recovery Routes
+**Vulnerability:** Unhandled runtime or database exceptions in password recovery routes (`/forgot-password` and `/forgot-password/manual`) could trigger 500 internal server error crashes and bypass audit trail logging for failed password reset requests.
+**Learning:** Authentication and recovery handlers that lack top-level try-except error handling can crash on unexpected backend or database exceptions, exposing 500 internal server errors and creating auditing blind spots when failure events go unrecorded.
+**Prevention:** Always wrap authentication and password recovery route handlers in top-level `try...except` blocks, logging exceptions via `current_app.logger.error`, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash error message.
