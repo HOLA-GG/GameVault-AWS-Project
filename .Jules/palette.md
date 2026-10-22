@@ -205,3 +205,7 @@
 ## 2026-12-10 - Activity Feed Inline Copy Affordance
 **Learning:** Plain text identifiers (such as user email addresses) in activity feed streams create interaction gaps when users need to reference or share them. Providing interactive, accessible copy buttons (`btn-copy`) with explicit `data-copy`, `aria-label`, and `title` tooltips brings activity feed cards into full interaction parity with administrative log explorers.
 **Action:** When displaying account identifiers or email strings in feed/log cards, wrap them in interactive `btn-copy` buttons with contextual ARIA labels and tooltips.
+
+## 2026-12-15 - Universal Progressive Relative Timestamps
+**Learning:** Exposing raw ISO timestamps via `data-timestamp` attributes on datetime elements (`<strong>`, `<td>`, `<span>`) enables client-side progressive enhancement via `setupRelativeTimes()` without altering server-side fallbacks. This converts static date strings into localized human-readable relative time strings (e.g. "hace 2 días") with hover tooltips across public showcase cards and administrative data tables.
+**Action:** Always annotate rendered datetimes with `data-timestamp="{{ dt_iso }}"` across all template views to ensure dynamic relative time formatting and time-ago consistency.

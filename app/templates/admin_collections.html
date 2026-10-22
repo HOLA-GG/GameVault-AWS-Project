@@ -92,7 +92,7 @@
                             <td>{{ collection.favorites_count }}</td>
                             <td>{{ collection.average_rating if collection.average_rating is not none else 'Sin nota' }}</td>
                             <td>{{ collection.dominant_platform }}</td>
-                            <td>{{ collection.last_updated_at[:10] if collection.last_updated_at else 'Sin cambios' }}</td>
+                            <td data-timestamp="{{ collection.last_updated_at or '' }}">{{ collection.last_updated_at[:10] if collection.last_updated_at else 'Sin cambios' }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

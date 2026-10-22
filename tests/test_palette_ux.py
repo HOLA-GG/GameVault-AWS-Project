@@ -1418,3 +1418,68 @@ def test_palette_profile_activity_feed_copy_button(monkeypatch, client):
     assert 'data-copy="activity@example.com"' in html
     assert 'aria-label="Copiar email activity@example.com"' in html
     assert 'title="Copiar email activity@example.com"' in html
+
+
+def test_palette_collection_relative_timestamps(monkeypatch, client):
+    """Verify that public collection insight tiles on landing.html and collection rows on admin_collections.html render data-timestamp attributes for dynamic relative time formatting."""
+    import app.routes as routes
+
+    # 1. Test public collections on landing page
+    monkeypatch.setattr(
+        routes,
+        'obtener_colecciones_publicas',
+        lambda limit=6, **kwargs: [
+            {
+                'user_id': 'user-pub-1',
+                'owner_name': 'Coleccionista Pro',
+                'owner_email': 'pro@example.com',
+                'total_games': 42,
+                'favorites_count': 12,
+                'dominant_platform': 'Nintendo',
+                'average_rating': 8.5,
+                'showcase_rating_average': 4.8,
+                'showcase_votes_count': 15,
+                'collection_visibility': 'public',
+                'last_updated_at': '2026-03-20T10:00:00Z',
+            }
+        ],
+    )
+
+    response_landing = client.get('/')
+    assert response_landing.status_code == 200
+    html_landing = response_landing.get_data(as_text=True)
+
+    assert '<strong data-timestamp="2026-03-20T10:00:00Z">2026-03-20</strong>' in html_landing
+
+    # 2. Test admin collections page
+    monkeypatch.setattr(
+        routes,
+        'obtener_resumenes_colecciones',
+        lambda collection_filter=None, limit=20, offset=0, **kwargs: [
+            {
+                'user_id': 'user-pub-1',
+                'owner_name': 'Coleccionista Pro',
+                'owner_email': 'pro@example.com',
+                'total_games': 42,
+                'favorites_count': 12,
+                'dominant_platform': 'Nintendo',
+                'average_rating': 8.5,
+                'showcase_rating_average': 4.8,
+                'showcase_votes_count': 15,
+                'collection_visibility': 'public',
+                'last_updated_at': '2026-03-20T10:00:00Z',
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        routes,
+        'contar_resumenes_colecciones',
+        lambda collection_filter=None, **kwargs: 1,
+    )
+
+    login_session(client, role='admin')
+    response_admin = client.get('/admin/collections')
+    assert response_admin.status_code == 200
+    html_admin = response_admin.get_data(as_text=True)
+
+    assert '<td data-timestamp="2026-03-20T10:00:00Z">2026-03-20</td>' in html_admin

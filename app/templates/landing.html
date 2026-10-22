@@ -116,7 +116,7 @@
                         <span>rating medio</span>
                     </div>
                     <div class="insight-tile">
-                        <strong>{{ collection.last_updated_at[:10] if collection.last_updated_at else '—' }}</strong>
+                        <strong data-timestamp="{{ collection.last_updated_at or '' }}">{{ collection.last_updated_at[:10] if collection.last_updated_at else '—' }}</strong>
                         <span>último cambio</span>
                     </div>
                 </div>
