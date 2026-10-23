@@ -1707,95 +1707,109 @@ def editar_juego_ruta(game_id):
 @limiter.limit('5 per hour', methods=['POST'])
 def registro():
     """Registro simplificado para coleccionistas."""
-    if session.get('user_id'):
+    try:
+        if session.get('user_id'):
+            return redirect(url_for('main.dashboard'))
+
+        if request.method == 'GET':
+            return render_template('registro.html')
+
+        nombre = request.form.get('nombre', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        prefijo_pais = request.form.get('prefijo_pais', '').strip()
+        telefono = request.form.get('telefono', '').strip()
+        password = request.form.get('password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+
+        errores = []
+        if not nombre:
+            errores.append('El nombre es requerido.')
+        elif len(nombre) > 120:
+            errores.append('El nombre es demasiado largo (máximo 120 caracteres).')
+        if not email:
+            errores.append('El email es requerido.')
+        elif not validar_email(email):
+            errores.append('El formato o la longitud del email no son válidos.')
+        if not password:
+            errores.append('La contraseña es requerida.')
+        elif not validar_password(password, email=email, nombre=nombre, telefono=telefono):
+            errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
+        if prefijo_pais and len(prefijo_pais) > 10:
+            errores.append('El prefijo de país es demasiado largo (máximo 10 caracteres).')
+        if telefono and not validar_telefono(telefono):
+            errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
+        if len(confirm_password) > 128:
+            errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
+        if password != confirm_password:
+            errores.append('Las contraseñas no coinciden.')
+        # Bolt Optimization: Fetch user with format_dates=False and fields=['user_id'] to reduce SQL payload during existence check.
+        if obtener_usuario_por_email(email, format_dates=False, fields=['user_id']):
+            errores.append('Ese correo ya está registrado.')
+
+        if errores:
+            for error in errores:
+                flash(error, 'error')
+            crear_log_audit(
+                user_id=None,
+                action='REGISTER',
+                resource='users',
+                details={'email': email, 'errors': errores},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return redirect(url_for('main.registro'))
+
+        password_hash = generate_password_hash(password)
+        resultado = crear_usuario(nombre, '', email, prefijo_pais, telefono, password_hash)
+        if not resultado:
+            crear_log_audit(
+                user_id=None,
+                action='REGISTER',
+                resource='users',
+                details={'email': email, 'reason': 'account_creation_failed'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No se pudo crear tu cuenta. Intenta de nuevo.', 'error')
+            return redirect(url_for('main.registro'))
+
+        session.clear()
+        session.permanent = True
+        session['user_id'] = resultado['user_id']
+        session['email'] = resultado['email']
+        session['nombre'] = resultado['nombre']
+        session['role'] = resultado.get('role', 'user')
+        # Store a SHA256 of the password hash to detect changes and invalidate other sessions
+        session['_pw_hash'] = hashlib.sha256(password_hash.encode('utf-8')).hexdigest()
+        # Pin session to current User-Agent (Security enhancement)
+        session['_user_agent'] = request.headers.get('User-Agent', 'unknown')
+
+        crear_log_audit(
+            user_id=resultado['user_id'],
+            action='REGISTER',
+            resource='users',
+            details={'email': email},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        flash(f'Bienvenido a GameVault, {nombre}.', 'success')
         return redirect(url_for('main.dashboard'))
-
-    if request.method == 'GET':
-        return render_template('registro.html')
-
-    nombre = request.form.get('nombre', '').strip()
-    email = request.form.get('email', '').strip().lower()
-    prefijo_pais = request.form.get('prefijo_pais', '').strip()
-    telefono = request.form.get('telefono', '').strip()
-    password = request.form.get('password', '').strip()
-    confirm_password = request.form.get('confirm_password', '').strip()
-
-    errores = []
-    if not nombre:
-        errores.append('El nombre es requerido.')
-    elif len(nombre) > 120:
-        errores.append('El nombre es demasiado largo (máximo 120 caracteres).')
-    if not email:
-        errores.append('El email es requerido.')
-    elif not validar_email(email):
-        errores.append('El formato o la longitud del email no son válidos.')
-    if not password:
-        errores.append('La contraseña es requerida.')
-    elif not validar_password(password, email=email, nombre=nombre, telefono=telefono):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
-    if prefijo_pais and len(prefijo_pais) > 10:
-        errores.append('El prefijo de país es demasiado largo (máximo 10 caracteres).')
-    if telefono and not validar_telefono(telefono):
-        errores.append('El teléfono debe contener entre 7 y 20 dígitos.')
-    if len(confirm_password) > 128:
-        errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
-    if password != confirm_password:
-        errores.append('Las contraseñas no coinciden.')
-    # Bolt Optimization: Fetch user with format_dates=False and fields=['user_id'] to reduce SQL payload during existence check.
-    if obtener_usuario_por_email(email, format_dates=False, fields=['user_id']):
-        errores.append('Ese correo ya está registrado.')
-
-    if errores:
-        for error in errores:
-            flash(error, 'error')
+    except Exception as exc:
+        current_app.logger.error('registro_failed error=%s', exc)
         crear_log_audit(
             user_id=None,
             action='REGISTER',
             resource='users',
-            details={'email': email, 'errors': errores},
+            details={'reason': 'exception_raised', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
+        flash('No se pudo procesar el registro.', 'error')
         return redirect(url_for('main.registro'))
-
-    password_hash = generate_password_hash(password)
-    resultado = crear_usuario(nombre, '', email, prefijo_pais, telefono, password_hash)
-    if not resultado:
-        crear_log_audit(
-            user_id=None,
-            action='REGISTER',
-            resource='users',
-            details={'email': email, 'reason': 'account_creation_failed'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('No se pudo crear tu cuenta. Intenta de nuevo.', 'error')
-        return redirect(url_for('main.registro'))
-
-    session.clear()
-    session.permanent = True
-    session['user_id'] = resultado['user_id']
-    session['email'] = resultado['email']
-    session['nombre'] = resultado['nombre']
-    session['role'] = resultado.get('role', 'user')
-    # Store a SHA256 of the password hash to detect changes and invalidate other sessions
-    session['_pw_hash'] = hashlib.sha256(password_hash.encode('utf-8')).hexdigest()
-    # Pin session to current User-Agent (Security enhancement)
-    session['_user_agent'] = request.headers.get('User-Agent', 'unknown')
-
-    crear_log_audit(
-        user_id=resultado['user_id'],
-        action='REGISTER',
-        resource='users',
-        details={'email': email},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash(f'Bienvenido a GameVault, {nombre}.', 'success')
-    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/login', methods=['GET', 'POST'])

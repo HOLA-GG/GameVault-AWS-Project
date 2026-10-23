@@ -67,3 +67,8 @@
 **Vulnerability:** Unhandled runtime or database exceptions in password recovery routes (`/forgot-password` and `/forgot-password/manual`) could trigger 500 internal server error crashes and bypass audit trail logging for failed password reset requests.
 **Learning:** Authentication and recovery handlers that lack top-level try-except error handling can crash on unexpected backend or database exceptions, exposing 500 internal server errors and creating auditing blind spots when failure events go unrecorded.
 **Prevention:** Always wrap authentication and password recovery route handlers in top-level `try...except` blocks, logging exceptions via `current_app.logger.error`, recording `crear_log_audit` with `status='FAILED'`, and redirecting safely with a user-friendly flash error message.
+
+## 2026-12-14 - Defensive Exception Handling and Failure Audit Logging for User Registration
+**Vulnerability:** Unhandled runtime or database exceptions in user registration (`/registro`) could trigger 500 internal server error crashes and bypass audit trail logging for failed user registration requests.
+**Learning:** Registration route handlers that lack top-level try-except error handling can crash on unexpected database connection loss or runtime errors during user existence lookups or password hashing, exposing internal 500 server errors and creating auditing blind spots when registration failure attempts go unrecorded.
+**Prevention:** Always wrap user registration handlers in top-level `try...except` blocks, logging exceptions via `current_app.logger.error`, recording `crear_log_audit` with `status='FAILED'`, flashing a user-friendly error message, and redirecting safely.
