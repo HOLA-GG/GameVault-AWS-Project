@@ -1142,6 +1142,38 @@ def test_demo_form_title_clear_button_and_result_copy_rendered(client):
     assert 'aria-label="Copiar título Chrono Trigger Demo"' in html_res
 
 
+def test_demo_result_image_lightbox_rendered(client):
+    """Verify that demo_result.html renders the interactive zoom trigger, lightbox modal, ARIA attributes, and JS handlers."""
+    import io
+    data = {
+        'titulo': 'Lightbox Demo Game',
+        'imagen': (io.BytesIO(b'fake image data'), 'cover.jpg'),
+    }
+    response = client.post('/demo', data=data, content_type='multipart/form-data')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    # Check for zoom button trigger
+    assert 'id="demoImageZoomBtn"' in html
+    assert 'aria-label="Ver portada de Lightbox Demo Game en pantalla completa"' in html
+    assert 'title="Ver portada en pantalla completa"' in html
+
+    # Check for lightbox modal dialog markup and attributes
+    assert 'id="demoLightboxModal"' in html
+    assert 'role="dialog"' in html
+    assert 'aria-modal="true"' in html
+    assert 'aria-label="Vista ampliada de la portada Lightbox Demo Game"' in html
+    assert 'id="demoLightboxCloseBtn"' in html
+    assert 'aria-label="Cerrar vista ampliada"' in html
+    assert 'title="Cerrar vista ampliada (Esc)"' in html
+
+    # Check for JS event handlers and screen reader announcements
+    assert 'closeLightbox' in html
+    assert "zoomBtn.addEventListener('click'" in html
+    assert "window.announceToScreenReader?.('Vista ampliada de la portada abierta');" in html
+    assert "window.announceToScreenReader?.('Vista ampliada cerrada');" in html
+
+
 def test_palette_favorite_checkbox_and_image_remove_tooltips(client):
     """Verify that index.html, edit_game.html, and demo_form.html render the favorite checkbox script and image removal tooltips."""
     login_session(client)

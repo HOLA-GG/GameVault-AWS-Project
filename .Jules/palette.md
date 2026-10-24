@@ -209,3 +209,7 @@
 ## 2026-12-15 - Universal Progressive Relative Timestamps
 **Learning:** Exposing raw ISO timestamps via `data-timestamp` attributes on datetime elements (`<strong>`, `<td>`, `<span>`) enables client-side progressive enhancement via `setupRelativeTimes()` without altering server-side fallbacks. This converts static date strings into localized human-readable relative time strings (e.g. "hace 2 días") with hover tooltips across public showcase cards and administrative data tables.
 **Action:** Always annotate rendered datetimes with `data-timestamp="{{ dt_iso }}"` across all template views to ensure dynamic relative time formatting and time-ago consistency.
+
+## 2026-12-20 - Accessible Lightbox Focus Trapping & Modal Announcer
+**Learning:** Adding a full-screen image preview lightbox modal (`role="dialog"`, `aria-modal="true"`) to image upload result views requires explicit focus management: trapping keyboard `Tab` cycles to the active modal control (e.g., the close button), restoring focus to the originating trigger button on dismissal, and dispatching live announcements (`announceToScreenReader`) on state transitions to prevent keyboard focus from bleeding into obscured background elements.
+**Action:** When adding modal lightbox overlays, always wrap trigger images in an accessible button trigger (`cursor: zoom-in`), trap `Tab` cycles within active modal elements, restore focus on close, and announce state changes via polite ARIA live regions.
