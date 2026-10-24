@@ -1817,127 +1817,141 @@ def registro():
 @limiter.limit('5 per minute', methods=['POST'])
 def login():
     """Inicio de sesión con rate limiting."""
-    if session.get('user_id'):
-        return redirect(url_for('main.dashboard'))
+    try:
+        if session.get('user_id'):
+            return redirect(url_for('main.dashboard'))
 
-    if request.method == 'GET':
-        return render_template('login.html')
+        if request.method == 'GET':
+            return render_template('login.html')
 
-    email = request.form.get('email', '').strip().lower()
-    password = request.form.get('password', '').strip()
-    if not email or not password:
-        crear_log_audit(
-            user_id=None,
-            action='FAILED_LOGIN',
-            resource='auth',
-            details={'email': email[:255] if email else None, 'reason': 'empty_credentials'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Email y contraseña son requeridos.', 'error')
-        return redirect(url_for('main.login'))
-
-    if len(email) > 255 or len(password) > 128:
-        crear_log_audit(
-            user_id=None,
-            action='FAILED_LOGIN',
-            resource='auth',
-            details={'email': email[:255], 'reason': 'credentials_too_long'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Email o contraseña demasiado largos.', 'error')
-        return redirect(url_for('main.login'))
-
-    if not validar_email(email):
-        crear_log_audit(
-            user_id=None,
-            action='FAILED_LOGIN',
-            resource='auth',
-            details={'email': email[:255], 'reason': 'invalid_email_format'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Email o contraseña incorrectos.', 'error')
-        return redirect(url_for('main.login'))
-
-    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
-    usuario = verificar_credenciales(email, password, format_dates=False)
-
-    # Use a dummy hash for missing users to mitigate timing attacks (Security enhancement)
-    # This prevents attackers from discovering valid emails by measuring response times.
-    dummy_hash = 'scrypt:32768:8:1$I5M8muL7dw4n9QXZ$e6f7a505f876cee29b89fd0fb1fd13f8be1ac953c9b6dea87709cb9cd105c8525ad2854e1400b5de5e36b405c189a247bf212008e6259277e98a71392edcd920'
-    db_hash = usuario['password_hash'] if usuario else dummy_hash
-    password_correct = check_password_hash(db_hash, password)
-
-    if (
-        usuario is None
-        or usuario.get('status') != 'active'
-        or not password_correct
-    ):
-        crear_log_audit(
-            user_id=usuario['user_id'] if usuario else None,
-            action='FAILED_LOGIN',
-            resource='auth',
-            details={'email': email, 'reason': 'invalid_credentials_or_inactive'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('Email o contraseña incorrectos.', 'error')
-        return redirect(url_for('main.login'))
-
-    session.clear()
-    session.permanent = True
-    session['user_id'] = usuario['user_id']
-    session['email'] = usuario['email']
-    session['nombre'] = usuario['nombre']
-    session['role'] = usuario.get('role', 'user')
-    # Store a SHA256 of the password hash to detect changes and invalidate other sessions
-    session['_pw_hash'] = hashlib.sha256(usuario['password_hash'].encode('utf-8')).hexdigest()
-    # Pin session to current User-Agent (Security enhancement)
-    session['_user_agent'] = request.headers.get('User-Agent', 'unknown')
-
-    # Invalidate all active reset tokens for this user upon a successful login (Security enhancement)
-    # This prevents any outstanding/intercepted reset token from being used once the user has safely authenticated.
-    from app.models import PasswordResetToken, get_session_factory
-    from sqlalchemy import delete
-    session_factory = get_session_factory()
-    with session_factory() as db_session:
-        db_session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == usuario['user_id']))
-        db_session.commit()
-
-    crear_log_audit(
-        user_id=usuario['user_id'],
-        action='LOGIN',
-        resource='auth',
-        details={'email': email},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-
-    raw_next = request.args.get('next')
-    next_url = raw_next[:2048] if raw_next else None
-    if next_url:
-        if is_safe_url(next_url):
-            return redirect(next_url)
-        else:
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
+        if not email or not password:
             crear_log_audit(
-                user_id=usuario.get('user_id'),
-                action='UNAUTHORIZED_ACCESS',
+                user_id=None,
+                action='FAILED_LOGIN',
                 resource='auth',
-                details={'reason': 'unsafe_redirect_intercepted', 'next_url': next_url[:200]},
+                details={'email': email[:255] if email else None, 'reason': 'empty_credentials'},
                 ip_address=get_request_ip(),
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 status='FAILED',
             )
-    if session.get('role') == 'admin':
-        return redirect(url_for('main.admin_panel'))
-    return redirect(url_for('main.dashboard'))
+            flash('Email y contraseña son requeridos.', 'error')
+            return redirect(url_for('main.login'))
+
+        if len(email) > 255 or len(password) > 128:
+            crear_log_audit(
+                user_id=None,
+                action='FAILED_LOGIN',
+                resource='auth',
+                details={'email': email[:255], 'reason': 'credentials_too_long'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Email o contraseña demasiado largos.', 'error')
+            return redirect(url_for('main.login'))
+
+        if not validar_email(email):
+            crear_log_audit(
+                user_id=None,
+                action='FAILED_LOGIN',
+                resource='auth',
+                details={'email': email[:255], 'reason': 'invalid_email_format'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Email o contraseña incorrectos.', 'error')
+            return redirect(url_for('main.login'))
+
+        # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+        usuario = verificar_credenciales(email, password, format_dates=False)
+
+        # Use a dummy hash for missing users to mitigate timing attacks (Security enhancement)
+        # This prevents attackers from discovering valid emails by measuring response times.
+        dummy_hash = 'scrypt:32768:8:1$I5M8muL7dw4n9QXZ$e6f7a505f876cee29b89fd0fb1fd13f8be1ac953c9b6dea87709cb9cd105c8525ad2854e1400b5de5e36b405c189a247bf212008e6259277e98a71392edcd920'
+        db_hash = usuario['password_hash'] if usuario else dummy_hash
+        password_correct = check_password_hash(db_hash, password)
+
+        if (
+            usuario is None
+            or usuario.get('status') != 'active'
+            or not password_correct
+        ):
+            crear_log_audit(
+                user_id=usuario['user_id'] if usuario else None,
+                action='FAILED_LOGIN',
+                resource='auth',
+                details={'email': email, 'reason': 'invalid_credentials_or_inactive'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('Email o contraseña incorrectos.', 'error')
+            return redirect(url_for('main.login'))
+
+        session.clear()
+        session.permanent = True
+        session['user_id'] = usuario['user_id']
+        session['email'] = usuario['email']
+        session['nombre'] = usuario['nombre']
+        session['role'] = usuario.get('role', 'user')
+        # Store a SHA256 of the password hash to detect changes and invalidate other sessions
+        session['_pw_hash'] = hashlib.sha256(usuario['password_hash'].encode('utf-8')).hexdigest()
+        # Pin session to current User-Agent (Security enhancement)
+        session['_user_agent'] = request.headers.get('User-Agent', 'unknown')
+
+        # Invalidate all active reset tokens for this user upon a successful login (Security enhancement)
+        # This prevents any outstanding/intercepted reset token from being used once the user has safely authenticated.
+        from app.models import PasswordResetToken, get_session_factory
+        from sqlalchemy import delete
+        session_factory = get_session_factory()
+        with session_factory() as db_session:
+            db_session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == usuario['user_id']))
+            db_session.commit()
+
+        crear_log_audit(
+            user_id=usuario['user_id'],
+            action='LOGIN',
+            resource='auth',
+            details={'email': email},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+
+        raw_next = request.args.get('next')
+        next_url = raw_next[:2048] if raw_next else None
+        if next_url:
+            if is_safe_url(next_url):
+                return redirect(next_url)
+            else:
+                crear_log_audit(
+                    user_id=usuario.get('user_id'),
+                    action='UNAUTHORIZED_ACCESS',
+                    resource='auth',
+                    details={'reason': 'unsafe_redirect_intercepted', 'next_url': next_url[:200]},
+                    ip_address=get_request_ip(),
+                    user_agent=request.headers.get('User-Agent', 'unknown'),
+                    status='FAILED',
+                )
+        if session.get('role') == 'admin':
+            return redirect(url_for('main.admin_panel'))
+        return redirect(url_for('main.dashboard'))
+    except Exception as exc:
+        current_app.logger.error('login_failed error=%s', exc)
+        crear_log_audit(
+            user_id=None,
+            action='FAILED_LOGIN',
+            resource='auth',
+            details={'reason': 'exception_raised', 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudo procesar la solicitud de inicio de sesión.', 'error')
+        return redirect(url_for('main.login'))
 
 
 @main_bp.route('/logout', methods=['POST'])
