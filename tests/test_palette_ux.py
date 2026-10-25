@@ -1100,6 +1100,29 @@ def test_privacy_and_terms_navigation_landmarks(client):
     assert '← Volver al inicio' in html_terms
 
 
+def test_privacy_and_terms_page_copy_buttons_rendered(client):
+    """Verify that privacy.html and terms.html render page URL copy buttons with proper ARIA attributes."""
+    # 1. Privacy page
+    response_privacy = client.get('/privacy')
+    assert response_privacy.status_code == 200
+    html_privacy = response_privacy.get_data(as_text=True)
+
+    assert 'btn-copy' in html_privacy
+    assert 'data-copy="http://localhost/privacy"' in html_privacy
+    assert 'aria-label="Copiar enlace de Privacidad"' in html_privacy
+    assert 'title="Copiar enlace de Privacidad"' in html_privacy
+
+    # 2. Terms page
+    response_terms = client.get('/terms')
+    assert response_terms.status_code == 200
+    html_terms = response_terms.get_data(as_text=True)
+
+    assert 'btn-copy' in html_terms
+    assert 'data-copy="http://localhost/terms"' in html_terms
+    assert 'aria-label="Copiar enlace de Términos"' in html_terms
+    assert 'title="Copiar enlace de Términos"' in html_terms
+
+
 def test_dashboard_game_title_clear_button_rendered(client):
     """Verify that index.html renders the game title clear button and script handlers."""
     login_session(client)
