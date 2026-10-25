@@ -69,7 +69,7 @@ def test_user_row_to_dict_selective_projections_direct():
     assert u6['role'] == 'user'
     assert u6['status'] == 'active'
 
-    # 3-field projection (admin_logs user_map)
+    # 3-field projection (admin_logs user_map, fields=['user_id', 'email', 'nombre'])
     mapping_3 = {
         'user_id': 'u_3',
         'email': 'three@test.com',
@@ -79,6 +79,15 @@ def test_user_row_to_dict_selective_projections_direct():
     assert u3['user_id'] == 'u_3'
     assert u3['email'] == 'three@test.com'
     assert u3['nombre'] == 'Three User'
+    assert u3['role'] == 'user'
+    assert u3['status'] == 'active'
+    assert u3['created_at'] == MIN_DATE
+
+    u3_iso = _user_row_to_dict(MockRow(mapping_3), format_dates=True)
+    assert u3_iso['user_id'] == 'u_3'
+    assert u3_iso['email'] == 'three@test.com'
+    assert u3_iso['nombre'] == 'Three User'
+    assert u3_iso['created_at'] == MIN_DATE.isoformat()
 
     # 1-field projection (registration existence check)
     mapping_1 = {
