@@ -30,6 +30,8 @@ with app.app_context():
     print(f"  - PREFERRED_URL_SCHEME: {app.config.get('PREFERRED_URL_SCHEME')}")
     print(f"  - SHOW_RESET_DEBUG_TOKEN: {app.config.get('SHOW_RESET_DEBUG_TOKEN')}")
     print(f"  - SECRET_KEY: {'[SET]' if app.config.get('SECRET_KEY') else '[MISSING]'}")
+    is_render = bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+    print(f"  - Render Platform Detected: {is_render}")
     print()
 
     # 2. Database Settings & Connection Checking
@@ -141,6 +143,43 @@ with app.app_context():
     print(f"  - SENTRY_DSN: {'[SET]' if os.environ.get('SENTRY_DSN') else '[NOT SET]'}")
     print(f"  - SENTRY_TRACES_SAMPLE_RATE: {os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.0')}")
     print()
+
+    # 7. Render & Neon Platform Audit Summary
+    print("[7] Render & Neon Optimization Audit Summary:")
+    app_env = app.config.get('APP_ENV')
+    is_prod = app_env == 'production'
+
+    # Check PostgreSQL / psycopg driver normalization
+    if db_url.startswith(('postgres', 'postgresql')):
+        if '+psycopg' in db_url:
+            print("  - [OK] Database driver: SQLAlchemy 2.0+ psycopg driver configured.")
+        else:
+            print("  - [INFO] Database driver: Standard postgresql URL automatically normalized to psycopg at runtime.")
+
+        if 'sslmode=' in db_url:
+            print("  - [OK] SSL Transport: sslmode explicitly specified in DATABASE_URL.")
+        else:
+            print(f"  - [OK] SSL Transport: NEON_SSLMODE='{app.config.get('NEON_SSLMODE')}' enforced by runtime normalizer.")
+
+        if use_nullpool or pool_class_name == 'NullPool':
+            print("  - [OK] Connection Pooling: NullPool active (delegating pooling to Neon PgBouncer).")
+        else:
+            print("  - [WARNING] Connection Pooling: QueuePool active. For Neon serverless PostgreSQL on Render, NullPool is recommended.")
+    else:
+        print(f"  - [INFO] Non-Postgres backend active ({app.config.get('DATABASE_BACKEND')}). Database pooling checks skipped.")
+
+    if is_prod:
+        if app.config.get('SESSION_COOKIE_SECURE') and app.config.get('WTF_CSRF_SSL_STRICT'):
+            print("  - [OK] Security Hardening: SSL Strict CSRF and Secure Session Cookies enabled for production on Render.")
+        else:
+            print("  - [WARNING] Security Hardening: Ensure SESSION_COOKIE_SECURE=true and WTF_CSRF_SSL_STRICT=true in production.")
+
+        if app.config.get('WEB_CONCURRENCY', 1) >= 2:
+            print(f"  - [OK] Gunicorn Concurrency: WEB_CONCURRENCY={app.config.get('WEB_CONCURRENCY')} optimal for Render instances.")
+        else:
+            print(f"  - [TIP] Gunicorn Concurrency: WEB_CONCURRENCY={app.config.get('WEB_CONCURRENCY')}. Consider setting WEB_CONCURRENCY=2 for Render.")
+    else:
+        print(f"  - [INFO] Application running in '{app_env}' mode.")
 
 print("=" * 60)
 print("INFRASTRUCTURE VERIFICATION COMPLETE")
