@@ -2437,67 +2437,81 @@ def validate_token_page():
 @limiter.limit('5 per hour', methods=['POST'])
 def verify_token():
     """Valida manualmente un token y redirige al formulario final de reset."""
-    if session.get('user_id'):
-        return redirect(url_for('main.dashboard'))
+    try:
+        if session.get('user_id'):
+            return redirect(url_for('main.dashboard'))
 
-    token = request.form.get('token', '').strip()
-    if not token:
+        token = request.form.get('token', '').strip()
+        if not token:
+            crear_log_audit(
+                user_id=None,
+                action='TOKEN_VALIDATION_FAILED',
+                resource='auth',
+                details={'reason': 'empty_token', 'context': 'verify_token'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('El token es requerido.', 'error')
+            return redirect(url_for('main.validate_token_page'))
+
+        # Limit token length to prevent potential payload/hashing DoS
+        if len(token) > 128:
+            crear_log_audit(
+                user_id=None,
+                action='TOKEN_VALIDATION_FAILED',
+                resource='auth',
+                details={'reason': 'token_too_long', 'context': 'verify_token'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('El token no es válido.', 'error')
+            return redirect(url_for('main.validate_token_page'))
+
+        token_validation = validar_reset_token(token)
+        if not token_validation['valid']:
+            crear_log_audit(
+                user_id=None,
+                action='TOKEN_VALIDATION_FAILED',
+                resource='auth',
+                details={'reason': token_validation.get('error'), 'context': 'verify_token'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash(token_validation['error'], 'error')
+            return redirect(url_for('main.validate_token_page'))
+
+        # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+        user = obtener_usuario_por_id(token_validation['user_id'], format_dates=False)
+        if user is None or user.get('status') != 'active':
+            crear_log_audit(
+                user_id=token_validation.get('user_id'),
+                action='TOKEN_VALIDATION_FAILED',
+                resource='auth',
+                details={'reason': 'user_not_found_or_inactive', 'context': 'verify_token'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
+            return redirect(url_for('main.validate_token_page'))
+
+        return redirect(url_for('main.reset_password_with_email', token=token, _external=True))
+    except Exception as exc:
+        current_app.logger.error('verify_token_failed error=%s', exc)
         crear_log_audit(
             user_id=None,
             action='TOKEN_VALIDATION_FAILED',
             resource='auth',
-            details={'reason': 'empty_token', 'context': 'verify_token'},
+            details={'reason': 'exception_raised', 'context': 'verify_token', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
-        flash('El token es requerido.', 'error')
+        flash('No se pudo procesar la validación del token.', 'error')
         return redirect(url_for('main.validate_token_page'))
-
-    # Limit token length to prevent potential payload/hashing DoS
-    if len(token) > 128:
-        crear_log_audit(
-            user_id=None,
-            action='TOKEN_VALIDATION_FAILED',
-            resource='auth',
-            details={'reason': 'token_too_long', 'context': 'verify_token'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('El token no es válido.', 'error')
-        return redirect(url_for('main.validate_token_page'))
-
-    token_validation = validar_reset_token(token)
-    if not token_validation['valid']:
-        crear_log_audit(
-            user_id=None,
-            action='TOKEN_VALIDATION_FAILED',
-            resource='auth',
-            details={'reason': token_validation.get('error'), 'context': 'verify_token'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash(token_validation['error'], 'error')
-        return redirect(url_for('main.validate_token_page'))
-
-    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
-    user = obtener_usuario_por_id(token_validation['user_id'], format_dates=False)
-    if user is None or user.get('status') != 'active':
-        crear_log_audit(
-            user_id=token_validation.get('user_id'),
-            action='TOKEN_VALIDATION_FAILED',
-            resource='auth',
-            details={'reason': 'user_not_found_or_inactive', 'context': 'verify_token'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
-        return redirect(url_for('main.validate_token_page'))
-
-    return redirect(url_for('main.reset_password_with_email', token=token, _external=True))
 
 
 @main_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -2505,118 +2519,132 @@ def verify_token():
 @limiter.limit('5 per hour', methods=['POST'])
 def reset_password_with_email(token):
     """Permite establecer una nueva contraseña con un token válido."""
-    if session.get('user_id'):
-        return redirect(url_for('main.dashboard'))
+    try:
+        if session.get('user_id'):
+            return redirect(url_for('main.dashboard'))
 
-    # Limit token length to prevent potential payload/hashing DoS
-    if len(token) > 128:
-        crear_log_audit(
-            user_id=None,
-            action='TOKEN_VALIDATION_FAILED',
-            resource='auth',
-            details={'reason': 'token_too_long', 'context': 'reset_password'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('El token no es válido.', 'error')
-        return redirect(url_for('main.forgot_password'))
+        # Limit token length to prevent potential payload/hashing DoS
+        if len(token) > 128:
+            crear_log_audit(
+                user_id=None,
+                action='TOKEN_VALIDATION_FAILED',
+                resource='auth',
+                details={'reason': 'token_too_long', 'context': 'reset_password'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('El token no es válido.', 'error')
+            return redirect(url_for('main.forgot_password'))
 
-    token_validation = validar_reset_token(token)
-    if not token_validation['valid']:
-        crear_log_audit(
-            user_id=None,
-            action='TOKEN_VALIDATION_FAILED',
-            resource='auth',
-            details={'reason': token_validation.get('error'), 'context': 'reset_password'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash(token_validation['error'], 'error')
-        return redirect(url_for('main.forgot_password'))
+        token_validation = validar_reset_token(token)
+        if not token_validation['valid']:
+            crear_log_audit(
+                user_id=None,
+                action='TOKEN_VALIDATION_FAILED',
+                resource='auth',
+                details={'reason': token_validation.get('error'), 'context': 'reset_password'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash(token_validation['error'], 'error')
+            return redirect(url_for('main.forgot_password'))
 
-    # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
-    user = obtener_usuario_por_id(token_validation['user_id'], format_dates=False)
-    if not user or user.get('status') != 'active':
-        crear_log_audit(
-            user_id=token_validation.get('user_id'),
-            action='TOKEN_VALIDATION_FAILED',
-            resource='auth',
-            details={'reason': 'user_not_found_or_inactive', 'context': 'reset_password'},
-            ip_address=get_request_ip(),
-            user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
-        )
-        flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
-        return redirect(url_for('main.forgot_password'))
+        # Bolt Optimization: Fetch user with format_dates=False as dates are not rendered here.
+        user = obtener_usuario_por_id(token_validation['user_id'], format_dates=False)
+        if not user or user.get('status') != 'active':
+            crear_log_audit(
+                user_id=token_validation.get('user_id'),
+                action='TOKEN_VALIDATION_FAILED',
+                resource='auth',
+                details={'reason': 'user_not_found_or_inactive', 'context': 'reset_password'},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            flash('No se pudo procesar la solicitud para esta cuenta.', 'error')
+            return redirect(url_for('main.forgot_password'))
 
-    # Always use email from database to prevent email spoofing/deception via URL parameters
-    email = user.get('email', '')
+        # Always use email from database to prevent email spoofing/deception via URL parameters
+        email = user.get('email', '')
 
-    if request.method == 'GET':
-        return render_template('reset_password.html', token=token, email=email)
+        if request.method == 'GET':
+            return render_template('reset_password.html', token=token, email=email)
 
-    password = request.form.get('password', '').strip()
-    confirm_password = request.form.get('confirm_password', '').strip()
-    errores = []
-    if len(password) > 128:
-        errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
-    elif user and check_password_hash(user['password_hash'], password):
-        errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
-    if not validar_password(password, email=email, nombre=user.get('nombre'), apellido=user.get('apellido'), telefono=user.get('telefono')):
-        errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
-    if len(confirm_password) > 128:
-        errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
-    if password != confirm_password:
-        errores.append('Las contraseñas no coinciden.')
-    if user is None or user.get('status') != 'active':
-        errores.append('No se pudo procesar la solicitud para esta cuenta.')
+        password = request.form.get('password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+        errores = []
+        if len(password) > 128:
+            errores.append('La nueva contraseña es demasiado larga (máximo 128 caracteres).')
+        elif user and check_password_hash(user['password_hash'], password):
+            errores.append('La nueva contraseña no puede ser igual a la contraseña actual.')
+        if not validar_password(password, email=email, nombre=user.get('nombre'), apellido=user.get('apellido'), telefono=user.get('telefono')):
+            errores.append('La contraseña debe tener entre 8 y 128 caracteres e incluir al menos una mayúscula, una minúscula y un número.')
+        if len(confirm_password) > 128:
+            errores.append('La confirmación de la contraseña es demasiado larga (máximo 128 caracteres).')
+        if password != confirm_password:
+            errores.append('Las contraseñas no coinciden.')
+        if user is None or user.get('status') != 'active':
+            errores.append('No se pudo procesar la solicitud para esta cuenta.')
 
-    if errores:
-        for error in errores:
-            flash(error, 'error')
-        audit_details = {'email': email, 'errors': errores}
-        if 'La nueva contraseña no puede ser igual a la contraseña actual.' in errores:
-            audit_details['reason'] = 'reuse_current_password'
+        if errores:
+            for error in errores:
+                flash(error, 'error')
+            audit_details = {'email': email, 'errors': errores}
+            if 'La nueva contraseña no puede ser igual a la contraseña actual.' in errores:
+                audit_details['reason'] = 'reuse_current_password'
+            crear_log_audit(
+                user_id=token_validation['user_id'],
+                action='PASSWORD_RESET',
+                resource='auth',
+                details=audit_details,
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return render_template('reset_password.html', token=token, email=email)
+
+        resultado = actualizar_password_usuario(token_validation['user_id'], generate_password_hash(password))
+        if not resultado['success']:
+            flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
+            crear_log_audit(
+                user_id=token_validation['user_id'],
+                action='PASSWORD_RESET',
+                resource='auth',
+                details={'email': email, 'error': resultado.get('error')},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+            return render_template('reset_password.html', token=token, email=email)
+
+        # Note: actualizar_password_usuario already handles token invalidation
+        session.clear()
         crear_log_audit(
             user_id=token_validation['user_id'],
             action='PASSWORD_RESET',
             resource='auth',
-            details=audit_details,
+            details={'email': email},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
-            status='FAILED',
+            status='SUCCESS',
         )
-        return render_template('reset_password.html', token=token, email=email)
-
-    resultado = actualizar_password_usuario(token_validation['user_id'], generate_password_hash(password))
-    if not resultado['success']:
-        flash(f'No se pudo actualizar la contraseña: {resultado["error"]}', 'error')
+        flash('Tu contraseña fue actualizada. Ya puedes iniciar sesión.', 'success')
+        return redirect(url_for('main.login'))
+    except Exception as exc:
+        current_app.logger.error('reset_password_with_email_failed error=%s', exc)
         crear_log_audit(
-            user_id=token_validation['user_id'],
-            action='PASSWORD_RESET',
+            user_id=None,
+            action='TOKEN_VALIDATION_FAILED',
             resource='auth',
-            details={'email': email, 'error': resultado.get('error')},
+            details={'reason': 'exception_raised', 'context': 'reset_password', 'error': str(exc)[:100]},
             ip_address=get_request_ip(),
             user_agent=request.headers.get('User-Agent', 'unknown'),
             status='FAILED',
         )
-        return render_template('reset_password.html', token=token, email=email)
-
-    # Note: actualizar_password_usuario already handles token invalidation
-    session.clear()
-    crear_log_audit(
-        user_id=token_validation['user_id'],
-        action='PASSWORD_RESET',
-        resource='auth',
-        details={'email': email},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    flash('Tu contraseña fue actualizada. Ya puedes iniciar sesión.', 'success')
-    return redirect(url_for('main.login'))
+        flash('No se pudo procesar el restablecimiento de la contraseña.', 'error')
+        return redirect(url_for('main.forgot_password'))
 
 
 @main_bp.route('/admin')
