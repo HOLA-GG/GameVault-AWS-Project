@@ -1538,3 +1538,40 @@ def test_palette_collection_relative_timestamps(monkeypatch, client):
     html_admin = response_admin.get_data(as_text=True)
 
     assert '<td data-timestamp="2026-03-20T10:00:00Z">2026-03-20</td>' in html_admin
+
+
+def test_palette_admin_logs_selected_account_aria_current(monkeypatch, client):
+    """Verify that selected audited account cards in admin_logs.html render aria-current="true"."""
+    import app.routes as routes
+
+    monkeypatch.setattr(
+        routes,
+        'obtener_todos_logs',
+        lambda _filters, limit=300, **kwargs: [
+            {
+                'audit_id': 'a1',
+                'user_id': 'user-1',
+                'action': 'LOGIN',
+                'action_name': 'Inicio de sesión',
+                'resource': 'auth',
+                'timestamp': '2026-03-18T10:00:00+00:00',
+                'status': 'SUCCESS',
+                'ip_address': '127.0.0.1',
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        routes,
+        'obtener_usuarios_por_ids',
+        lambda user_ids, **kwargs: [
+            {'user_id': 'user-1', 'nombre': 'Tester', 'email': 'user@example.com'}
+        ],
+    )
+
+    login_session(client, role='admin')
+    response = client.get('/admin/logs?selected_user_id=user-1')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'class="log-account-card is-selected"' in html
+    assert 'aria-current="true"' in html

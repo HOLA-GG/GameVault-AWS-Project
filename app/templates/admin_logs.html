@@ -180,6 +180,7 @@
                         <a
                             class="log-account-card {% if is_selected %}is-selected{% endif %}"
                             href="{{ url_for('main.admin_logs', **query_args_builder(selected_user_id=group.user_id)) }}"
+                            {{ 'aria-current="true"'|safe if is_selected }}
                         >
                             <div class="log-account-card__top">
                                 <div class="log-account-link">
