@@ -1958,22 +1958,40 @@ def login():
 @require_login
 @limiter.limit('5 per minute')
 def logout():
-    """Cierra sesión solo por POST."""
+    """Cierra sesión solo por POST con invalidación garantizada de sesión."""
     user_id = session.get('user_id')
     email = session.get('email')
     nombre = session.get('nombre', 'Usuario')
-    crear_log_audit(
-        user_id=user_id,
-        action='LOGOUT',
-        resource='auth',
-        details={'email': email},
-        ip_address=get_request_ip(),
-        user_agent=request.headers.get('User-Agent', 'unknown'),
-        status='SUCCESS',
-    )
-    session.clear()
-    flash(f'Has cerrado sesión, {nombre}.', 'success')
-    return redirect(url_for('main.landing'))
+    try:
+        crear_log_audit(
+            user_id=user_id,
+            action='LOGOUT',
+            resource='auth',
+            details={'email': email},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='SUCCESS',
+        )
+        session.clear()
+        flash(f'Has cerrado sesión, {nombre}.', 'success')
+        return redirect(url_for('main.landing'))
+    except Exception as exc:
+        current_app.logger.error('logout_failed error=%s', exc)
+        try:
+            crear_log_audit(
+                user_id=user_id,
+                action='LOGOUT',
+                resource='auth',
+                details={'email': email, 'reason': 'exception_raised', 'error': str(exc)[:100]},
+                ip_address=get_request_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status='FAILED',
+            )
+        except Exception:
+            pass
+        session.clear()
+        flash('Has cerrado sesión.', 'success')
+        return redirect(url_for('main.landing'))
 
 
 @main_bp.route('/perfil', methods=['GET', 'POST'])
