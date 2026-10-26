@@ -77,3 +77,8 @@
 **Vulnerability:** Unhandled runtime or database exceptions in token verification (`/verify-token`) and password reset (`/reset-password/<token>`) routes could trigger 500 internal server error crashes and bypass audit trail logging for failed token validation attempts.
 **Learning:** Token validation and password reset handlers that lack top-level try-except error handling can crash on unexpected database connection loss or runtime exceptions during token resolution or user lookups, exposing internal 500 server errors and creating auditing blind spots when token validation failure attempts go unrecorded.
 **Prevention:** Always wrap token verification and password reset route handlers in top-level `try...except` blocks, logging exceptions via `current_app.logger.error`, recording `crear_log_audit` with `status='FAILED'`, flashing a user-friendly error message, and redirecting safely.
+
+## 2026-12-28 - Unconditional Session Invalidation on Logout Processing Exceptions
+**Vulnerability:** Uncaught database or logging exceptions during logout (`/logout`) could crash request execution before `session.clear()` was called, leaving user authentication sessions active on server error responses.
+**Learning:** Authentication session invalidation endpoints that perform database interactions (such as audit logging) before invalidating the session can leave sessions active if an exception occurs during pre-clear steps.
+**Prevention:** Wrap logout handlers in try-except blocks that catch unexpected exceptions, attempt recording a failed audit log entry, and always unconditionally call `session.clear()` in both success and exception paths to guarantee fail-secure session clearance.
