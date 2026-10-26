@@ -14,6 +14,11 @@ from functools import wraps
 from operator import itemgetter
 from urllib.parse import unquote, urljoin, urlparse
 
+# Bolt Optimization: Pre-instantiated itemgetter key extractors for C-speed list sorting in filter_and_sort_games.
+_IG_TITULO_LOWER = itemgetter('titulo_lower')
+_IG_CREATED_AT = itemgetter('created_at')
+_IG_UPDATED_AT = itemgetter('updated_at')
+
 from flask import (
     Blueprint,
     Response,
@@ -888,23 +893,20 @@ def filter_and_sort_games(juegos, filters):
         return filtered
 
     if sort_by == 'title_asc':
-        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor
-        # as it runs key retrieval completely at the C level in Python.
-        filtered.sort(key=itemgetter('titulo_lower'))
+        # Bolt Optimization: Using pre-instantiated operator.itemgetter avoids object instantiation overhead per sort call.
+        filtered.sort(key=_IG_TITULO_LOWER)
     elif sort_by == 'title_desc':
-        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor
-        # as it runs key retrieval completely at the C level in Python.
-        filtered.sort(key=itemgetter('titulo_lower'), reverse=True)
+        # Bolt Optimization: Using pre-instantiated operator.itemgetter avoids object instantiation overhead per sort call.
+        filtered.sort(key=_IG_TITULO_LOWER, reverse=True)
     elif sort_by == 'created_asc':
-        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor.
-        filtered.sort(key=itemgetter('created_at'))
+        # Bolt Optimization: Using pre-instantiated operator.itemgetter avoids object instantiation overhead per sort call.
+        filtered.sort(key=_IG_CREATED_AT)
     elif sort_by == 'created_desc':
-        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor.
-        filtered.sort(key=itemgetter('created_at'), reverse=True)
+        # Bolt Optimization: Using pre-instantiated operator.itemgetter avoids object instantiation overhead per sort call.
+        filtered.sort(key=_IG_CREATED_AT, reverse=True)
     else:
-        # Bolt Optimization: Using operator.itemgetter is significantly faster than a lambda-based key extractor.
-        # Also utilizes updated_at directly, as updated_at is guaranteed to be >= created_at.
-        filtered.sort(key=itemgetter('updated_at'), reverse=True)
+        # Bolt Optimization: Using pre-instantiated operator.itemgetter avoids object instantiation overhead per sort call.
+        filtered.sort(key=_IG_UPDATED_AT, reverse=True)
 
     return filtered
 
