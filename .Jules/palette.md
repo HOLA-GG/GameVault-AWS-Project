@@ -213,3 +213,7 @@
 ## 2026-12-20 - Accessible Lightbox Focus Trapping & Modal Announcer
 **Learning:** Adding a full-screen image preview lightbox modal (`role="dialog"`, `aria-modal="true"`) to image upload result views requires explicit focus management: trapping keyboard `Tab` cycles to the active modal control (e.g., the close button), restoring focus to the originating trigger button on dismissal, and dispatching live announcements (`announceToScreenReader`) on state transitions to prevent keyboard focus from bleeding into obscured background elements.
 **Action:** When adding modal lightbox overlays, always wrap trigger images in an accessible button trigger (`cursor: zoom-in`), trap `Tab` cycles within active modal elements, restore focus on close, and announce state changes via polite ARIA live regions.
+
+## 2026-12-25 - Sidebar Card Links & Semantic `aria-current="true"` Context
+**Learning:** Interactive sidebar card links (such as log account cards in two-column explorer views) often rely on visual selection classes (`.is-selected`) to highlight the active item, but fail to convey selection state to screen readers. Annotating active card links with `aria-current="true"` ensures assistive technologies immediately communicate current selection context without requiring extra live region triggers.
+**Action:** Always pair visual active/selected state classes on card navigation links with `aria-current="true"` when a specific item is filtered or focused.
