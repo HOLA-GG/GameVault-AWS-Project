@@ -102,10 +102,10 @@ _GAME_PRIORITY_SET = set(GAME_PRIORITY_OPTIONS)
 _GAME_RATING_SET = set(GAME_RATING_OPTIONS)
 
 ACTION_BADGE_GROUPS = {
-    'action-auth': {'LOGIN', 'LOGOUT', 'FAILED_LOGIN', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET', 'CHANGE_PASSWORD'},
+    'action-auth': {'LOGIN', 'LOGOUT', 'FAILED_LOGIN', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET', 'CHANGE_PASSWORD', 'UNAUTHORIZED_ACCESS', 'CSRF_FAILURE', 'TOKEN_VALIDATION_FAILED'},
     'action-games': {'CREATE_GAME', 'UPDATE_GAME', 'DELETE_GAME'},
     'action-users': {'REGISTER', 'UPDATE_PROFILE'},
-    'action-admin': {'ADMIN_ACTION'},
+    'action-admin': {'ADMIN_ACTION', 'PRESIGNED_UPLOAD_FAILED', 'RATE_SHOWCASE'},
 }
 
 # Bolt Optimization: Constant set to avoid set allocations in enrich_log_metadata.
