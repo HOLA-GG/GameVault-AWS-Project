@@ -292,6 +292,7 @@ AUDIT_ACTIONS = {
     'UNAUTHORIZED_ACCESS': 'Acceso no autorizado',
     'CSRF_FAILURE': 'Fallo de validación CSRF',
     'TOKEN_VALIDATION_FAILED': 'Fallo de validación de token',
+    'PRESIGNED_UPLOAD_FAILED': 'Fallo de carga firmada',
 }
 
 
