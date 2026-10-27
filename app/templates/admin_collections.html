@@ -55,6 +55,7 @@
     {% endif %}
 
     {% if collections %}
+        <p style="color:var(--text-secondary);margin-bottom:16px;" role="status">Mostrando <span id="visibleCollectionsCount">{{ collections|length }}</span> colecciones en esta página.</p>
         <div class="form-group" style="margin-bottom:20px;">
             <label for="adminCollectionSearch">Filtrar colecciones en esta página <small id="admin-coll-search-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
             <div style="position: relative; display: flex; align-items: center; max-width: 400px; margin-top: 6px;">
@@ -118,6 +119,11 @@
                         row.style.display = matches ? '' : 'none';
                         if (matches) visibleCount++;
                     });
+
+                    const visibleCollectionsCount = document.getElementById('visibleCollectionsCount');
+                    if (visibleCollectionsCount) {
+                        visibleCollectionsCount.textContent = term ? visibleCount : '{{ collections|length }}';
+                    }
 
                     let emptyRow = document.getElementById('adminCollectionSearchEmptyRow');
                     if (term && visibleCount === 0) {

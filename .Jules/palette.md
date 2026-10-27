@@ -217,3 +217,7 @@
 ## 2026-12-25 - Sidebar Card Links & Semantic `aria-current="true"` Context
 **Learning:** Interactive sidebar card links (such as log account cards in two-column explorer views) often rely on visual selection classes (`.is-selected`) to highlight the active item, but fail to convey selection state to screen readers. Annotating active card links with `aria-current="true"` ensures assistive technologies immediately communicate current selection context without requiring extra live region triggers.
 **Action:** Always pair visual active/selected state classes on card navigation links with `aria-current="true"` when a specific item is filtered or focused.
+
+## 2026-12-30 - Dynamic Visual Result Counts for Client-Side Search
+**Learning:** Client-side DOM filtering (e.g. hiding cards or rows in real-time as the user types) delivers fast search feedback, but leaving static visual count headers unchanged creates a confusing visual mismatch where the interface claims e.g. "20 items shown" while only 2 are visible. Wrapping numeric count indicators in dedicated `<span>` elements inside `role="status"` paragraphs and updating their text content dynamically in live search filter handlers ensures complete visual and screen reader parity.
+**Action:** Always wrap visual result count numbers in dedicated `<span>` elements (`#visibleGamesCount`, `#visibleUsersCount`, etc.) and synchronize their text content in real-time within client-side search filter listeners.

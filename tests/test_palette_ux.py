@@ -1575,3 +1575,32 @@ def test_palette_admin_logs_selected_account_aria_current(monkeypatch, client):
 
     assert 'class="log-account-card is-selected"' in html
     assert 'aria-current="true"' in html
+
+
+def test_palette_live_search_visible_counts_rendered(client):
+    """Verify that index.html, admin.html, and admin_collections.html render visual count spans and JavaScript DOM update logic for client-side search."""
+    # 1. Index / Dashboard page (for standard user)
+    login_session(client, role='user')
+    response_dash = client.get('/dashboard')
+    assert response_dash.status_code == 200
+    html_dash = response_dash.get_data(as_text=True)
+
+    assert 'id="visibleGamesCount"' in html_dash
+    assert "visibleGamesCount.textContent =" in html_dash
+
+    # 2. Admin users page (for admin)
+    login_session(client, role='admin')
+    response_admin = client.get('/admin')
+    assert response_admin.status_code == 200
+    html_admin = response_admin.get_data(as_text=True)
+
+    assert 'id="visibleUsersCount"' in html_admin
+    assert "visibleUsersCount.textContent =" in html_admin
+
+    # 3. Admin collections page (for admin)
+    response_coll = client.get('/admin/collections')
+    assert response_coll.status_code == 200
+    html_coll = response_coll.get_data(as_text=True)
+
+    assert 'id="visibleCollectionsCount"' in html_coll
+    assert "visibleCollectionsCount.textContent =" in html_coll
