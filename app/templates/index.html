@@ -257,7 +257,7 @@
 <section class="games-section">
     <h2>Mi colección</h2>
     <p style="color:var(--text-secondary);margin-bottom:20px;" role="status">
-        Mostrando {{ total_filtered_games }} de {{ total_user_games }} juegos.
+        Mostrando <span id="visibleGamesCount">{{ total_filtered_games }}</span> de {{ total_user_games }} juegos.
         {% if total_filtered_games != total_user_games %}
             <a href="{{ url_for('main.dashboard') }}" style="margin-left:8px; font-size: 0.9em; text-decoration: underline;">(Limpiar filtros)</a>
         {% endif %}
@@ -448,6 +448,11 @@
                     card.style.display = matches ? '' : 'none';
                     if (matches) visibleCount++;
                 });
+
+                const visibleGamesCount = document.getElementById('visibleGamesCount');
+                if (visibleGamesCount) {
+                    visibleGamesCount.textContent = term ? visibleCount : '{{ total_filtered_games }}';
+                }
 
                 let liveEmpty = document.getElementById('liveSearchEmptyState');
                 if (term && visibleCount === 0) {

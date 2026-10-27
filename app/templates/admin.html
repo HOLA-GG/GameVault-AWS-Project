@@ -20,7 +20,7 @@
 
 <section class="section">
     <h2>Usuarios registrados</h2>
-    <p style="color:var(--text-secondary);margin-bottom:20px;">Total actual: {{ total_usuarios }} usuarios.</p>
+    <p style="color:var(--text-secondary);margin-bottom:20px;" role="status">Total actual: <span id="visibleUsersCount">{{ total_usuarios }}</span> usuarios.</p>
 
     {% if usuarios %}
         <div class="form-group" style="margin-bottom:20px;">
@@ -104,6 +104,11 @@
                 row.style.display = matches ? '' : 'none';
                 if (matches) visibleCount++;
             });
+
+            const visibleUsersCount = document.getElementById('visibleUsersCount');
+            if (visibleUsersCount) {
+                visibleUsersCount.textContent = term ? visibleCount : '{{ total_usuarios }}';
+            }
 
             let emptyRow = document.getElementById('adminUserSearchEmptyRow');
             if (term && visibleCount === 0) {
