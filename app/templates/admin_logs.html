@@ -164,7 +164,7 @@
         <div class="log-explorer">
             <aside class="log-account-browser">
                 <div class="log-account-browser__header">
-                    <h3>Cuentas auditadas</h3>
+                    <h3>Cuentas auditadas (<span id="visibleAccountsCount">{{ grouped_logs|length }}</span>)</h3>
                     <p>Abre una cuenta para ver solo su historial.</p>
                     <div style="margin-top: 10px;">
                         <label for="adminAccountSearch" style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 4px;">Filtrar cuentas <small id="admin-account-search-hint" style="color:var(--text-secondary); font-weight: normal; margin-left: 4px;">(Presiona <kbd>/</kbd>)</small></label>
@@ -333,6 +333,11 @@
                     card.style.display = matches ? '' : 'none';
                     if (matches) visibleCount++;
                 });
+
+                const visibleAccountsCount = document.getElementById('visibleAccountsCount');
+                if (visibleAccountsCount) {
+                    visibleAccountsCount.textContent = term ? visibleCount : '{{ grouped_logs|length }}';
+                }
 
                 let emptyBlock = document.getElementById('adminAccountSearchEmptyBlock');
                 if (term && visibleCount === 0) {

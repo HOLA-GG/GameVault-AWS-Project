@@ -804,6 +804,8 @@ def test_palette_admin_account_live_filter_rendered(monkeypatch, client):
     assert 'Sin coincidencia de cuentas' in html
     assert 'id="adminAccountSearchResetBtn"' in html
     assert "window.announceToScreenReader?.('Filtro de cuentas borrado');" in html
+    assert 'id="visibleAccountsCount"' in html
+    assert "visibleAccountsCount.textContent =" in html
 
 
 def test_palette_edit_game_upload_announcement(client):
