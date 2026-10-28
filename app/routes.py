@@ -1214,58 +1214,72 @@ def salud():
 @require_login
 def dashboard():
     """Dashboard privado con búsqueda, filtros y paginación."""
-    if session.get('role') == 'admin':
-        return redirect(url_for('main.admin_panel'))
-    user_id = session['user_id']
-
-    filters = {
-        'q': request.args.get('q', '').strip()[:100],
-        'plataforma': request.args.get('plataforma', '').strip()[:100],
-        'estado': request.args.get('estado', '').strip()[:100],
-        'categoria': request.args.get('categoria', '').strip()[:100],
-        'favoritos': request.args.get('favoritos', '').strip()[:50],
-        'sort': request.args.get('sort', 'updated_desc').strip()[:50],
-    }
-    # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
     try:
-        raw_page = request.args.get('page', 1, type=int)
-        page = max(1, raw_page if raw_page is not None else 1)
-    except (ValueError, TypeError, OverflowError):
-        page = 1
+        if session.get('role') == 'admin':
+            return redirect(url_for('main.admin_panel'))
+        user_id = session['user_id']
 
-    # Bolt optimization: Calculate metrics in-memory from the already fetched list
-    # for the dashboard to avoid 9+ redundant SQL queries.
-    juegos = obtener_juegos_por_usuario(user_id)
-    dashboard_insights = build_dashboard_insights(juegos)
+        filters = {
+            'q': request.args.get('q', '').strip()[:100],
+            'plataforma': request.args.get('plataforma', '').strip()[:100],
+            'estado': request.args.get('estado', '').strip()[:100],
+            'categoria': request.args.get('categoria', '').strip()[:100],
+            'favoritos': request.args.get('favoritos', '').strip()[:50],
+            'sort': request.args.get('sort', 'updated_desc').strip()[:50],
+        }
+        # Safe page parameter bounding to prevent integer overflow and crash (Availability Hardening)
+        try:
+            raw_page = request.args.get('page', 1, type=int)
+            page = max(1, raw_page if raw_page is not None else 1)
+        except (ValueError, TypeError, OverflowError):
+            page = 1
 
-    filtered_games = filter_and_sort_games(juegos, filters)
-    pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
+        # Bolt optimization: Calculate metrics in-memory from the already fetched list
+        # for the dashboard to avoid 9+ redundant SQL queries.
+        juegos = obtener_juegos_por_usuario(user_id)
+        dashboard_insights = build_dashboard_insights(juegos)
 
-    # Bolt Optimization: Enriquecer solo los juegos de la página actual y los destacados del dashboard.
-    paginated_games = [enrich_game_metadata(juego) for juego in pagination['items']]
-    enrich_game_metadata(dashboard_insights.get('last_updated_game'))
-    enrich_game_metadata(dashboard_insights.get('next_focus'))
+        filtered_games = filter_and_sort_games(juegos, filters)
+        pagination = paginate_items(filtered_games, page, current_app.config['GAMES_PER_PAGE'])
 
-    filter_opts = dashboard_insights.get('filter_options', {})
+        # Bolt Optimization: Enriquecer solo los juegos de la página actual y los destacados del dashboard.
+        paginated_games = [enrich_game_metadata(juego) for juego in pagination['items']]
+        enrich_game_metadata(dashboard_insights.get('last_updated_game'))
+        enrich_game_metadata(dashboard_insights.get('next_focus'))
 
-    return render_template(
-        'index.html',
-        juegos=paginated_games,
-        dashboard_insights=dashboard_insights,
-        filters=filters,
-        pagination=pagination,
-        total_user_games=len(juegos),
-        total_filtered_games=len(filtered_games),
-        plataformas=filter_opts.get('plataformas', []),
-        estados=filter_opts.get('estados', []),
-        categorias=filter_opts.get('categorias', []),
-        GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
-        GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
-        GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
-        GAME_PRIORITY_OPTIONS=GAME_PRIORITY_OPTIONS,
-        GAME_RATING_OPTIONS=GAME_RATING_OPTIONS,
-        query_args_builder=build_query_args,
-    )
+        filter_opts = dashboard_insights.get('filter_options', {})
+
+        return render_template(
+            'index.html',
+            juegos=paginated_games,
+            dashboard_insights=dashboard_insights,
+            filters=filters,
+            pagination=pagination,
+            total_user_games=len(juegos),
+            total_filtered_games=len(filtered_games),
+            plataformas=filter_opts.get('plataformas', []),
+            estados=filter_opts.get('estados', []),
+            categorias=filter_opts.get('categorias', []),
+            GAME_PLATFORM_OPTIONS=GAME_PLATFORM_OPTIONS,
+            GAME_CONDITION_OPTIONS=GAME_CONDITION_OPTIONS,
+            GAME_CATEGORY_OPTIONS=GAME_CATEGORY_OPTIONS,
+            GAME_PRIORITY_OPTIONS=GAME_PRIORITY_OPTIONS,
+            GAME_RATING_OPTIONS=GAME_RATING_OPTIONS,
+            query_args_builder=build_query_args,
+        )
+    except Exception as exc:
+        current_app.logger.error('dashboard_failed error=%s', exc)
+        crear_log_audit(
+            user_id=session.get('user_id'),
+            action='VIEW_DASHBOARD',
+            resource='dashboard',
+            details={'operation': 'view_dashboard', 'error': str(exc)[:100]},
+            ip_address=get_request_ip(),
+            user_agent=request.headers.get('User-Agent', 'unknown'),
+            status='FAILED',
+        )
+        flash('No se pudo cargar el panel de control.', 'error')
+        return redirect(url_for('main.landing'))
 
 
 @main_bp.route('/api/uploads/presign', methods=['POST'])
