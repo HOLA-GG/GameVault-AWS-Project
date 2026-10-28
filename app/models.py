@@ -293,6 +293,7 @@ AUDIT_ACTIONS = {
     'CSRF_FAILURE': 'Fallo de validación CSRF',
     'TOKEN_VALIDATION_FAILED': 'Fallo de validación de token',
     'PRESIGNED_UPLOAD_FAILED': 'Fallo de carga firmada',
+    'VIEW_DASHBOARD': 'Ver panel de control',
 }
 
 
