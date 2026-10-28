@@ -1109,7 +1109,7 @@ def _audit_log_row_to_dict(row: Any, format_dates: bool = True) -> Dict[str, Any
     """Mapea una fila de DB o instancia de AuditLog a un diccionario (Optimización Bolt)."""
     # Bolt Optimization: Use EAFP pattern (try-except) to access _mapping dictionary view of Row
     # when available to avoid expensive hasattr() and getattr/AttributeError overhead.
-    # Check len(m) against common projection lengths (10, 9) to attempt direct bracket indexing
+    # Check len(m) against common projection lengths (10, 9, 8, 6) to attempt direct bracket indexing
     # m['key'] without throwing/catching KeyError exceptions on partial projections (~2.3x speedup).
     try:
         m = row._mapping
