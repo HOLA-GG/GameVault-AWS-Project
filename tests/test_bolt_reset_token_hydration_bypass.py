@@ -17,6 +17,7 @@ from app.models import (
     obtener_token_por_user_id,
     obtener_token_por_valor,
     reset_token_to_dict,
+    usar_token,
 )
 
 
@@ -120,3 +121,49 @@ def test_obtener_token_por_valor_y_user_id_bypass_hydration():
         assert obtener_token_por_user_id('') is None
         assert obtener_token_por_user_id(None) is None
         assert obtener_token_por_user_id('a' * 100) is None
+
+
+def test_usar_token_bulk_update_optimization():
+    """Verifica que usar_token actualiza el estado de un token a usado mediante la sentencia update directa."""
+    app = create_app()
+    with app.app_context():
+        email = f"boltusartoken_{uuid.uuid4().hex[:8]}@example.com"
+        user = crear_usuario(
+            nombre='UsarToken',
+            apellido='Tester',
+            email=email,
+            prefijo_pais='+1',
+            telefono='5551112233',
+            password_hash='hash12345',
+        )
+        assert user is not None
+        user_id = user['user_id']
+
+        created = crear_reset_token(user_id, '10.0.0.1')
+        assert created['success'] is True
+        raw_token = created['token']
+
+        # Verify active initially
+        active_tokens = obtener_token_por_valor(raw_token, only_active=True)
+        assert len(active_tokens) == 1
+        assert active_tokens[0]['used'] is False
+
+        # Execute usar_token
+        res = usar_token(raw_token)
+        assert res['success'] is True
+        assert res['error'] is None
+
+        # Verify no longer active
+        active_tokens_after = obtener_token_por_valor(raw_token, only_active=True)
+        assert len(active_tokens_after) == 0
+
+        # Verify used and used_at updated when fetched with only_active=False
+        all_tokens = obtener_token_por_valor(raw_token, only_active=False)
+        assert len(all_tokens) == 1
+        assert all_tokens[0]['used'] is True
+        assert all_tokens[0]['used_at'] is not None
+
+        # Repeat usar_token on already used token returns failure
+        res_repeat = usar_token(raw_token)
+        assert res_repeat['success'] is False
+        assert res_repeat['error'] == 'Token no encontrado'

@@ -1,3 +1,7 @@
+## 2026-09-25 - Direct Bulk SQL Update Statement for Token Consumption
+**Learning:** In state-transition functions like `usar_token` in `app/models.py`, executing a SELECT query to load and hydrate an ORM entity followed by mutating attributes and committing forces 2 database round-trips and ORM hydration overhead. Replacing this pattern with a single `update(Model).where(...).values(...)` statement executes in 1 database round-trip without ORM hydration, while checking `result.rowcount > 0` guarantees atomic state transitions and accurate success reporting.
+**Action:** Replace SELECT-and-mutate ORM patterns in single-record state update operations with atomic SQL `update(...)` statements checking `rowcount`.
+
 ## 2026-09-24 - Direct Bracket Indexing Fast-Path Branch for 6-Column Game SQL Projections
 **Learning:** In row-to-dictionary mappers (`_game_row_to_dict` in `app/models.py`), 6-column selective projections (`fields=['game_id', 'user_id', 'titulo', 'plataforma', 'estado', 'categoria']`) failed the full-row length check (`l == 13`) and fell through to general fallback logic. This forced 17 `.get()` method lookups per record and date formatting calls. Adding a length-gated branch `elif l == 6:` for direct bracket indexing (`m['key']`) inside a `try...except KeyError` block bypasses method lookups entirely, yielding a ~1.62x speedup on 6-column game row mapping serialization.
 **Action:** Include a length-gated fast-path branch `elif l == 6:` for 6-column selective game projections in row-to-dictionary mappers.
