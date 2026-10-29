@@ -15,8 +15,9 @@
         type="button"
         class="scroll-to-top"
         id="scrollToTopBtn"
-        aria-label="Volver arriba"
-        title="Volver arriba"
+        aria-label="Volver al inicio de la página"
+        title="Volver arriba (Presiona T)"
+        aria-keyshortcuts="T"
         hidden
     >
         <svg viewBox="0 0 24 24" aria-hidden="true" class="scroll-to-top-icon">
@@ -126,6 +127,10 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                         <span>Ir a Inicio</span>
                         <kbd>I</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <span>Volver arriba</span>
+                        <kbd>T</kbd>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                         <span>Ver ayuda de atajos</span>
@@ -867,6 +872,12 @@
                         if (link) {
                             event.preventDefault();
                             link.click();
+                        }
+                    } else if (event.key === 't' || event.key === 'T') {
+                        const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+                        if (scrollToTopBtn) {
+                            event.preventDefault();
+                            scrollToTopBtn.click();
                         }
                     }
                 }

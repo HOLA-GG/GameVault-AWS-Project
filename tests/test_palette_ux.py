@@ -162,7 +162,10 @@ def test_scroll_to_top_rendered(client):
     html = response.get_data(as_text=True)
 
     assert 'id="scrollToTopBtn"' in html
-    assert 'aria-label="Volver arriba"' in html
+    assert 'aria-label="Volver al inicio de la página"' in html
+    assert 'title="Volver arriba (Presiona T)"' in html
+    assert 'aria-keyshortcuts="T"' in html
+    assert '<kbd>T</kbd>' in html
     assert 'function setupScrollToTop()' in html
     assert 'setupScrollToTop();' in html
 
