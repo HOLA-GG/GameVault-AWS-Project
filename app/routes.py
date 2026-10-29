@@ -1153,38 +1153,43 @@ def terms():
 def demo():
     """Demo pública sin persistencia."""
     if request.method == 'POST':
-        titulo = request.form.get('titulo', '').strip()
-        imagen = request.files.get('imagen')
+        try:
+            titulo = request.form.get('titulo', '').strip()
+            imagen = request.files.get('imagen')
 
-        if not titulo:
-            flash('El título es requerido.', 'error')
+            if not titulo:
+                flash('El título es requerido.', 'error')
+                return redirect(url_for('main.demo'))
+
+            if len(titulo) > 255:
+                flash('El título es demasiado largo (máximo 255 caracteres).', 'error')
+                return redirect(url_for('main.demo'))
+
+            valid, error = is_valid_image_file(imagen)
+            if not valid:
+                flash(error, 'error')
+                return redirect(url_for('main.demo'))
+
+            imagen_base64 = procesar_imagen_base64(imagen)
+            if imagen_base64 is None:
+                flash('No se pudo procesar la imagen de la demo.', 'error')
+                return redirect(url_for('main.demo'))
+
+            raw_filename = imagen.filename if imagen else ''
+            safe_filename = secure_filename(raw_filename) if raw_filename else 'imagen_demo.jpg'
+            if not safe_filename:
+                safe_filename = 'imagen_demo.jpg'
+
+            return render_template(
+                'demo_result.html',
+                titulo=titulo,
+                imagen_base64=imagen_base64,
+                filename=safe_filename[:255],
+            )
+        except Exception as exc:
+            current_app.logger.error("Error inesperado en demo: %s", exc)
+            flash('Ocurrió un error inesperado al procesar la demo.', 'error')
             return redirect(url_for('main.demo'))
-
-        if len(titulo) > 255:
-            flash('El título es demasiado largo (máximo 255 caracteres).', 'error')
-            return redirect(url_for('main.demo'))
-
-        valid, error = is_valid_image_file(imagen)
-        if not valid:
-            flash(error, 'error')
-            return redirect(url_for('main.demo'))
-
-        imagen_base64 = procesar_imagen_base64(imagen)
-        if imagen_base64 is None:
-            flash('No se pudo procesar la imagen de la demo.', 'error')
-            return redirect(url_for('main.demo'))
-
-        raw_filename = imagen.filename if imagen else ''
-        safe_filename = secure_filename(raw_filename) if raw_filename else 'imagen_demo.jpg'
-        if not safe_filename:
-            safe_filename = 'imagen_demo.jpg'
-
-        return render_template(
-            'demo_result.html',
-            titulo=titulo,
-            imagen_base64=imagen_base64,
-            filename=safe_filename[:255],
-        )
 
     return render_template('demo_form.html')
 
