@@ -42,6 +42,7 @@ from sqlalchemy import (
     literal_column,
     select,
     text,
+    update,
 )
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -1984,7 +1985,7 @@ def validar_reset_token(reset_token: str) -> Dict[str, Any]:
 
 
 def usar_token(reset_token: str) -> Dict[str, Any]:
-    """Marca un token como usado."""
+    """Marca un token como usado (Optimización Bolt: update directo en DB sin hidratación ORM)."""
     if not reset_token or not isinstance(reset_token, str):
         return {'success': False, 'error': 'Token no encontrado'}
     try:
@@ -1992,12 +1993,18 @@ def usar_token(reset_token: str) -> Dict[str, Any]:
         session_factory = get_session_factory()
         hashed = hash_token(reset_token)
         with session_factory() as session:
-            item = session.scalar(select(PasswordResetToken).where(PasswordResetToken.reset_token == hashed))
-            if item is None:
-                return {'success': False, 'error': 'Token no encontrado'}
-            item.used = True
-            item.used_at = utcnow()
+            stmt = (
+                update(PasswordResetToken)
+                .where(
+                    PasswordResetToken.reset_token == hashed,
+                    PasswordResetToken.used.is_(False),
+                )
+                .values(used=True, used_at=utcnow())
+            )
+            result = session.execute(stmt)
             session.commit()
+            if result.rowcount == 0:
+                return {'success': False, 'error': 'Token no encontrado'}
             return {'success': True, 'error': None}
     except Exception as exc:
         try:
