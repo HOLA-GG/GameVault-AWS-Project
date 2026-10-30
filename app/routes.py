@@ -966,14 +966,20 @@ def enrich_log_metadata(log: dict | None) -> dict | None:
 @main_bp.route('/')
 def landing():
     """Landing pública orientada a coleccionistas."""
-    # Bolt Optimization: Ratings are now eagerly fetched by obtener_colecciones_publicas,
-    # eliminating the redundant N+1 logic in aplicar_ratings_showcase for public collections.
-    public_collections = obtener_colecciones_publicas(limit=6)
+    try:
+        # Bolt Optimization: Ratings are now eagerly fetched by obtener_colecciones_publicas,
+        # eliminating the redundant N+1 logic in aplicar_ratings_showcase for public collections.
+        public_collections = obtener_colecciones_publicas(limit=6)
 
-    # Bolt Performance Optimization: Fetch pre-processed and rated sample collections
-    # from a thread-safe in-memory cache to eliminate dynamic dictionary cloning and
-    # redundant rating processing on every home page visit.
-    sample_collections = obtener_sample_collections_cached()
+        # Bolt Performance Optimization: Fetch pre-processed and rated sample collections
+        # from a thread-safe in-memory cache to eliminate dynamic dictionary cloning and
+        # redundant rating processing on every home page visit.
+        sample_collections = obtener_sample_collections_cached()
+    except Exception as exc:
+        current_app.logger.error('landing_page_error error=%s', exc)
+        public_collections = []
+        sample_collections = []
+
     return render_template(
         'landing.html',
         public_collections=public_collections,
