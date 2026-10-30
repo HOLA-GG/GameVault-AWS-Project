@@ -1609,3 +1609,17 @@ def test_palette_live_search_visible_counts_rendered(client):
 
     assert 'id="visibleCollectionsCount"' in html_coll
     assert "visibleCollectionsCount.textContent =" in html_coll
+
+
+def test_palette_admin_logs_retention_cutoff_date_rendered(client):
+    """Verify that admin_logs.html renders the dynamic retention cutoff calculation and screen reader announcement handlers."""
+    login_session(client, role='admin')
+    response = client.get('/admin/logs')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert 'const diasSelect = document.getElementById(\'dias\');' in html
+    assert 'const clearLogsHelp = document.getElementById(\'clear-logs-help\');' in html
+    assert 'function updateRetentionCutoff' in html
+    assert 'clearLogsHelp.textContent =' in html
+    assert "window.announceToScreenReader?.(`Retención ajustada: se eliminarán registros anteriores al ${formattedCutoff}`);" in html
