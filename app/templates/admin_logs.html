@@ -478,6 +478,34 @@
                 window.announceToScreenReader?.(`Rango de fechas seleccionado: ${label}`);
             });
         });
+
+        const diasSelect = document.getElementById('dias');
+        const clearLogsHelp = document.getElementById('clear-logs-help');
+
+        if (diasSelect && clearLogsHelp) {
+            function updateRetentionCutoff(isInitial = false) {
+                const days = parseInt(diasSelect.value, 10);
+                if (isNaN(days)) return;
+
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - days);
+
+                const formattedCutoff = cutoffDate.toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+
+                clearLogsHelp.textContent = `Eliminará registros auditados anteriores al ${formattedCutoff} (${days} días) para optimizar el almacenamiento.`;
+
+                if (!isInitial) {
+                    window.announceToScreenReader?.(`Retención ajustada: se eliminarán registros anteriores al ${formattedCutoff}`);
+                }
+            }
+
+            updateRetentionCutoff(true);
+            diasSelect.addEventListener('change', () => updateRetentionCutoff(false));
+        }
     });
 </script>
 {% endblock %}
