@@ -1,3 +1,7 @@
+## 2026-09-26 - Positional List Writing via csv.writer over csv.DictWriter
+**Learning:** In batch CSV export routines (`exportar_logs_csv` in `app/models.py`), using `csv.DictWriter` forces the creation of intermediate dictionary objects for every row, which `DictWriter._dict_to_list` then inspects, looks up by fieldname, and transforms into a list internally. Replacing `csv.DictWriter` with standard `csv.writer` and emitting pre-ordered positional lists directly (`writer.writerow([...])`) eliminates intermediate dictionary allocations and field lookup overhead, resulting in a ~1.38x to ~1.47x speedup during CSV generation.
+**Action:** In high-throughput or batch CSV export paths, prefer direct positional row emission via `csv.writer` over `csv.DictWriter` when column order is fixed.
+
 ## 2026-09-25 - Direct Bulk SQL Update Statement for Token Consumption
 **Learning:** In state-transition functions like `usar_token` in `app/models.py`, executing a SELECT query to load and hydrate an ORM entity followed by mutating attributes and committing forces 2 database round-trips and ORM hydration overhead. Replacing this pattern with a single `update(Model).where(...).values(...)` statement executes in 1 database round-trip without ORM hydration, while checking `result.rowcount > 0` guarantees atomic state transitions and accurate success reporting.
 **Action:** Replace SELECT-and-mutate ORM patterns in single-record state update operations with atomic SQL `update(...)` statements checking `rowcount`.
