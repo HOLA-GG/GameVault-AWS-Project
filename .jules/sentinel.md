@@ -82,3 +82,8 @@
 **Vulnerability:** Uncaught database or logging exceptions during logout (`/logout`) could crash request execution before `session.clear()` was called, leaving user authentication sessions active on server error responses.
 **Learning:** Authentication session invalidation endpoints that perform database interactions (such as audit logging) before invalidating the session can leave sessions active if an exception occurs during pre-clear steps.
 **Prevention:** Wrap logout handlers in try-except blocks that catch unexpected exceptions, attempt recording a failed audit log entry, and always unconditionally call `session.clear()` in both success and exception paths to guarantee fail-secure session clearance.
+
+## 2027-01-04 - Defensive Exception Handling for Infrastructure Healthcheck Endpoints
+**Vulnerability:** In `healthz` and its alias `salud`, unexpected runtime exceptions during healthcheck execution (such as database driver failures or connection pool exhaustion) caused unhandled 500 server crashes instead of returning a valid structured JSON healthcheck response.
+**Learning:** Automated monitoring, container orchestrators, and load balancers rely on structured JSON responses and semantic HTTP 503 status codes to identify unhealthy application instances; unhandled 500 errors prevent diagnostics and leak internal error handler responses.
+**Prevention:** Wrap healthcheck route handlers in defensive `try...except` blocks that catch unexpected runtime exceptions, log the error with `current_app.logger.error`, and return a structured JSON response indicating unhealthy service state alongside an HTTP 503 status code.
