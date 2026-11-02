@@ -105,7 +105,7 @@
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
             <button type="submit" class="btn btn-primary">Filtrar</button>
             <a href="{{ url_for('main.admin_logs') }}" class="btn btn-secondary">Limpiar</a>
-            <a href="{{ url_for('main.admin_logs_export', **request.args) }}" class="btn btn-secondary" title="Exportar registros auditados a un archivo CSV" aria-label="Exportar registros auditados a un archivo CSV">Exportar CSV</a>
+            <a href="{{ url_for('main.admin_logs_export', **request.args) }}" class="btn btn-secondary" id="exportLogsBtn" download="audit_logs.csv" title="Exportar registros auditados a un archivo CSV" aria-label="Exportar registros auditados a un archivo CSV" data-loading-text="Generando CSV...">Exportar CSV</a>
         </div>
     </form>
 
