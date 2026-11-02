@@ -980,6 +980,9 @@ def test_palette_admin_forms_enhanced_ux(client):
     assert 'data-confirm="¿Eliminar logs antiguos? Esta acción no se puede deshacer."' in html_logs
     assert 'title="Exportar registros auditados a un archivo CSV"' in html_logs
     assert 'aria-label="Exportar registros auditados a un archivo CSV"' in html_logs
+    assert 'id="exportLogsBtn"' in html_logs
+    assert 'download="audit_logs.csv"' in html_logs
+    assert 'data-loading-text="Generando CSV..."' in html_logs
 
     # 2. Admin panel user edit form
     response_admin = client.get('/admin')
