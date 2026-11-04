@@ -81,3 +81,56 @@ def test_csp_no_unsafe_inline_in_script_src(client):
 
     assert script_src is not None
     assert "'unsafe-inline'" not in script_src
+
+
+def test_csp_r2_endpoint_storage_backend():
+    """Verifica que STORAGE_BACKEND='r2' con R2_ENDPOINT_URL genere las directivas CSP sin errores."""
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+        "STORAGE_BACKEND": "r2",
+        "R2_ENDPOINT_URL": "https://pub-123456.r2.dev",
+    })
+    with app.test_client() as client:
+        response = client.get('/')
+        assert response.status_code == 200
+        csp_header = response.headers.get('Content-Security-Policy', '')
+        assert "pub-123456.r2.dev" in csp_header
+        assert "img-src 'self' data: blob: pub-123456.r2.dev" in csp_header
+        assert "connect-src 'self' pub-123456.r2.dev" in csp_header
+
+
+def test_csp_r2_account_id_storage_backend():
+    """Verifica que STORAGE_BACKEND='r2' con R2_ACCOUNT_ID genere las directivas CSP correspondientes."""
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+        "STORAGE_BACKEND": "r2",
+        "R2_ENDPOINT_URL": None,
+        "R2_ACCOUNT_ID": "acct999",
+    })
+    with app.test_client() as client:
+        response = client.get('/')
+        assert response.status_code == 200
+        csp_header = response.headers.get('Content-Security-Policy', '')
+        assert "acct999.r2.cloudflarestorage.com" in csp_header
+        assert "img-src 'self' data: blob: acct999.r2.cloudflarestorage.com" in csp_header
+        assert "connect-src 'self' acct999.r2.cloudflarestorage.com" in csp_header
+
+
+def test_csp_s3_storage_backend():
+    """Verifica que STORAGE_BACKEND='s3' incluya el bucket y región en las directivas CSP."""
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+        "STORAGE_BACKEND": "s3",
+        "S3_BUCKET_NAME": "my-games-bucket",
+        "S3_REGION": "us-west-2",
+    })
+    with app.test_client() as client:
+        response = client.get('/')
+        assert response.status_code == 200
+        csp_header = response.headers.get('Content-Security-Policy', '')
+        assert "my-games-bucket.s3.us-west-2.amazonaws.com" in csp_header
+        assert "img-src 'self' data: blob: my-games-bucket.s3.us-west-2.amazonaws.com" in csp_header
+        assert "connect-src 'self' my-games-bucket.s3.us-west-2.amazonaws.com" in csp_header
