@@ -7,6 +7,7 @@ import logging
 import os
 import uuid
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from flask import Flask, g, request, session
 from flask_wtf.csrf import CSRFError

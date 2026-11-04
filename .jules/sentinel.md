@@ -87,3 +87,8 @@
 **Vulnerability:** In `healthz` and its alias `salud`, unexpected runtime exceptions during healthcheck execution (such as database driver failures or connection pool exhaustion) caused unhandled 500 server crashes instead of returning a valid structured JSON healthcheck response.
 **Learning:** Automated monitoring, container orchestrators, and load balancers rely on structured JSON responses and semantic HTTP 503 status codes to identify unhealthy application instances; unhandled 500 errors prevent diagnostics and leak internal error handler responses.
 **Prevention:** Wrap healthcheck route handlers in defensive `try...except` blocks that catch unexpected runtime exceptions, log the error with `current_app.logger.error`, and return a structured JSON response indicating unhealthy service state alongside an HTTP 503 status code.
+
+## 2027-01-11 - Scope Availability of URL Parsing Helpers for Content-Security-Policy Resolution
+**Vulnerability:** In `app/__init__.py`, `urlparse` was invoked in `log_request` during CSP header generation when `STORAGE_BACKEND='r2'` with `R2_ENDPOINT_URL` was configured, but `urlparse` was missing from module imports, causing unhandled `NameError` 500 crashes on all HTTP requests.
+**Learning:** Security header generation logic executed across every request in `@app.after_request` must have all imported utility dependencies explicitly present in the module scope; environment-dependent branches (like Cloudflare R2 vs AWS S3 storage) can remain untested if only default configs are exercised in basic test fixtures.
+**Prevention:** Always ensure parsing helpers (`urlparse`) are imported in the host module and add explicit multi-backend test coverage exercising storage-specific Content Security Policy header generation.
