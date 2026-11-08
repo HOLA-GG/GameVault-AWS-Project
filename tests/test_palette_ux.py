@@ -1626,3 +1626,90 @@ def test_palette_admin_logs_retention_cutoff_date_rendered(client):
     assert 'function updateRetentionCutoff' in html
     assert 'clearLogsHelp.textContent =' in html
     assert "window.announceToScreenReader?.(`Retención ajustada: se eliminarán registros anteriores al ${formattedCutoff}`);" in html
+
+
+def test_palette_admin_tables_th_scope_col(client, monkeypatch):
+    """Verify that table headers across admin views include scope='col' for accessibility."""
+    import app.routes as routes
+
+    monkeypatch.setattr(
+        routes,
+        'obtener_resumenes_colecciones',
+        lambda *args, **kwargs: [
+            {
+                'user_id': 'u1',
+                'owner_name': 'Tester',
+                'owner_email': 'test@example.com',
+                'collection_visibility': 'public',
+                'total_games': 5,
+                'favorites_count': 2,
+                'average_rating': 4.5,
+                'dominant_platform': 'PC',
+                'last_updated_at': '2026-03-01T12:00:00+00:00',
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        routes,
+        'contar_resumenes_colecciones',
+        lambda *args, **kwargs: 1,
+    )
+    monkeypatch.setattr(
+        routes,
+        'obtener_todos_logs',
+        lambda *args, **kwargs: [
+            {
+                'audit_id': 'log1',
+                'user_id': 'u1',
+                'action': 'LOGIN',
+                'action_name': 'Inicio de sesión',
+                'resource': 'auth',
+                'details': {},
+                'timestamp': '2026-03-01T12:00:00+00:00',
+                'ip_address': '127.0.0.1',
+                'status': 'SUCCESS',
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        routes,
+        'obtener_usuarios_por_ids',
+        lambda user_ids, **kwargs: [
+            {'user_id': 'u1', 'nombre': 'Tester', 'email': 'test@example.com'}
+        ],
+    )
+
+    login_session(client, role='admin')
+
+    # 1. Admin users panel
+    res_admin = client.get('/admin')
+    assert res_admin.status_code == 200
+    html_admin = res_admin.get_data(as_text=True)
+    assert '<th scope="col">Email</th>' in html_admin
+    assert '<th scope="col">Nombre</th>' in html_admin
+    assert '<th scope="col">Teléfono</th>' in html_admin
+    assert '<th scope="col">Rol</th>' in html_admin
+    assert '<th scope="col">Acciones</th>' in html_admin
+
+    # 2. Admin collections panel
+    res_coll = client.get('/admin/collections')
+    assert res_coll.status_code == 200
+    html_coll = res_coll.get_data(as_text=True)
+    assert '<th scope="col">Propietario</th>' in html_coll
+    assert '<th scope="col">Visibilidad</th>' in html_coll
+    assert '<th scope="col">Juegos</th>' in html_coll
+    assert '<th scope="col">Favoritos</th>' in html_coll
+    assert '<th scope="col">Rating medio</th>' in html_coll
+    assert '<th scope="col">Plataforma top</th>' in html_coll
+    assert '<th scope="col">Último cambio</th>' in html_coll
+
+    # 3. Admin logs panel (with selected user)
+    res_logs = client.get('/admin/logs?selected_user_id=u1')
+    assert res_logs.status_code == 200
+    html_logs = res_logs.get_data(as_text=True)
+    assert '<th scope="col">Fecha</th>' in html_logs
+    assert '<th scope="col">Acción</th>' in html_logs
+    assert '<th scope="col">Recurso</th>' in html_logs
+    assert '<th scope="col">Detalles</th>' in html_logs
+    assert '<th scope="col">Estado</th>' in html_logs
+    assert '<th scope="col">Origen</th>' in html_logs
