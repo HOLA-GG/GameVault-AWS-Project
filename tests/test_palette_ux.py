@@ -1713,3 +1713,42 @@ def test_palette_admin_tables_th_scope_col(client, monkeypatch):
     assert '<th scope="col">Detalles</th>' in html_logs
     assert '<th scope="col">Estado</th>' in html_logs
     assert '<th scope="col">Origen</th>' in html_logs
+
+
+def test_palette_token_and_reset_navigation_landmarks(client, monkeypatch):
+    """Verify that validate_token.html and reset_password.html render navigation landmarks and escape pathways."""
+    # 1. Validate token page
+    res_token = client.get('/validate-token')
+    assert res_token.status_code == 200
+    html_token = res_token.get_data(as_text=True)
+
+    assert 'class="nav-bar"' in html_token
+    assert 'class="nav-links"' in html_token
+    assert 'Inicio' in html_token
+    assert 'Login' in html_token
+    assert 'class="auth-toggle"' in html_token
+    assert 'Solicitar nuevo enlace' in html_token
+
+    # 2. Reset password page
+    import app.routes
+    monkeypatch.setattr(
+        app.routes,
+        'validar_reset_token',
+        lambda token, **kwargs: {'valid': True, 'user_id': 'u1', 'email': 'test@example.com'},
+    )
+    monkeypatch.setattr(
+        app.routes,
+        'obtener_usuario_por_id',
+        lambda uid, **kwargs: {'user_id': 'u1', 'email': 'test@example.com', 'status': 'active'},
+    )
+
+    res_reset = client.get('/reset-password/valid-token-123')
+    assert res_reset.status_code == 200
+    html_reset = res_reset.get_data(as_text=True)
+
+    assert 'class="nav-bar"' in html_reset
+    assert 'class="nav-links"' in html_reset
+    assert 'Inicio' in html_reset
+    assert 'Login' in html_reset
+    assert 'class="auth-toggle"' in html_reset
+    assert 'Volver a iniciar sesión' in html_reset

@@ -3,6 +3,13 @@
 {% block title %}GameVault - Validar token{% endblock %}
 
 {% block content %}
+<div class="nav-bar">
+    <div class="nav-links">
+        <a href="{{ url_for('main.landing') }}" class="btn btn-secondary">Inicio</a>
+        <a href="{{ url_for('main.login') }}" class="btn btn-secondary">Login</a>
+    </div>
+</div>
+
 <section class="section centered">
     <h2>Validar token</h2>
     <p>Usa esta opción solo si recibiste un token manual y no un enlace directo.</p>
@@ -17,6 +24,11 @@
         </div>
         <button type="submit" class="btn-submit" id="validateTokenSubmitButton" style="width:100%;" data-loading-text="Validando token...">Validar token</button>
     </form>
+
+    <div class="auth-toggle" style="margin-top: 25px;">
+        <p>¿No tienes un token o necesitas uno nuevo?</p>
+        <a href="{{ url_for('main.forgot_password') }}">Solicitar nuevo enlace</a>
+    </div>
 </section>
 
 <script nonce="{{ g.csp_nonce }}">
