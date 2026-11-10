@@ -1752,3 +1752,19 @@ def test_palette_token_and_reset_navigation_landmarks(client, monkeypatch):
     assert 'Login' in html_reset
     assert 'class="auth-toggle"' in html_reset
     assert 'Volver a iniciar sesión' in html_reset
+
+
+def test_palette_forgot_password_manual_navigation_landmarks(client):
+    """Verify that forgot_password_manual.html renders navigation landmarks and escape pathways."""
+    res = client.get('/forgot-password/manual')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+
+    assert 'class="nav-bar"' in html
+    assert 'class="nav-links"' in html
+    assert 'Inicio' in html
+    assert 'Atrás' in html
+    assert 'Login' in html
+    assert 'class="auth-toggle"' in html
+    assert 'Solicitar por correo' in html
+    assert 'Volver a iniciar sesión' in html
